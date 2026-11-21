@@ -18,8 +18,18 @@ export function getSupabaseConfig(): SupabaseConfig {
   return { url, anonKey };
 }
 
+// Global / module singleton cache to avoid multiple GoTrueClient instances
+declare global {
+  // eslint-disable-next-line no-var
+  var __supabaseBrowserClientCache: Map<string, any> | undefined;
+}
+
+const clientCache =
+  globalThis.__supabaseBrowserClientCache ||
+  (globalThis.__supabaseBrowserClientCache = new Map<string, any>());
+
 /**
- * Creates a browser-side Supabase client using @supabase/ssr.
+ * Creates or returns a cached browser-side Supabase client singleton using @supabase/ssr.
  */
 export function createBrowserClient<Database = any>(
   customUrl?: string,
@@ -28,7 +38,13 @@ export function createBrowserClient<Database = any>(
   const config = getSupabaseConfig();
   const url = customUrl || config.url;
   const anonKey = customAnonKey || config.anonKey;
-  return createSupabaseBrowserClient<Database>(url, anonKey);
+  const cacheKey = `${url}::${anonKey}`;
+
+  if (!clientCache.has(cacheKey)) {
+    clientCache.set(cacheKey, createSupabaseBrowserClient<Database>(url, anonKey));
+  }
+
+  return clientCache.get(cacheKey) as ReturnType<typeof createSupabaseBrowserClient<Database>>;
 }
 
 /**

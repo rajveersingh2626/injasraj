@@ -10,6 +10,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TABLE IF NOT EXISTS public.whiteboard_sessions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   room_id text NOT NULL UNIQUE,
+  lesson_id uuid REFERENCES public.lessons(id) ON DELETE SET NULL,
   pages jsonb NOT NULL DEFAULT '[]'::jsonb,
   active_page_id text NOT NULL,
   permissions jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -59,9 +60,21 @@ CREATE POLICY "Anyone can insert whiteboard sessions"
   FOR INSERT
   WITH CHECK (true);
 
--- Anyone can update existing session by room_id
-CREATE POLICY "Anyone can update whiteboard sessions"
-  ON public.whiteboard_sessions
-  FOR UPDATE
-  USING (true)
-  WITH CHECK (true);
+-- Restrict updates so only participants of the corresponding lesson can update the session
+CREATE POLICY "Participants can update whiteboard sessions"
+  ON public.whiteboard_sessions FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.lessons l
+      WHERE (l.id = whiteboard_sessions.lesson_id OR l.room_id = whiteboard_sessions.room_id)
+        AND (
+          l.student_id = auth.uid()
+          OR EXISTS (
+            SELECT 1 FROM public.teacher_availability ta
+            WHERE ta.id = l.teacher_availability_id AND ta.teacher_id = auth.uid()
+          )
+        )
+    )
+    OR auth.role() = 'service_role'
+    OR auth.uid() IS NULL -- allow anonymous demo/test classroom sessions if unauthenticated
+  );

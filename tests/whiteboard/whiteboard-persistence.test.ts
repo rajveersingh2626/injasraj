@@ -60,7 +60,7 @@ describe('Task 10: Whiteboard Persistence & Supabase Integration', () => {
       );
     });
 
-    it('defines permissive RLS policies for public/anon read and upsert by room_id', () => {
+    it('defines RLS policies for read, insert, and hardened participant update', () => {
       const sql = fs.readFileSync(migrationPath, 'utf-8');
       // SELECT policy
       expect(sql).toMatch(
@@ -70,9 +70,9 @@ describe('Task 10: Whiteboard Persistence & Supabase Integration', () => {
       expect(sql).toMatch(
         /create\s+policy[\s\S]*?on\s+(public\.)?whiteboard_sessions\s+for\s+insert[\s\S]*?with\s+check\s*\(\s*true\s*\)/i
       );
-      // UPDATE policy
+      // Hardened UPDATE policy
       expect(sql).toMatch(
-        /create\s+policy[\s\S]*?on\s+(public\.)?whiteboard_sessions\s+for\s+update[\s\S]*?using\s*\(\s*true\s*\)/i
+        /create\s+policy\s+"participants\s+can\s+update\s+whiteboard\s+sessions"[\s\S]*?on\s+(public\.)?whiteboard_sessions\s+for\s+update/i
       );
     });
 

@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS public.lessons (
   room_id text NOT NULL UNIQUE,
   teacher_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   student_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
+  teacher_availability_id uuid REFERENCES public.teacher_availability(id) ON DELETE SET NULL,
   student_name text NOT NULL,
   student_email text NOT NULL,
   start_time_utc timestamptz NOT NULL,
@@ -135,4 +136,11 @@ CREATE POLICY "Anyone can insert lessons"
 CREATE POLICY "Students can read booked lesson by room_id"
   ON public.lessons
   FOR SELECT
-  USING (auth.uid() = student_id OR room_id IS NOT NULL);
+  USING (
+    auth.uid() = student_id
+    OR EXISTS (
+      SELECT 1 FROM public.teacher_availability ta
+      WHERE ta.id = teacher_availability_id AND ta.teacher_id = auth.uid()
+    )
+    OR (auth.uid() IS NULL AND room_id = current_setting('request.headers', true)::json->>'x-room-id')
+  );
