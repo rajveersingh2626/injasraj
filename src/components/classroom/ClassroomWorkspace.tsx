@@ -40,7 +40,10 @@ import {
 import { FabricWhiteboardEngine } from '../../lib/whiteboard/fabric-engine';
 import { LaserTrailEngine } from '../../lib/whiteboard/laser-trail';
 import { UserUndoRedoStack } from '../../lib/whiteboard/undo-redo-stack';
-import { renderPdfPageToDataUrl } from '../../lib/whiteboard/pdf-renderer';
+import {
+  renderPdfPageToDataUrl,
+  downloadMultiPagePdf,
+} from '../../lib/whiteboard/pdf-renderer';
 import { WorksheetMaterial } from '../whiteboard/tabs/MaterialsTab';
 import { Participant } from '../whiteboard/tabs/PeopleTab';
 import { ChatMessage } from '../whiteboard/tabs/ChatTab';
@@ -545,6 +548,12 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       console.error('Failed to export canvas image:', err);
     }
   }, [roomId, currentPageIndex]);
+
+  const handleExportPdf = useCallback(() => {
+    downloadMultiPagePdf(pages, roomId).catch((err) => {
+      console.error('Failed to export lesson PDF:', err);
+    });
+  }, [pages, roomId]);
 
   // Guarded Page Clear Handler (Preserves Locked Worksheet Background)
   const handleClearPage = useCallback(() => {
@@ -1115,6 +1124,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           currentGrid={currentGrid}
           onChangeGrid={handleChangeGrid}
           onExportImage={handleExportImage}
+          onExportPdf={handleExportPdf}
         />
       </div>
 

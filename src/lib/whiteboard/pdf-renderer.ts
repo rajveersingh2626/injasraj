@@ -439,3 +439,113 @@ export async function renderPdfPageToDataUrl(
     totalPages,
   };
 }
+
+/**
+ * Compiles an array of WhiteboardPages into a compliant multi-page PDF 1.7 Blob.
+ * Embeds full 1920x1080 canvas landscape dimensions, page titles, and session metadata.
+ */
+export async function exportMultiPagePdf(
+  pages: any[],
+  roomId: string = 'classroom'
+): Promise<Blob> {
+  const effectivePages =
+    pages && pages.length > 0
+      ? pages
+      : [
+          {
+            id: 'blank-page-1',
+            pageNumber: 1,
+            title: 'Classroom Whiteboard Note',
+            canvasJson: {},
+          },
+        ];
+
+  const encoder = new TextEncoder();
+  const pageCount = effectivePages.length;
+  const objects: string[] = [];
+  const offsets: number[] = [0];
+
+  const fontObjNum = 3;
+  const firstPageObjNum = 4;
+  const firstContentObjNum = firstPageObjNum + pageCount;
+
+  // Obj 1: Catalog
+  objects.push(`1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`);
+
+  // Obj 2: Pages Root
+  const kids = Array.from({ length: pageCount }, (_, i) => `${firstPageObjNum + i} 0 R`).join(' ');
+  objects.push(`2 0 obj\n<< /Type /Pages /Kids [ ${kids} ] /Count ${pageCount} >>\nendobj\n`);
+
+  // Obj 3: Font
+  objects.push(`3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n`);
+
+  // Page Objects
+  effectivePages.forEach((_, idx) => {
+    const pageNum = firstPageObjNum + idx;
+    const contentNum = firstContentObjNum + idx;
+    objects.push(
+      `${pageNum} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 1920 1080] /Contents ${contentNum} 0 R /Resources << /Font << /F1 ${fontObjNum} 0 R >> >> >>\nendobj\n`
+    );
+  });
+
+  // Content Stream Objects
+  effectivePages.forEach((page, idx) => {
+    const contentNum = firstContentObjNum + idx;
+    const titleEscaped = (page.title || `Page ${idx + 1}`).replace(/[()\\]/g, '\\$&');
+    const roomEscaped = roomId.replace(/[()\\]/g, '\\$&');
+    const contentStream =
+      `BT\n/F1 28 Tf\n80 1000 Td\n(${titleEscaped}) Tj\n/F1 14 Tf\n0 -35 Td\n(Classroom Session: ${roomEscaped} - Page ${idx + 1} of ${pageCount}) Tj\nET\n`;
+    const streamLen = encoder.encode(contentStream).length;
+    objects.push(
+      `${contentNum} 0 obj\n<< /Length ${streamLen} >>\nstream\n${contentStream}endstream\nendobj\n`
+    );
+  });
+
+  // Assemble PDF bytes
+  let pdfString = `%PDF-1.7\n%\xE2\xE3\xCF\xD3\n`;
+
+  for (const obj of objects) {
+    offsets.push(encoder.encode(pdfString).length);
+    pdfString += obj;
+  }
+
+  const xrefOffset = encoder.encode(pdfString).length;
+  const totalObjs = objects.length + 1;
+
+  let xref = `xref\n0 ${totalObjs}\n0000000000 65535 f \n`;
+  for (let i = 1; i < totalObjs; i++) {
+    xref += String(offsets[i]).padStart(10, '0') + ` 00000 n \n`;
+  }
+
+  const trailer = `trailer\n<< /Size ${totalObjs} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+  pdfString += xref + trailer;
+
+  const u8 = encoder.encode(pdfString);
+  const blob = new Blob([u8], { type: 'application/pdf' });
+  if (typeof (blob as any).arrayBuffer !== 'function') {
+    (blob as any).arrayBuffer = async () =>
+      u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength);
+  }
+
+  return blob;
+}
+
+/**
+ * Triggers a browser download of the multi-page lesson PDF summary.
+ */
+export async function downloadMultiPagePdf(
+  pages: any[],
+  roomId: string = 'classroom'
+): Promise<void> {
+  const blob = await exportMultiPagePdf(pages, roomId);
+  if (typeof window !== 'undefined') {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `lesson-${roomId}-full-summary.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+}
