@@ -9,6 +9,7 @@ import {
   Play,
   Square,
   Clock,
+  Video as VideoIcon,
 } from 'lucide-react';
 import {
   IMediaSession,
@@ -27,6 +28,7 @@ import { VideoCard } from './VideoCard';
 import { ControlBar } from './ControlBar';
 import { ClassroomTimerWidget } from './ClassroomTimerWidget';
 import { EndClassSummaryModal, formatDuration } from './EndClassSummaryModal';
+import { ClassroomVideoSync, VideoSyncState } from './ClassroomVideoSync';
 import {
   RewardCelebrationOverlay,
   RewardEvent,
@@ -178,6 +180,10 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   const [lessonDurationSeconds, setLessonDurationSeconds] = useState<number>(0);
   const [starsAwarded, setStarsAwarded] = useState<number>(0);
   const [isEndClassModalOpen, setIsEndClassModalOpen] = useState<boolean>(false);
+
+  // Synchronized Lesson Video State
+  const [isVideoSyncOpen, setIsVideoSyncOpen] = useState<boolean>(false);
+  const [remoteVideoState, setRemoteVideoState] = useState<VideoSyncState | undefined>(undefined);
 
   useEffect(() => {
     if (sessionStatus !== 'in_progress') return;
@@ -402,6 +408,11 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           if (payload.status === 'completed') {
             setIsEndClassModalOpen(true);
           }
+        }
+      } else if (eventName === 'video-sync-state') {
+        setRemoteVideoState(payload);
+        if (payload?.url) {
+          setIsVideoSyncOpen(true);
         }
       }
     });
@@ -1075,6 +1086,21 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
 
           <button
             type="button"
+            data-testid="toggle-video-sync-btn"
+            aria-label="Toggle Synchronized Video Player"
+            onClick={() => setIsVideoSyncOpen((prev) => !prev)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-150 cursor-pointer active:scale-95 ${
+              isVideoSyncOpen
+                ? 'bg-amber-600/30 text-amber-300 border-amber-500/40'
+                : 'bg-white/[0.06] text-zinc-300 border-white/[0.08] hover:bg-white/[0.1]'
+            }`}
+          >
+            <VideoIcon className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Video</span>
+          </button>
+
+          <button
+            type="button"
             data-testid="toggle-studio-panel-btn"
             aria-label="Toggle Studio Side Panel"
             onClick={handleToggleSidePanel}
@@ -1264,6 +1290,17 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           whiteboardAdapter?.broadcastCustomEvent?.('timer-state', state);
         }}
         remoteTimerState={remoteTimerState}
+      />
+
+      {/* Synchronized Lesson Media Player */}
+      <ClassroomVideoSync
+        isOpen={isVideoSyncOpen}
+        onClose={() => setIsVideoSyncOpen(false)}
+        isTeacher={role === 'teacher'}
+        onBroadcastVideoState={(state) => {
+          whiteboardAdapter?.broadcastCustomEvent?.('video-sync-state', state);
+        }}
+        remoteVideoState={remoteVideoState}
       />
 
       {/* Student Celebratory Reward & Confetti Overlay */}

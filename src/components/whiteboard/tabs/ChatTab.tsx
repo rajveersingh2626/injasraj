@@ -33,6 +33,46 @@ function formatChatTime(timestamp: number | string): string {
   }
 }
 
+export function renderMessageText(text: string): React.ReactNode {
+  const pattern = /~([^~]+)~\s*->\s*\*([^*]+)\*/g;
+  if (!pattern.test(text)) {
+    return text;
+  }
+
+  const elements: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  pattern.lastIndex = 0;
+
+  let keyIndex = 0;
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      elements.push(text.substring(lastIndex, match.index));
+    }
+    const wrong = match[1];
+    const correct = match[2];
+
+    elements.push(
+      <span key={`corr-${keyIndex++}`} className="inline-flex items-center gap-1 mx-1 my-0.5 align-middle">
+        <span className="line-through text-rose-400 bg-rose-950/50 border border-rose-800/40 px-1 py-0.5 rounded text-[11px] font-mono">
+          {wrong}
+        </span>
+        <span className="text-stone-400 text-xs">→</span>
+        <span className="font-semibold text-emerald-400 bg-emerald-950/50 border border-emerald-800/40 px-1.5 py-0.5 rounded text-[11px] font-mono shadow-sm">
+          {correct}
+        </span>
+      </span>
+    );
+    lastIndex = pattern.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    elements.push(text.substring(lastIndex));
+  }
+
+  return <>{elements}</>;
+}
+
 export const ChatTab: React.FC<ChatTabProps> = ({
   messages = [],
   onSendMessage,
@@ -132,7 +172,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({
                       : '0 2px 8px -2px rgba(0, 0, 0, 0.3)',
                   }}
                 >
-                  {msg.text}
+                  {renderMessageText(msg.text)}
                 </div>
               </div>
             );
