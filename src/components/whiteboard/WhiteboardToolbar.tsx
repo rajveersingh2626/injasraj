@@ -126,11 +126,10 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
       role="toolbar"
       aria-label="Whiteboard Toolbar"
       data-testid="whiteboard-toolbar"
-      className={`absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 p-1.5 rounded-2xl border border-[rgba(255,255,255,0.08)] backdrop-blur-[16px] select-none text-zinc-200 ${className}`}
+      className={`absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 p-1.5 rounded-2xl border border-stone-800 bg-stone-900/95 backdrop-blur-[16px] select-none text-stone-200 shadow-2xl ${className}`}
       style={{
-        background: 'rgba(18, 18, 24, 0.78)',
         boxShadow:
-          'inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 32px -4px rgba(0, 0, 0, 0.48)',
+          'inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 32px -4px rgba(0, 0, 0, 0.48)',
       }}
     >
       {/* 1. Select Tool */}

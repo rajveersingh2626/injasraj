@@ -984,12 +984,12 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   return (
     <div
       data-testid="classroom-workspace"
-      className={`relative w-full h-full flex flex-col bg-[#07080c] text-zinc-100 overflow-hidden select-none ${className}`}
+      className={`relative w-full h-full flex flex-col bg-[#121110] text-stone-100 overflow-hidden select-none ${className}`}
     >
       {/* Top Navigation & Mode Switcher Bar */}
       <header
         data-testid="workspace-header"
-        className="relative z-30 h-14 px-4 flex items-center justify-between border-b border-white/[0.08] bg-[#0c0d14]/90 backdrop-blur-md text-white select-none shrink-0"
+        className="relative z-30 h-14 px-4 flex items-center justify-between border-b border-stone-800 bg-stone-900/90 backdrop-blur-md text-stone-100 select-none shrink-0"
       >
         {/* Left: Branding & Room Badge */}
         <div className="flex items-center gap-3">

@@ -43,11 +43,10 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
       role="toolbar"
       aria-label="Zoom Controls"
       data-testid="zoom-controls"
-      className={`absolute bottom-4 left-4 z-30 flex items-center gap-1 p-1.5 rounded-2xl border border-[rgba(255,255,255,0.08)] backdrop-blur-[16px] select-none text-zinc-200 ${className}`}
+      className={`absolute bottom-4 left-4 z-30 flex items-center gap-1 p-1.5 rounded-2xl border border-stone-800 bg-stone-900/95 backdrop-blur-[16px] select-none text-stone-200 shadow-xl ${className}`}
       style={{
-        background: 'rgba(18, 18, 24, 0.78)',
         boxShadow:
-          'inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 32px -4px rgba(0, 0, 0, 0.48)',
+          'inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 32px -4px rgba(0, 0, 0, 0.48)',
       }}
     >
       {/* Zoom Out Button */}
@@ -58,7 +57,7 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
         aria-label="Zoom out"
         data-testid="zoom-out-btn"
         style={buttonStyle}
-        className="w-8 h-8 rounded-xl flex items-center justify-center cursor-pointer active:scale-[0.97] hover:bg-white/10 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
+        className="w-8 h-8 rounded-xl flex items-center justify-center cursor-pointer active:scale-95 hover:bg-stone-800 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
       >
         <Minus className="w-4 h-4" />
       </button>
@@ -71,7 +70,7 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
         data-testid="zoom-percentage-btn"
         title="Click to reset zoom to 100%"
         style={buttonStyle}
-        className="px-2 h-8 rounded-xl flex items-center justify-center text-xs font-mono font-medium tracking-tight text-zinc-300 cursor-pointer active:scale-[0.97] hover:bg-white/10 hover:text-white"
+        className="px-2 h-8 rounded-xl flex items-center justify-center text-xs font-mono font-medium tracking-tight text-stone-300 cursor-pointer active:scale-95 hover:bg-stone-800 hover:text-white"
       >
         <span>{percentage}%</span>
       </button>
@@ -84,7 +83,7 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
         aria-label="Zoom in"
         data-testid="zoom-in-btn"
         style={buttonStyle}
-        className="w-8 h-8 rounded-xl flex items-center justify-center cursor-pointer active:scale-[0.97] hover:bg-white/10 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
+        className="w-8 h-8 rounded-xl flex items-center justify-center cursor-pointer active:scale-95 hover:bg-stone-800 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
       >
         <Plus className="w-4 h-4" />
       </button>
