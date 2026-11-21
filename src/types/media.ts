@@ -1,5 +1,7 @@
 export type CandidateType = 'host' | 'srflx' | 'prflx' | 'relay' | 'unknown' | 'direct' | 'failed';
 
+export type ClassSessionStatus = 'waiting' | 'in_progress' | 'completed';
+
 export interface ConnectionQuality {
   status: 'connecting' | 'good' | 'fair' | 'poor' | 'failed';
   rttMs: number;

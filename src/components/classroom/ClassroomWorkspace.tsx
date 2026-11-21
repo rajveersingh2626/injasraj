@@ -6,12 +6,16 @@ import {
   LayoutGrid,
   Sidebar,
   Timer as TimerIcon,
+  Play,
+  Square,
+  Clock,
 } from 'lucide-react';
 import {
   IMediaSession,
   ConnectionQuality,
   createDefaultQuality,
   TimerState,
+  ClassSessionStatus,
 } from '../../types/media';
 import {
   WhiteboardPermissions,
@@ -22,6 +26,7 @@ import {
 import { VideoCard } from './VideoCard';
 import { ControlBar } from './ControlBar';
 import { ClassroomTimerWidget } from './ClassroomTimerWidget';
+import { EndClassSummaryModal, formatDuration } from './EndClassSummaryModal';
 import {
   RewardCelebrationOverlay,
   RewardEvent,
@@ -168,6 +173,31 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   const [isTimerOpen, setIsTimerOpen] = useState<boolean>(false);
   const [remoteTimerState, setRemoteTimerState] = useState<TimerState | undefined>(undefined);
 
+  // Session Lifecycle State
+  const [sessionStatus, setSessionStatus] = useState<ClassSessionStatus>('waiting');
+  const [lessonDurationSeconds, setLessonDurationSeconds] = useState<number>(0);
+  const [starsAwarded, setStarsAwarded] = useState<number>(0);
+  const [isEndClassModalOpen, setIsEndClassModalOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (sessionStatus !== 'in_progress') return;
+    const interval = setInterval(() => {
+      setLessonDurationSeconds((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [sessionStatus]);
+
+  const handleStartClass = () => {
+    setSessionStatus('in_progress');
+    whiteboardAdapter?.broadcastCustomEvent?.('session-status-update', { status: 'in_progress' });
+  };
+
+  const handleEndClass = () => {
+    setSessionStatus('completed');
+    setIsEndClassModalOpen(true);
+    whiteboardAdapter?.broadcastCustomEvent?.('session-status-update', { status: 'completed' });
+  };
+
   // Student Reward Celebration Overlay State
   const [activeReward, setActiveReward] = useState<RewardEvent | null>(null);
 
@@ -180,6 +210,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       timestamp: Date.now(),
     };
     setActiveReward(reward);
+    setStarsAwarded((prev) => prev + 1);
     whiteboardAdapter?.broadcastCustomEvent?.('student-reward', reward);
   };
 
@@ -353,6 +384,31 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       unsubscribe();
     };
   }, [whiteboardAdapter, propOnPermissionsChange, propOnPagesChange]);
+
+  // Subscribe to real-time adapter custom events (rewards, timer, lifecycle, viewport)
+  useEffect(() => {
+    if (!whiteboardAdapter || typeof (whiteboardAdapter as any).onCustomEvent !== 'function') return;
+    const unsubscribe = (whiteboardAdapter as any).onCustomEvent((eventName: string, payload: any) => {
+      if (eventName === 'student-reward') {
+        setActiveReward(payload);
+        setStarsAwarded((prev) => prev + 1);
+      } else if (eventName === 'timer-state') {
+        setRemoteTimerState(payload);
+      } else if (eventName === 'viewport-change') {
+        setRemoteViewport(payload);
+      } else if (eventName === 'session-status-update') {
+        if (payload?.status) {
+          setSessionStatus(payload.status);
+          if (payload.status === 'completed') {
+            setIsEndClassModalOpen(true);
+          }
+        }
+      }
+    });
+    return () => {
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
+  }, [whiteboardAdapter]);
 
   // User-scoped Undo and Redo Execution Handlers
   const handleUndo = useCallback(() => {
@@ -967,8 +1023,41 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           </button>
         </div>
 
-        {/* Right: Timer & Studio Side Panel Trigger */}
+        {/* Right: Session Lifecycle, Timer & Studio Side Panel Trigger */}
         <div className="flex items-center gap-2">
+          {role === 'teacher' ? (
+            sessionStatus === 'waiting' ? (
+              <button
+                type="button"
+                data-testid="start-class-btn"
+                onClick={handleStartClass}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-stone-950 transition-all active:scale-95 shadow-sm"
+              >
+                <Play className="w-3.5 h-3.5 fill-current" />
+                <span>Start Class</span>
+              </button>
+            ) : sessionStatus === 'in_progress' ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono font-medium px-2 py-1 rounded bg-stone-800 text-amber-400 border border-stone-700/50">
+                  {formatDuration(lessonDurationSeconds)}
+                </span>
+                <button
+                  type="button"
+                  data-testid="end-class-btn"
+                  onClick={handleEndClass}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 transition-all active:scale-95"
+                >
+                  <Square className="w-3.5 h-3.5 fill-current" />
+                  <span>End Class</span>
+                </button>
+              </div>
+            ) : null
+          ) : sessionStatus === 'in_progress' ? (
+            <span className="text-xs font-mono font-medium px-2 py-1 rounded bg-stone-800 text-amber-400 border border-stone-700/50">
+              {formatDuration(lessonDurationSeconds)}
+            </span>
+          ) : null}
+
           <button
             type="button"
             data-testid="toggle-timer-btn"
@@ -1065,6 +1154,22 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           data-testid="workspace-canvas-container"
           className="relative flex-1 w-full h-full min-w-0 min-h-0 overflow-hidden flex flex-col"
         >
+          {role === 'student' && sessionStatus === 'waiting' && (
+            <div
+              data-testid="student-waiting-room"
+              className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-stone-950/85 backdrop-blur-md text-stone-200"
+            >
+              <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 animate-pulse mb-3">
+                <Clock className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-semibold text-stone-100">
+                Waiting for tutor to start the class...
+              </h3>
+              <p className="text-sm text-stone-400 mt-1">
+                Please sit tight. Your lesson will begin shortly.
+              </p>
+            </div>
+          )}
           <BrowserTabBar
             pages={pages}
             activePageId={pages[currentPageIndex - 1]?.id || pages[0]?.id || 'page-1'}
@@ -1165,6 +1270,16 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       <RewardCelebrationOverlay
         activeReward={activeReward}
         onDismiss={() => setActiveReward(null)}
+      />
+
+      {/* Post-Class Summary Modal */}
+      <EndClassSummaryModal
+        isOpen={isEndClassModalOpen}
+        durationSeconds={lessonDurationSeconds}
+        pagesCount={pages.length}
+        starsAwarded={starsAwarded}
+        onDownloadPdf={handleExportPdf}
+        onClose={() => setIsEndClassModalOpen(false)}
       />
     </div>
   );
