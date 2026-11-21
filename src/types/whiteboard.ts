@@ -58,6 +58,11 @@ export interface LaserPoint {
   opacity?: number;
 }
 
+export interface ArrowBinding {
+  targetId: string;
+  side: 'top' | 'bottom' | 'left' | 'right';
+}
+
 export type WhiteboardDeltaType =
   | 'object-added'
   | 'object-modified'

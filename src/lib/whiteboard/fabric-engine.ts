@@ -902,9 +902,99 @@ export class FabricWhiteboardEngine {
       id: objId,
     };
     const updated = this.objects[index];
+    this.updateBoundArrows(objId, updated);
     this.notifyObjectModified(updated);
     this.requestRender();
     return updated;
+  }
+
+  public getShapeAnchorPoint(
+    shape: any,
+    side: 'top' | 'bottom' | 'left' | 'right'
+  ): { x: number; y: number } {
+    const left = shape.left ?? 0;
+    const top = shape.top ?? 0;
+    const width = shape.width ?? 100;
+    const height = shape.height ?? 100;
+
+    if (shape.type === 'circle') {
+      const radius = shape.radius ?? (shape.width ? shape.width / 2 : 50);
+      const cx = left + radius;
+      const cy = top + radius;
+      switch (side) {
+        case 'left': return { x: cx - radius, y: cy };
+        case 'right': return { x: cx + radius, y: cy };
+        case 'top': return { x: cx, y: cy - radius };
+        case 'bottom': return { x: cx, y: cy + radius };
+      }
+    }
+
+    switch (side) {
+      case 'left':
+        return { x: left, y: top + height / 2 };
+      case 'right':
+        return { x: left + width, y: top + height / 2 };
+      case 'top':
+        return { x: left + width / 2, y: top };
+      case 'bottom':
+        return { x: left + width / 2, y: top + height };
+    }
+  }
+
+  public bindArrowToShape(
+    arrowId: string,
+    shapeId: string,
+    end: 'start' | 'end',
+    side: 'top' | 'bottom' | 'left' | 'right' = 'left'
+  ): any {
+    const arrow = this.getObjectById(arrowId);
+    const shape = this.getObjectById(shapeId);
+    if (!arrow || !shape) return null;
+
+    const anchor = this.getShapeAnchorPoint(shape, side);
+    if (end === 'start') {
+      arrow.startBinding = { targetId: shapeId, side };
+      arrow.x1 = anchor.x;
+      arrow.y1 = anchor.y;
+    } else {
+      arrow.endBinding = { targetId: shapeId, side };
+      arrow.x2 = anchor.x;
+      arrow.y2 = anchor.y;
+    }
+
+    this.notifyObjectModified(arrow);
+    this.requestRender();
+    return arrow;
+  }
+
+  public updateBoundArrows(shapeId: string, shapeObj?: any): void {
+    const shape = shapeObj || this.getObjectById(shapeId);
+    if (!shape) return;
+
+    for (const obj of this.objects) {
+      if (obj.type === 'arrow' || obj.type === 'line') {
+        let modified = false;
+        if (obj.startBinding && obj.startBinding.targetId === shapeId) {
+          const pt = this.getShapeAnchorPoint(shape, obj.startBinding.side);
+          obj.x1 = pt.x;
+          obj.y1 = pt.y;
+          modified = true;
+        }
+        if (obj.endBinding && obj.endBinding.targetId === shapeId) {
+          const pt = this.getShapeAnchorPoint(shape, obj.endBinding.side);
+          obj.x2 = pt.x;
+          obj.y2 = pt.y;
+          modified = true;
+        }
+        if (modified) {
+          this.notifyObjectModified(obj);
+        }
+      }
+    }
+  }
+
+  public updateShapeText(shapeId: string, text: string): any {
+    return this.modifyObject(shapeId, { text });
   }
 
   // ==========================================
@@ -1394,6 +1484,17 @@ export class FabricWhiteboardEngine {
           context.lineWidth = obj.strokeWidth;
           context.stroke();
         }
+        if (obj.text) {
+          context.save();
+          const fontSize = obj.fontSize ?? 16;
+          const fontFamily = obj.fontFamily ?? 'Inter, system-ui, sans-serif';
+          context.font = `${fontSize}px ${fontFamily}`;
+          context.fillStyle = obj.textColor || obj.stroke || '#000000';
+          context.textAlign = 'center';
+          context.textBaseline = 'middle';
+          context.fillText(obj.text, left + width / 2, top + height / 2);
+          context.restore();
+        }
         break;
       }
       case 'circle': {
@@ -1410,6 +1511,17 @@ export class FabricWhiteboardEngine {
           context.strokeStyle = obj.stroke;
           context.lineWidth = obj.strokeWidth;
           context.stroke();
+        }
+        if (obj.text) {
+          context.save();
+          const fontSize = obj.fontSize ?? 16;
+          const fontFamily = obj.fontFamily ?? 'Inter, system-ui, sans-serif';
+          context.font = `${fontSize}px ${fontFamily}`;
+          context.fillStyle = obj.textColor || obj.stroke || '#000000';
+          context.textAlign = 'center';
+          context.textBaseline = 'middle';
+          context.fillText(obj.text, centerX, centerY);
+          context.restore();
         }
         break;
       }
@@ -1431,6 +1543,17 @@ export class FabricWhiteboardEngine {
           context.strokeStyle = obj.stroke;
           context.lineWidth = obj.strokeWidth;
           context.stroke();
+        }
+        if (obj.text) {
+          context.save();
+          const fontSize = obj.fontSize ?? 16;
+          const fontFamily = obj.fontFamily ?? 'Inter, system-ui, sans-serif';
+          context.font = `${fontSize}px ${fontFamily}`;
+          context.fillStyle = obj.textColor || obj.stroke || '#000000';
+          context.textAlign = 'center';
+          context.textBaseline = 'middle';
+          context.fillText(obj.text, left + width / 2, top + (height * 2) / 3);
+          context.restore();
         }
         break;
       }
