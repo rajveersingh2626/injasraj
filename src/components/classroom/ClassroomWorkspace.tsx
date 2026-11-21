@@ -20,6 +20,7 @@ import {
 import { VideoCard } from './VideoCard';
 import { ControlBar } from './ControlBar';
 import { WhiteboardStage } from '../whiteboard/WhiteboardStage';
+import { BrowserTabBar } from '../whiteboard/BrowserTabBar';
 import { StudioSidePanel } from '../whiteboard/StudioSidePanel';
 import { WhiteboardPageManager } from '../../lib/whiteboard/page-manager';
 import { WhiteboardRealtimeAdapter } from '../../lib/whiteboard/whiteboard-signaling';
@@ -687,6 +688,16 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     propOnPagesChange?.(pageManagerRef.current.getAllPages());
   };
 
+  const handleRenamePage = (pageId: string, newTitle: string) => {
+    const page = pageManagerRef.current.getPage(pageId);
+    if (page) {
+      page.title = newTitle;
+      setPages([...pageManagerRef.current.getAllPages()]);
+      schedulePersist();
+      propOnPagesChange?.(pageManagerRef.current.getAllPages());
+    }
+  };
+
   const handleSelectPage = (pageId: string) => {
     pageManagerRef.current.setActivePage(pageId);
     const idx = pageManagerRef.current.getActivePageIndex();
@@ -999,6 +1010,15 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           data-testid="workspace-canvas-container"
           className="relative flex-1 w-full h-full min-w-0 min-h-0 overflow-hidden flex flex-col"
         >
+          <BrowserTabBar
+            pages={pages}
+            activePageId={pages[currentPageIndex - 1]?.id || pages[0]?.id || 'page-1'}
+            onSelectTab={handleSelectPage}
+            onAddTab={handleAddPage}
+            onCloseTab={handleDeletePage}
+            onRenameTab={handleRenamePage}
+            isTeacher={role === 'teacher'}
+          />
           <WhiteboardStage
             role={role}
             userId={userId}
