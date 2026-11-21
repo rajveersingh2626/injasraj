@@ -545,6 +545,34 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
 
   const bannerBadge = getBannerBadge();
 
+  // Dynamic canvas cursor mapping based on active tool
+  const getToolCursorClass = (tool: WhiteboardToolType) => {
+    switch (tool) {
+      case 'select':
+        return 'cursor-default';
+      case 'pan':
+        return 'cursor-grab';
+      case 'text':
+        return 'cursor-text';
+      case 'sticky':
+        return 'cursor-copy';
+      case 'eraser':
+        return 'cursor-cell';
+      case 'laser':
+        return 'cursor-none';
+      case 'pen':
+      case 'pencil':
+      case 'highlighter':
+      case 'rect':
+      case 'circle':
+      case 'triangle':
+      case 'line':
+      case 'arrow':
+      default:
+        return 'cursor-crosshair';
+    }
+  };
+
   return (
     <div
       ref={containerRef}
@@ -578,7 +606,9 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
           data-testid="whiteboard-canvas"
           width={1920}
           height={1080}
-          className="w-full h-full block bg-white rounded-lg shadow-inner touch-none cursor-crosshair"
+          className={`w-full h-full block bg-white rounded-lg shadow-inner touch-none ${getToolCursorClass(
+            activeTool
+          )}`}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onMouseDown={handlePointerDown}

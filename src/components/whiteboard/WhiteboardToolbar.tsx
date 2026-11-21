@@ -5,6 +5,7 @@ import {
   Pen,
   Pencil,
   Highlighter,
+  Eraser,
   Shapes,
   Square,
   Circle,
@@ -212,6 +213,23 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
         )}`}
       >
         <Highlighter className="w-4 h-4" />
+      </button>
+
+      {/* 5b. Dedicated Eraser Tool */}
+      <button
+        type="button"
+        onClick={() => onSelectTool('eraser')}
+        disabled={!isToolAllowed('eraser')}
+        aria-label="Eraser tool"
+        data-testid="tool-eraser"
+        data-active={activeTool === 'eraser'}
+        title="Eraser (E)"
+        style={baseButtonStyle}
+        className={`w-9 h-9 rounded-xl flex items-center justify-center border cursor-pointer active:scale-[0.97] ${getToolButtonClass(
+          'eraser'
+        )}`}
+      >
+        <Eraser className="w-4 h-4" />
       </button>
 
       {/* 6. Shapes Menu Anchor */}
