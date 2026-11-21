@@ -58,6 +58,52 @@ export function resolveIceServers(customServers?: RTCIceServer[]): RTCIceServer[
 
 export const DEFAULT_ICE_SERVERS: RTCIceServer[] = resolveIceServers();
 
+export const DEFAULT_VIDEO_CONSTRAINTS: MediaTrackConstraints = {
+  width: { ideal: 1280, max: 1280 },
+  height: { ideal: 720, max: 720 },
+  frameRate: { ideal: 30, max: 30 },
+};
+
+export const DEFAULT_AUDIO_CONSTRAINTS: MediaTrackConstraints = {
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: true,
+  sampleRate: 48000,
+  channelCount: 1,
+  latency: 0,
+};
+
+export async function acquireOptimizedUserMedia(
+  constraints?: MediaStreamConstraints
+): Promise<MediaStream> {
+  if (
+    typeof navigator === 'undefined' ||
+    !navigator.mediaDevices ||
+    typeof navigator.mediaDevices.getUserMedia !== 'function'
+  ) {
+    throw new Error('navigator.mediaDevices.getUserMedia is not available');
+  }
+
+  const finalConstraints: MediaStreamConstraints = {
+    video:
+      constraints?.video === false
+        ? false
+        : {
+            ...DEFAULT_VIDEO_CONSTRAINTS,
+            ...(typeof constraints?.video === 'object' ? constraints.video : {}),
+          },
+    audio:
+      constraints?.audio === false
+        ? false
+        : {
+            ...DEFAULT_AUDIO_CONSTRAINTS,
+            ...(typeof constraints?.audio === 'object' ? constraints.audio : {}),
+          },
+  };
+
+  return navigator.mediaDevices.getUserMedia(finalConstraints);
+}
+
 export interface P2PSessionOptions {
   iceServers?: RTCIceServer[];
   polite?: boolean;
@@ -123,7 +169,10 @@ export class P2PWebRTCMediaSession implements IMediaSession {
     // 2. Initialize RTCPeerConnection if not provided
     if (!this.peerConnection) {
       if (typeof RTCPeerConnection !== 'undefined') {
-        this.peerConnection = new RTCPeerConnection({ iceServers: this.iceServers });
+        this.peerConnection = new RTCPeerConnection({
+          iceServers: this.iceServers,
+          iceCandidatePoolSize: 2,
+        });
       } else {
         throw new Error('RTCPeerConnection is not supported in this runtime environment');
       }
@@ -148,6 +197,7 @@ export class P2PWebRTCMediaSession implements IMediaSession {
           this.localVideoTrack,
           ...(this.localStream ? [this.localStream] : [])
         );
+        this.applyVideoEncodingParameters(this.videoSender).catch(() => {});
       }
     }
 
@@ -368,7 +418,35 @@ export class P2PWebRTCMediaSession implements IMediaSession {
           videoTrack,
           ...(this.localStream ? [this.localStream] : [])
         );
+        this.applyVideoEncodingParameters(this.videoSender).catch(() => {});
       }
+    }
+  }
+
+  public async applyVideoEncodingParameters(sender?: RTCRtpSender): Promise<void> {
+    const videoSender = sender || this.getVideoSender();
+    if (
+      !videoSender ||
+      typeof videoSender.getParameters !== 'function' ||
+      typeof videoSender.setParameters !== 'function'
+    ) {
+      return;
+    }
+    try {
+      const params = videoSender.getParameters() || {};
+      if (!params.encodings || params.encodings.length === 0) {
+        params.encodings = [{}];
+      }
+      params.encodings[0] = {
+        ...params.encodings[0],
+        maxBitrate: 800000,
+        maxFramerate: 30,
+        priority: 'high',
+        networkPriority: 'high',
+      };
+      await videoSender.setParameters(params);
+    } catch (err) {
+      console.warn('Could not apply video sender encoding parameters:', err);
     }
   }
 
