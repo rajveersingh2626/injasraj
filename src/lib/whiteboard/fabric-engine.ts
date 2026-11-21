@@ -218,8 +218,9 @@ export class FabricWhiteboardEngine {
   // Callbacks
   private objectAddedCallbacks: Array<(obj: any) => void> = [];
   private objectModifiedCallbacks: Array<(obj: any) => void> = [];
-  private objectRemovedCallbacks: Array<(objId: string, obj?: any) => void> = [];
+  private objectRemovedCallbacks: Array<(objId: string) => void> = [];
   private laserMoveCallbacks: Array<(point: { x: number; y: number }) => void> = [];
+  private lastRemovedObject: any | null = null;
 
   // DOM listener teardown functions
   private domCleanupFns: Array<() => void> = [];
@@ -860,15 +861,20 @@ export class FabricWhiteboardEngine {
     const id = typeof idOrObj === 'string' ? idOrObj : idOrObj?.id;
     if (!id) return false;
     const targetObj = this.objects.find((o) => o.id === id);
+    this.lastRemovedObject = targetObj ? deepClone(targetObj) : null;
     const initialLen = this.objects.length;
     this.objects = this.objects.filter((o) => o.id !== id);
     this.selectedObjectIds.delete(id);
     if (this.objects.length < initialLen) {
-      this.notifyObjectRemoved(id, targetObj);
+      this.notifyObjectRemoved(id);
       this.requestRender();
       return true;
     }
     return false;
+  }
+
+  public getLastRemovedObject(): any | null {
+    return this.lastRemovedObject;
   }
 
   public modifyObject(objId: string, updates: any): any {
@@ -918,7 +924,7 @@ export class FabricWhiteboardEngine {
     this.objectModifiedCallbacks.push(callback);
   }
 
-  public onObjectRemoved(callback: (objId: string, obj?: any) => void): void {
+  public onObjectRemoved(callback: (objId: string) => void): void {
     this.objectRemovedCallbacks.push(callback);
   }
 
@@ -942,10 +948,10 @@ export class FabricWhiteboardEngine {
     }
   }
 
-  private notifyObjectRemoved(objId: string, obj?: any): void {
+  private notifyObjectRemoved(objId: string): void {
     for (const cb of [...this.objectRemovedCallbacks]) {
       try {
-        cb(objId, obj);
+        cb(objId);
       } catch (err) {
         console.error('Error in onObjectRemoved callback:', err);
       }
@@ -1152,9 +1158,10 @@ export class FabricWhiteboardEngine {
     for (let i = this.objects.length - 1; i >= 0; i--) {
       const obj = this.objects[i];
       if (isPointInObject(pt, obj)) {
+        this.lastRemovedObject = deepClone(obj);
         this.objects.splice(i, 1);
         this.selectedObjectIds.delete(obj.id);
-        this.notifyObjectRemoved(obj.id, obj);
+        this.notifyObjectRemoved(obj.id);
         this.requestRender();
         break;
       }

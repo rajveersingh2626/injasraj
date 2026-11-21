@@ -461,12 +461,15 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         schedulePersist();
       });
 
-      engine.onObjectRemoved((objId, removedObj) => {
+      engine.onObjectRemoved((objId) => {
         if (isApplyingRemoteDeltaRef.current) return;
-        if (!isExecutingUndoRedoRef.current && removedObj) {
-          undoRedoStackRef.current.recordDelete(objId, removedObj, userId);
-          setCanUndo(undoRedoStackRef.current.canUndo(userId));
-          setCanRedo(undoRedoStackRef.current.canRedo(userId));
+        if (!isExecutingUndoRedoRef.current) {
+          const removedObj = engine.getLastRemovedObject();
+          if (removedObj) {
+            undoRedoStackRef.current.recordDelete(objId, removedObj, userId);
+            setCanUndo(undoRedoStackRef.current.canUndo(userId));
+            setCanRedo(undoRedoStackRef.current.canRedo(userId));
+          }
         }
         const activeId = pageManagerRef.current.getActivePageId();
         pageManagerRef.current.updatePageCanvas(activeId, engine.exportJson());
