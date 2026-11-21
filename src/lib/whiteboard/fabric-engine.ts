@@ -192,6 +192,8 @@ export class FabricWhiteboardEngine {
 
   private objects: any[] = [];
   private selectedObjectIds: Set<string> = new Set();
+  private lockedObjectIds: Set<string> = new Set();
+  private defaultRoughness: number = 0;
   private backgroundImage: any | null = null;
 
   // Active freehand drawing state
@@ -846,6 +848,9 @@ export class FabricWhiteboardEngine {
     if (!cloned.id) {
       cloned.id = generateObjectId();
     }
+    if (cloned.roughness === undefined && this.defaultRoughness > 0) {
+      cloned.roughness = this.defaultRoughness;
+    }
     const existingIndex = this.objects.findIndex((o) => o.id === cloned.id);
     if (existingIndex >= 0) {
       this.objects[existingIndex] = cloned;
@@ -876,6 +881,7 @@ export class FabricWhiteboardEngine {
   public removeObject(idOrObj: string | any): boolean {
     const id = typeof idOrObj === 'string' ? idOrObj : idOrObj?.id;
     if (!id) return false;
+    if (this.isObjectLocked(id)) return false;
     const targetObj = this.objects.find((o) => o.id === id);
     this.lastRemovedObject = targetObj ? deepClone(targetObj) : null;
     const initialLen = this.objects.length;
@@ -995,6 +1001,126 @@ export class FabricWhiteboardEngine {
 
   public updateShapeText(shapeId: string, text: string): any {
     return this.modifyObject(shapeId, { text });
+  }
+
+  // ==========================================
+  // Excalidraw Suite: Roughness, Lock, Marquee, Z-Order
+  // ==========================================
+
+  public setDefaultRoughness(r: number): void {
+    this.defaultRoughness = r;
+  }
+
+  public getDefaultRoughness(): number {
+    return this.defaultRoughness;
+  }
+
+  public selectObjectsInBounds(bounds: {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+  }): any[] {
+    const matched: any[] = [];
+    this.selectedObjectIds.clear();
+
+    for (const obj of this.objects) {
+      const left = obj.left ?? obj.x1 ?? 0;
+      const top = obj.top ?? obj.y1 ?? 0;
+      const width =
+        obj.width ??
+        (obj.radius
+          ? obj.radius * 2
+          : obj.x2 !== undefined
+          ? Math.abs(obj.x2 - obj.x1)
+          : 100);
+      const height =
+        obj.height ??
+        (obj.radius
+          ? obj.radius * 2
+          : obj.y2 !== undefined
+          ? Math.abs(obj.y2 - obj.y1)
+          : 100);
+
+      const cx = left + width / 2;
+      const cy = top + height / 2;
+
+      if (
+        cx >= bounds.minX &&
+        cx <= bounds.maxX &&
+        cy >= bounds.minY &&
+        cy <= bounds.maxY
+      ) {
+        matched.push(obj);
+        this.selectedObjectIds.add(obj.id);
+      }
+    }
+    this.requestRender();
+    return matched;
+  }
+
+  public getSelectedObjectIds(): Set<string> {
+    return this.selectedObjectIds;
+  }
+
+  public lockObject(id: string): void {
+    this.lockedObjectIds.add(id);
+    const obj = this.getObjectById(id);
+    if (obj) obj.locked = true;
+    this.requestRender();
+  }
+
+  public unlockObject(id: string): void {
+    this.lockedObjectIds.delete(id);
+    const obj = this.getObjectById(id);
+    if (obj) obj.locked = false;
+    this.requestRender();
+  }
+
+  public isObjectLocked(id: string): boolean {
+    return this.lockedObjectIds.has(id) || Boolean(this.getObjectById(id)?.locked);
+  }
+
+  public bringForward(id: string): boolean {
+    const idx = this.objects.findIndex((o) => o.id === id);
+    if (idx === -1 || idx >= this.objects.length - 1) return false;
+    const temp = this.objects[idx];
+    this.objects[idx] = this.objects[idx + 1];
+    this.objects[idx + 1] = temp;
+    this.notifyObjectModified(this.objects[idx + 1]);
+    this.requestRender();
+    return true;
+  }
+
+  public sendBackward(id: string): boolean {
+    const idx = this.objects.findIndex((o) => o.id === id);
+    if (idx <= 0) return false;
+    const temp = this.objects[idx];
+    this.objects[idx] = this.objects[idx - 1];
+    this.objects[idx - 1] = temp;
+    this.notifyObjectModified(this.objects[idx - 1]);
+    this.requestRender();
+    return true;
+  }
+
+  public bringToFront(id: string): boolean {
+    const idx = this.objects.findIndex((o) => o.id === id);
+    if (idx === -1 || idx === this.objects.length - 1) return false;
+    const [obj] = this.objects.splice(idx, 1);
+    this.objects.push(obj);
+    this.notifyObjectModified(obj);
+    this.requestRender();
+    return true;
+  }
+
+  public sendToBack(id: string): boolean {
+    const idx = this.objects.findIndex((o) => o.id === id);
+    if (idx <= 0) return false;
+    const [obj] = this.objects.splice(idx, 1);
+    this.objects.unshift(obj);
+    this.notifyObjectModified(obj);
+    this.requestRender();
+    return true;
   }
 
   // ==========================================
