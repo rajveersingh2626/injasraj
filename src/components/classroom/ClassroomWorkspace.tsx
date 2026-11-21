@@ -5,11 +5,13 @@ import {
   Presentation,
   LayoutGrid,
   Sidebar,
+  Timer as TimerIcon,
 } from 'lucide-react';
 import {
   IMediaSession,
   ConnectionQuality,
   createDefaultQuality,
+  TimerState,
 } from '../../types/media';
 import {
   WhiteboardPermissions,
@@ -19,6 +21,7 @@ import {
 } from '../../types/whiteboard';
 import { VideoCard } from './VideoCard';
 import { ControlBar } from './ControlBar';
+import { ClassroomTimerWidget } from './ClassroomTimerWidget';
 import { WhiteboardStage } from '../whiteboard/WhiteboardStage';
 import { BrowserTabBar } from '../whiteboard/BrowserTabBar';
 import { StudioSidePanel } from '../whiteboard/StudioSidePanel';
@@ -152,6 +155,10 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
 
   // Background Canvas Grid Pattern State
   const [currentGrid, setCurrentGrid] = useState<GridPatternType>('blank');
+
+  // Classroom Timer HUD State
+  const [isTimerOpen, setIsTimerOpen] = useState<boolean>(false);
+  const [remoteTimerState, setRemoteTimerState] = useState<TimerState | undefined>(undefined);
 
   // Whiteboard Pages & Navigation
   const defaultInitialPages = useMemo(
@@ -927,8 +934,23 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           </button>
         </div>
 
-        {/* Right: Studio Side Panel Trigger */}
+        {/* Right: Timer & Studio Side Panel Trigger */}
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            data-testid="toggle-timer-btn"
+            aria-label="Toggle Classroom Timer"
+            onClick={() => setIsTimerOpen((prev) => !prev)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-150 cursor-pointer active:scale-95 ${
+              isTimerOpen
+                ? 'bg-amber-600/30 text-amber-300 border-amber-500/40'
+                : 'bg-white/[0.06] text-zinc-300 border-white/[0.08] hover:bg-white/[0.1]'
+            }`}
+          >
+            <TimerIcon className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Timer</span>
+          </button>
+
           <button
             type="button"
             data-testid="toggle-studio-panel-btn"
@@ -1089,6 +1111,17 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           onSelectVideoDevice={setSelectedVideoDeviceId}
         />
       </footer>
+
+      {/* Floating Classroom Timer HUD */}
+      <ClassroomTimerWidget
+        isOpen={isTimerOpen}
+        onClose={() => setIsTimerOpen(false)}
+        isTeacher={role === 'teacher'}
+        onBroadcastTimerState={(state) => {
+          whiteboardAdapter?.broadcastCustomEvent?.('timer-state', state);
+        }}
+        remoteTimerState={remoteTimerState}
+      />
     </div>
   );
 };

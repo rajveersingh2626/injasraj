@@ -24,6 +24,14 @@ export function createDefaultQuality(): ConnectionQuality {
   };
 }
 
+export interface TimerState {
+  mode: 'countdown' | 'stopwatch';
+  remainingSeconds: number;
+  initialSeconds: number;
+  isRunning: boolean;
+  isAlarm: boolean;
+}
+
 export interface SignalingMessage {
   type: 'peer-joined' | 'peer-left' | 'sdp-offer' | 'sdp-answer' | 'ice-candidate';
   senderId: string;
