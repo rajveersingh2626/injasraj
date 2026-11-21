@@ -163,7 +163,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
 
   // Authoritative Permissions
   const [permissions, setPermissions] = useState<WhiteboardPermissions>(() =>
-    initialPermissions || defaultWhiteboardPermissions()
+    initialPermissions || { ...defaultWhiteboardPermissions(), isLockedGlobally: false }
   );
 
   // Sync prop changes for initialPermissions and initialPages
@@ -575,8 +575,29 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           const buffer = await fileOrUrl.arrayBuffer();
           const renderResult = await renderPdfPageToDataUrl(buffer, 1);
           backgroundUrl = renderResult.dataUrl;
+        } else if (
+          fileOrUrl.type?.startsWith('image/') ||
+          /\.(png|jpe?g|webp|svg)$/i.test(fileOrUrl.name || '')
+        ) {
+          backgroundUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = (e) => reject(e);
+            reader.readAsDataURL(fileOrUrl);
+          });
         } else {
-          backgroundUrl = URL.createObjectURL(fileOrUrl);
+          backgroundUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = () => {
+              try {
+                resolve(URL.createObjectURL(fileOrUrl));
+              } catch (e) {
+                reject(e);
+              }
+            };
+            reader.readAsDataURL(fileOrUrl);
+          });
         }
       }
 

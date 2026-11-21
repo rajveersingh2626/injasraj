@@ -37,7 +37,7 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
       role="toolbar"
       aria-label="Zoom Controls"
       data-testid="zoom-controls"
-      className={`fixed bottom-4 left-4 z-40 flex items-center gap-1 p-1.5 rounded-2xl border border-[rgba(255,255,255,0.08)] backdrop-blur-[16px] select-none text-zinc-200 ${className}`}
+      className={`absolute bottom-4 left-4 z-30 flex items-center gap-1 p-1.5 rounded-2xl border border-[rgba(255,255,255,0.08)] backdrop-blur-[16px] select-none text-zinc-200 ${className}`}
       style={{
         background: 'rgba(18, 18, 24, 0.78)',
         boxShadow:

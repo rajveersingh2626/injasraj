@@ -12,12 +12,13 @@ export interface ColorStrokePopoverProps {
 }
 
 export const COLOR_SWATCHES = [
-  { hex: '#ffffff', name: 'White' },
+  { hex: '#000000', name: 'Black' },
   { hex: '#3b82f6', name: 'Blue' },
   { hex: '#ef4444', name: 'Red' },
   { hex: '#10b981', name: 'Emerald' },
   { hex: '#f59e0b', name: 'Amber' },
   { hex: '#8b5cf6', name: 'Purple' },
+  { hex: '#ffffff', name: 'White' },
 ];
 
 export const STROKE_WIDTH_PRESETS = [

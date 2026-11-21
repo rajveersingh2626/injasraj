@@ -88,7 +88,7 @@ describe('MaterialsTab Component (Worksheet Library & PDF Upload)', () => {
 
     const fileInput = screen.getByTestId('pdf-file-input') as HTMLInputElement;
     expect(fileInput).toBeInTheDocument();
-    expect(fileInput.getAttribute('accept')).toBe('application/pdf');
+    expect(fileInput.getAttribute('accept')).toContain('application/pdf');
 
     const fakePdfFile = new File(['%PDF-1.4 mock content'], 'algebra_quiz.pdf', {
       type: 'application/pdf',

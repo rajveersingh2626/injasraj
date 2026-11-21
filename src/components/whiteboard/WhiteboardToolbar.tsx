@@ -48,7 +48,7 @@ const SHAPE_TOOLS: { tool: WhiteboardToolType; label: string; icon: React.FC<{ c
 export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
   activeTool,
   onSelectTool,
-  strokeProperties = { color: '#ffffff', width: 4 },
+  strokeProperties = { color: '#000000', width: 3 },
   onChangeStrokeProperties,
   canUndo = false,
   canRedo = false,
@@ -119,7 +119,7 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
       role="toolbar"
       aria-label="Whiteboard Toolbar"
       data-testid="whiteboard-toolbar"
-      className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 p-1.5 rounded-2xl border border-[rgba(255,255,255,0.08)] backdrop-blur-[16px] select-none text-zinc-200 ${className}`}
+      className={`absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 p-1.5 rounded-2xl border border-[rgba(255,255,255,0.08)] backdrop-blur-[16px] select-none text-zinc-200 ${className}`}
       style={{
         background: 'rgba(18, 18, 24, 0.78)',
         boxShadow:

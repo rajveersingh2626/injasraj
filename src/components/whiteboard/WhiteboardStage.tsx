@@ -141,7 +141,7 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
 
   // Tool state (controlled vs uncontrolled)
   const isControlledTool = controlledTool !== undefined;
-  const [internalTool, setInternalTool] = useState<WhiteboardToolType>('select');
+  const [internalTool, setInternalTool] = useState<WhiteboardToolType>(controlledTool || 'pen');
   const activeTool = isControlledTool ? controlledTool : internalTool;
 
   // Stroke properties state (controlled vs uncontrolled)
@@ -436,9 +436,13 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
     const handler = touchHandlerRef.current;
     if (!handler) return;
     const classification = handler.handleTouchStart(e.touches as any);
-    if (classification === 'draw' && activeTool === 'laser' && e.touches.length > 0) {
-      const touch = e.touches[0];
-      trackLaserPoint(touch.clientX, touch.clientY);
+    if (classification === 'draw') {
+      if (activeTool === 'laser' && e.touches.length > 0) {
+        const touch = e.touches[0];
+        trackLaserPoint(touch.clientX, touch.clientY);
+      }
+      // Single-finger touch: allow active drawing tool to proceed without being swallowed
+      return;
     }
   };
 
@@ -446,9 +450,13 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
     const handler = touchHandlerRef.current;
     if (!handler) return;
     const result = handler.handleTouchMove(e.touches as any);
-    if (result.classification === 'draw' && activeTool === 'laser' && e.touches.length > 0) {
-      const touch = e.touches[0];
-      trackLaserPoint(touch.clientX, touch.clientY);
+    if (result.classification === 'draw') {
+      if (activeTool === 'laser' && e.touches.length > 0) {
+        const touch = e.touches[0];
+        trackLaserPoint(touch.clientX, touch.clientY);
+      }
+      // Ensure drawing touches are not swallowed
+      return;
     } else if (result.classification === 'pinch-zoom' && result.pinchDelta) {
       const nextZoom = clampZoom(+(zoom * result.pinchDelta.scaleDelta).toFixed(2), minZoom, maxZoom);
       if (!isControlledZoom) {
@@ -597,7 +605,7 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
           role="status"
           aria-live="polite"
           data-testid="student-status-banner"
-          className={`fixed top-4 left-4 z-40 flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-medium tracking-wide shadow-lg border backdrop-blur-[16px] transition-all duration-200 select-none ${bannerBadge.style}`}
+          className={`absolute top-4 left-4 z-30 flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-medium tracking-wide shadow-lg border backdrop-blur-[16px] transition-all duration-200 select-none ${bannerBadge.style}`}
         >
           {bannerBadge.icon}
           <span>{studentStatus}</span>

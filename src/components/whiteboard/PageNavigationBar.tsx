@@ -36,7 +36,7 @@ export const PageNavigationBar: React.FC<PageNavigationBarProps> = ({
       role="navigation"
       aria-label="Whiteboard Page Navigation"
       data-testid="page-nav-bar"
-      className={`fixed top-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 px-2 py-1.5 rounded-full border border-[rgba(255,255,255,0.08)] backdrop-blur-[16px] select-none text-zinc-200 ${className}`}
+      className={`absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-2 py-1.5 rounded-full border border-[rgba(255,255,255,0.08)] backdrop-blur-[16px] select-none text-zinc-200 ${className}`}
       style={{
         background: 'rgba(18, 18, 24, 0.78)',
         boxShadow:

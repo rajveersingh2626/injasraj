@@ -198,6 +198,16 @@ export class FabricWhiteboardEngine {
   private isDrawing: boolean = false;
   private currentStrokePoints: Array<{ x: number; y: number }> = [];
 
+  // Active shape drawing state
+  private isDrawingShape: boolean = false;
+  private shapeStartPoint: { x: number; y: number } | null = null;
+  private activeShapeType: WhiteboardToolType | null = null;
+  private currentShapePreview: {
+    type: WhiteboardToolType;
+    start: { x: number; y: number };
+    current: { x: number; y: number };
+  } | null = null;
+
   // 2D Rendering Engine State
   private renderRequested: boolean = false;
   private animFrameId: any = null;
@@ -372,12 +382,13 @@ export class FabricWhiteboardEngine {
     if (typeof Image !== 'undefined') {
       try {
         const img = new Image();
-        img.src = dataUrl;
+        img.crossOrigin = 'anonymous';
         img.onload = () => {
           this.cachedBgImageElement = img;
           this.cachedBgImageSrc = dataUrl;
           this.requestRender();
         };
+        img.src = dataUrl;
         if (img.complete && img.naturalWidth > 0) {
           this.cachedBgImageElement = img;
           this.cachedBgImageSrc = dataUrl;
@@ -484,12 +495,13 @@ export class FabricWhiteboardEngine {
         try {
           const src = this.backgroundImage.src;
           const img = new Image();
-          img.src = src;
+          img.crossOrigin = 'anonymous';
           img.onload = () => {
             this.cachedBgImageElement = img;
             this.cachedBgImageSrc = src;
             this.requestRender();
           };
+          img.src = src;
           if (img.complete && img.naturalWidth > 0) {
             this.cachedBgImageElement = img;
             this.cachedBgImageSrc = src;
@@ -967,6 +979,35 @@ export class FabricWhiteboardEngine {
         return;
       }
 
+      if (this.activeTool === 'text') {
+        this.addText('Text', { left: pt.x, top: pt.y });
+        return;
+      }
+
+      if (this.activeTool === 'sticky') {
+        this.addStickyNote('Note', undefined, { left: pt.x, top: pt.y });
+        return;
+      }
+
+      if (
+        this.activeTool === 'rect' ||
+        this.activeTool === 'circle' ||
+        this.activeTool === 'triangle' ||
+        this.activeTool === 'line' ||
+        this.activeTool === 'arrow'
+      ) {
+        this.shapeStartPoint = pt;
+        this.activeShapeType = this.activeTool;
+        this.isDrawingShape = true;
+        this.currentShapePreview = {
+          type: this.activeTool,
+          start: pt,
+          current: pt,
+        };
+        this.requestRender();
+        return;
+      }
+
       if (this.activeTool === 'pen' || this.activeTool === 'pencil' || this.activeTool === 'highlighter') {
         this.isDrawing = true;
         this.currentStrokePoints = [pt];
@@ -988,13 +1029,57 @@ export class FabricWhiteboardEngine {
         return;
       }
 
+      if (this.isDrawingShape && this.currentShapePreview && this.activeShapeType) {
+        this.currentShapePreview = {
+          type: this.activeShapeType,
+          start: this.currentShapePreview.start,
+          current: pt,
+        };
+        this.requestRender();
+        return;
+      }
+
       if (this.isDrawing) {
         this.currentStrokePoints.push(pt);
         this.requestRender();
       }
     };
 
-    const handlePointerUp = () => {
+    const handlePointerUp = (e?: MouseEvent | PointerEvent) => {
+      if (this.isDrawingShape && this.shapeStartPoint && this.activeShapeType) {
+        const pt = (e ? this.getEventVirtualPoint(e, canvas) : null) || this.currentShapePreview?.current || this.shapeStartPoint;
+        const start = this.shapeStartPoint;
+        const isClick = Math.abs(pt.x - start.x) < 5 && Math.abs(pt.y - start.y) < 5;
+        const width = isClick ? 150 : Math.max(1, Math.abs(pt.x - start.x));
+        const height = isClick ? 100 : Math.max(1, Math.abs(pt.y - start.y));
+        const left = isClick ? start.x : Math.min(start.x, pt.x);
+        const top = isClick ? start.y : Math.min(start.y, pt.y);
+        const x1 = start.x;
+        const y1 = start.y;
+        const x2 = isClick ? start.x + 150 : pt.x;
+        const y2 = isClick ? start.y : pt.y;
+        const radius = this.activeShapeType === 'circle' ? (isClick ? 50 : Math.max(width, height) / 2) : undefined;
+
+        this.addShape(this.activeShapeType as any, {
+          left,
+          top,
+          width: this.activeShapeType === 'circle' ? (radius ? radius * 2 : width) : width,
+          height: this.activeShapeType === 'circle' ? (radius ? radius * 2 : height) : height,
+          radius,
+          x1,
+          y1,
+          x2,
+          y2,
+        });
+
+        this.isDrawingShape = false;
+        this.shapeStartPoint = null;
+        this.activeShapeType = null;
+        this.currentShapePreview = null;
+        this.requestRender();
+        return;
+      }
+
       if (this.isDrawing && this.currentStrokePoints.length > 0) {
         this.addFreehandPath(this.currentStrokePoints);
       }
@@ -1017,7 +1102,7 @@ export class FabricWhiteboardEngine {
   }
 
   private getEventVirtualPoint(
-    e: MouseEvent | PointerEvent,
+    e: MouseEvent | PointerEvent | TouchEvent,
     canvas: HTMLCanvasElement
   ): { x: number; y: number } | null {
     try {
@@ -1025,8 +1110,18 @@ export class FabricWhiteboardEngine {
         ? canvas.getBoundingClientRect()
         : { left: 0, top: 0, width: canvas.width || this.virtualWidth, height: canvas.height || this.virtualHeight };
 
-      const screenX = e.clientX !== undefined ? e.clientX - rect.left : (e as any).offsetX ?? 0;
-      const screenY = e.clientY !== undefined ? e.clientY - rect.top : (e as any).offsetY ?? 0;
+      let clientX = (e as any).clientX;
+      let clientY = (e as any).clientY;
+      if ((clientX === undefined || isNaN(clientX)) && (e as any).touches && (e as any).touches.length > 0) {
+        clientX = (e as any).touches[0].clientX;
+        clientY = (e as any).touches[0].clientY;
+      } else if ((clientX === undefined || isNaN(clientX)) && (e as any).changedTouches && (e as any).changedTouches.length > 0) {
+        clientX = (e as any).changedTouches[0].clientX;
+        clientY = (e as any).changedTouches[0].clientY;
+      }
+
+      const screenX = typeof clientX === 'number' && !isNaN(clientX) ? clientX - rect.left : (e as any).offsetX ?? 0;
+      const screenY = typeof clientY === 'number' && !isNaN(clientY) ? clientY - rect.top : (e as any).offsetY ?? 0;
       const containerWidth = rect.width > 0 ? rect.width : (canvas.width || this.virtualWidth);
       const containerHeight = rect.height > 0 ? rect.height : (canvas.height || this.virtualHeight);
 
@@ -1143,6 +1238,11 @@ export class FabricWhiteboardEngine {
         this.drawActiveStrokePreview(context);
       }
 
+      // 5b. Draw active shape preview in real-time if currently drawing shape
+      if (this.isDrawingShape && this.currentShapePreview) {
+        this.drawActiveShapePreview(context);
+      }
+
       // 6. Draw selection boundary and resize handles for selected objects
       for (const objId of this.selectedObjectIds) {
         const obj = this.getObjectById(objId);
@@ -1210,12 +1310,13 @@ export class FabricWhiteboardEngine {
     if (typeof Image !== 'undefined') {
       try {
         const img = new Image();
-        img.src = src;
+        img.crossOrigin = 'anonymous';
         img.onload = () => {
           this.cachedBgImageElement = img;
           this.cachedBgImageSrc = src;
           this.requestRender();
         };
+        img.src = src;
         if (img.complete && img.naturalWidth > 0) {
           this.cachedBgImageElement = img;
           this.cachedBgImageSrc = src;
@@ -1236,15 +1337,15 @@ export class FabricWhiteboardEngine {
         context.lineWidth = obj.strokeWidth || 3;
         context.lineCap = (obj.strokeLineCap as CanvasLineCap) || 'round';
         context.lineJoin = (obj.strokeLineJoin as CanvasLineJoin) || 'round';
-        if (typeof Path2D !== 'undefined' && obj.path) {
+        if (Array.isArray(obj.points) && obj.points.length > 0) {
+          this.drawPointsPath(context, obj.points);
+        } else if (typeof Path2D !== 'undefined' && obj.path) {
           try {
             const p2d = new Path2D(obj.path);
             context.stroke(p2d);
           } catch {
             this.drawPointsPath(context, obj.points);
           }
-        } else if (Array.isArray(obj.points) && obj.points.length > 0) {
-          this.drawPointsPath(context, obj.points);
         }
         break;
       }
@@ -1468,6 +1569,85 @@ export class FabricWhiteboardEngine {
     context.restore();
   }
 
+  private drawActiveShapePreview(context: CanvasRenderingContext2D): void {
+    if (!this.currentShapePreview) return;
+    const { type, start, current } = this.currentShapePreview;
+    const left = Math.min(start.x, current.x);
+    const top = Math.min(start.y, current.y);
+    const width = Math.max(1, Math.abs(current.x - start.x));
+    const height = Math.max(1, Math.abs(current.y - start.y));
+
+    let previewObj: any = null;
+    if (type === 'rect') {
+      previewObj = {
+        type: 'rect',
+        left,
+        top,
+        width,
+        height,
+        fill: this.strokeProperties.fill ?? 'transparent',
+        stroke: this.strokeProperties.color,
+        strokeWidth: this.strokeProperties.width,
+        opacity: this.strokeProperties.opacity ?? 1.0,
+      };
+    } else if (type === 'circle') {
+      const radius = Math.max(width, height) / 2;
+      previewObj = {
+        type: 'circle',
+        left,
+        top,
+        radius,
+        width: radius * 2,
+        height: radius * 2,
+        fill: this.strokeProperties.fill ?? 'transparent',
+        stroke: this.strokeProperties.color,
+        strokeWidth: this.strokeProperties.width,
+        opacity: this.strokeProperties.opacity ?? 1.0,
+      };
+    } else if (type === 'triangle') {
+      previewObj = {
+        type: 'triangle',
+        left,
+        top,
+        width,
+        height,
+        fill: this.strokeProperties.fill ?? 'transparent',
+        stroke: this.strokeProperties.color,
+        strokeWidth: this.strokeProperties.width,
+        opacity: this.strokeProperties.opacity ?? 1.0,
+      };
+    } else if (type === 'line') {
+      previewObj = {
+        type: 'line',
+        x1: start.x,
+        y1: start.y,
+        x2: current.x,
+        y2: current.y,
+        stroke: this.strokeProperties.color,
+        strokeWidth: this.strokeProperties.width,
+        opacity: this.strokeProperties.opacity ?? 1.0,
+      };
+    } else if (type === 'arrow') {
+      previewObj = {
+        type: 'arrow',
+        x1: start.x,
+        y1: start.y,
+        x2: current.x,
+        y2: current.y,
+        headLength: 20,
+        headAngle: 30,
+        fill: this.strokeProperties.color,
+        stroke: this.strokeProperties.color,
+        strokeWidth: this.strokeProperties.width,
+        opacity: this.strokeProperties.opacity ?? 1.0,
+      };
+    }
+
+    if (previewObj) {
+      this.drawObject(context, previewObj);
+    }
+  }
+
   private drawSelectionOutline(context: CanvasRenderingContext2D, obj: any): void {
     const left = obj.left ?? 0;
     const top = obj.top ?? 0;
@@ -1518,6 +1698,11 @@ export class FabricWhiteboardEngine {
       this.animFrameId = null;
     }
     this.renderRequested = false;
+
+    this.isDrawingShape = false;
+    this.shapeStartPoint = null;
+    this.activeShapeType = null;
+    this.currentShapePreview = null;
 
     for (const cleanup of this.domCleanupFns) {
       try {

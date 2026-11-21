@@ -15,6 +15,7 @@ import {
   WhiteboardPermissions,
   defaultWhiteboardPermissions,
 } from '../../src/types/whiteboard';
+import { DEFAULT_WORKSHEETS } from '../../src/components/whiteboard/tabs/MaterialsTab';
 
 // Extend expect with essential DOM matchers
 expect.extend({
@@ -371,7 +372,7 @@ describe('Task 15: End-to-End Classroom Integration & Teaching Whiteboard', () =
 
       // Verifies that onLoadWorksheet callback was invoked with worksheet URL
       expect(handleLoadWorksheet).toHaveBeenCalledWith(
-        'https://cdn.example.com/worksheets/algebra-quadratics.pdf'
+        DEFAULT_WORKSHEETS[0].url
       );
 
       // Verifies that broadcastModify was dispatched to sync peers with the background URL
@@ -379,7 +380,7 @@ describe('Task 15: End-to-End Classroom Integration & Teaching Whiteboard', () =
         expect.any(String),
         '__page_background__',
         expect.objectContaining({
-          backgroundImageUrl: 'https://cdn.example.com/worksheets/algebra-quadratics.pdf',
+          backgroundImageUrl: DEFAULT_WORKSHEETS[0].url,
         })
       );
     });
