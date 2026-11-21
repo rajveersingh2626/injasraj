@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="goldLuxury" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FCEE21" />
+      <stop offset="35%" stop-color="#E5A93C" />
+      <stop offset="70%" stop-color="#C28627" />
+      <stop offset="100%" stop-color="#DFBA6E" />
+    </linearGradient>
+    <linearGradient id="glowGold" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#D4AF37" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#FFF8DC" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Premium Matte Black Canvas -->
+  <rect width="500" height="500" rx="100" fill="#0D0D11" />
+  <circle cx="250" cy="250" r="160" fill="url(#glowGold)" />
+
+  <!-- Monogram Mark -->
+  <g transform="translate(250, 250)">
+    <!-- Slender Minimalist I Stem -->
+    <rect x="-65" y="-110" width="28" height="220" rx="14" fill="url(#goldLuxury)" />
+    
+    <!-- Slender Minimalist J Stem & Curve with Negative Space Break -->
+    <path d="M 35 -110 
+             L 35 70 
+             C 35 120, -5 150, -50 150 
+             C -68 150, -82 144, -92 135
+             C -97 130, -97 122, -92 117
+             C -87 112, -79 112, -74 117
+             C -68 122, -60 126, -50 126
+             C -20 126, 11 104, 11 70
+             L 11 -110
+             A 12 12 0 0 1 35 -110 Z" 
+          fill="#FFFFFF" />
+
+    <!-- Pure Minimalist Jewel Dot -->
+    <circle cx="-51" cy="-145" r="12" fill="url(#goldLuxury)" />
+  </g>
+</svg>
