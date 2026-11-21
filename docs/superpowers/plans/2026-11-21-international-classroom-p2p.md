@@ -408,7 +408,7 @@ git commit -m "feat(signaling): implement Supabase Realtime signaling adapter"
 - Inset specular highlights (`box-shadow: inset 0 1px 0 rgba(255,255,255,0.12)`).
 - Origin-aware expanding popover for network telemetry.
 
-- [ ] **Step 1: Write tests for NetworkQualityHUD rendering metrics and direct vs relay status**
+- [x] **Step 1: Write tests for NetworkQualityHUD rendering metrics and direct vs relay status**
 
 ```typescript
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -430,19 +430,19 @@ describe('NetworkQualityHUD', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/components/NetworkQualityHUD.test.tsx`  
 Expected: FAIL
 
-- [ ] **Step 3: Implement `GlassButton.tsx`, `GlassCard.tsx`, and `NetworkQualityHUD.tsx`**
+- [x] **Step 3: Implement `GlassButton.tsx`, `GlassCard.tsx`, and `NetworkQualityHUD.tsx`**
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/components/NetworkQualityHUD.test.tsx`  
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/components/ui/* tests/components/NetworkQualityHUD.test.tsx
