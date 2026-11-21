@@ -218,7 +218,7 @@ export class FabricWhiteboardEngine {
   // Callbacks
   private objectAddedCallbacks: Array<(obj: any) => void> = [];
   private objectModifiedCallbacks: Array<(obj: any) => void> = [];
-  private objectRemovedCallbacks: Array<(objId: string) => void> = [];
+  private objectRemovedCallbacks: Array<(objId: string, obj?: any) => void> = [];
   private laserMoveCallbacks: Array<(point: { x: number; y: number }) => void> = [];
 
   // DOM listener teardown functions
@@ -859,11 +859,12 @@ export class FabricWhiteboardEngine {
   public removeObject(idOrObj: string | any): boolean {
     const id = typeof idOrObj === 'string' ? idOrObj : idOrObj?.id;
     if (!id) return false;
+    const targetObj = this.objects.find((o) => o.id === id);
     const initialLen = this.objects.length;
     this.objects = this.objects.filter((o) => o.id !== id);
     this.selectedObjectIds.delete(id);
     if (this.objects.length < initialLen) {
-      this.notifyObjectRemoved(id);
+      this.notifyObjectRemoved(id, targetObj);
       this.requestRender();
       return true;
     }
@@ -917,7 +918,7 @@ export class FabricWhiteboardEngine {
     this.objectModifiedCallbacks.push(callback);
   }
 
-  public onObjectRemoved(callback: (objId: string) => void): void {
+  public onObjectRemoved(callback: (objId: string, obj?: any) => void): void {
     this.objectRemovedCallbacks.push(callback);
   }
 
@@ -941,10 +942,10 @@ export class FabricWhiteboardEngine {
     }
   }
 
-  private notifyObjectRemoved(objId: string): void {
+  private notifyObjectRemoved(objId: string, obj?: any): void {
     for (const cb of [...this.objectRemovedCallbacks]) {
       try {
-        cb(objId);
+        cb(objId, obj);
       } catch (err) {
         console.error('Error in onObjectRemoved callback:', err);
       }
@@ -1153,7 +1154,7 @@ export class FabricWhiteboardEngine {
       if (isPointInObject(pt, obj)) {
         this.objects.splice(i, 1);
         this.selectedObjectIds.delete(obj.id);
-        this.notifyObjectRemoved(obj.id);
+        this.notifyObjectRemoved(obj.id, obj);
         this.requestRender();
         break;
       }

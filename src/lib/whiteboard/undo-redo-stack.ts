@@ -320,3 +320,5 @@ export class UserUndoRedoStack {
     }
   }
 }
+
+export { UserUndoRedoStack as UndoRedoStack };

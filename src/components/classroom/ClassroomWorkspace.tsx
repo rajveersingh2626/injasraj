@@ -30,6 +30,7 @@ import {
 } from '../../lib/whiteboard/whiteboard-persistence';
 import { FabricWhiteboardEngine } from '../../lib/whiteboard/fabric-engine';
 import { LaserTrailEngine } from '../../lib/whiteboard/laser-trail';
+import { UserUndoRedoStack } from '../../lib/whiteboard/undo-redo-stack';
 import { renderPdfPageToDataUrl } from '../../lib/whiteboard/pdf-renderer';
 import { WorksheetMaterial } from '../whiteboard/tabs/MaterialsTab';
 import { Participant } from '../whiteboard/tabs/PeopleTab';
@@ -140,6 +141,12 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   const isApplyingRemoteDeltaRef = useRef<boolean>(false);
   const engineRef = useRef<FabricWhiteboardEngine | null>(null);
   const laserEngineRef = useRef<LaserTrailEngine>(new LaserTrailEngine(1200));
+
+  // User-scoped Undo/Redo Engine
+  const undoRedoStackRef = useRef<UserUndoRedoStack>(new UserUndoRedoStack());
+  const isExecutingUndoRedoRef = useRef<boolean>(false);
+  const [canUndo, setCanUndo] = useState<boolean>(false);
+  const [canRedo, setCanRedo] = useState<boolean>(false);
 
   // Whiteboard Pages & Navigation
   const defaultInitialPages = useMemo(
@@ -308,6 +315,111 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     };
   }, [whiteboardAdapter, propOnPermissionsChange, propOnPagesChange]);
 
+  // User-scoped Undo and Redo Execution Handlers
+  const handleUndo = useCallback(() => {
+    if (!undoRedoStackRef.current.canUndo(userId)) return;
+    const cmd = undoRedoStackRef.current.undo(userId);
+    if (!cmd || !engineRef.current) return;
+
+    isExecutingUndoRedoRef.current = true;
+    try {
+      const activeId = pageManagerRef.current.getActivePageId();
+      if (cmd.action === 'add') {
+        engineRef.current.removeObject(cmd.objectId);
+        whiteboardAdapter?.broadcastDelete(activeId, cmd.objectId).catch(() => {});
+      } else if (cmd.action === 'delete') {
+        if (cmd.beforeState) {
+          engineRef.current.addObject(cmd.beforeState);
+          whiteboardAdapter?.broadcastAdd(activeId, cmd.beforeState).catch(() => {});
+        }
+      } else if (cmd.action === 'modify') {
+        if (cmd.beforeState) {
+          engineRef.current.modifyObject(cmd.objectId, cmd.beforeState);
+          whiteboardAdapter?.broadcastModify(activeId, cmd.objectId, cmd.beforeState).catch(() => {});
+        }
+      }
+      pageManagerRef.current.updatePageCanvas(activeId, engineRef.current.exportJson());
+      schedulePersist();
+    } finally {
+      isExecutingUndoRedoRef.current = false;
+    }
+
+    setCanUndo(undoRedoStackRef.current.canUndo(userId));
+    setCanRedo(undoRedoStackRef.current.canRedo(userId));
+  }, [userId, whiteboardAdapter, schedulePersist]);
+
+  const handleRedo = useCallback(() => {
+    if (!undoRedoStackRef.current.canRedo(userId)) return;
+    const cmd = undoRedoStackRef.current.redo(userId);
+    if (!cmd || !engineRef.current) return;
+
+    isExecutingUndoRedoRef.current = true;
+    try {
+      const activeId = pageManagerRef.current.getActivePageId();
+      if (cmd.action === 'add') {
+        if (cmd.afterState) {
+          engineRef.current.addObject(cmd.afterState);
+          whiteboardAdapter?.broadcastAdd(activeId, cmd.afterState).catch(() => {});
+        }
+      } else if (cmd.action === 'delete') {
+        engineRef.current.removeObject(cmd.objectId);
+        whiteboardAdapter?.broadcastDelete(activeId, cmd.objectId).catch(() => {});
+      } else if (cmd.action === 'modify') {
+        if (cmd.afterState) {
+          engineRef.current.modifyObject(cmd.objectId, cmd.afterState);
+          whiteboardAdapter?.broadcastModify(activeId, cmd.objectId, cmd.afterState).catch(() => {});
+        }
+      }
+      pageManagerRef.current.updatePageCanvas(activeId, engineRef.current.exportJson());
+      schedulePersist();
+    } finally {
+      isExecutingUndoRedoRef.current = false;
+    }
+
+    setCanUndo(undoRedoStackRef.current.canUndo(userId));
+    setCanRedo(undoRedoStackRef.current.canRedo(userId));
+  }, [userId, whiteboardAdapter, schedulePersist]);
+
+  // Global Keyboard Shortcuts (Ctrl+Z, Ctrl+Y, Cmd+Z, Cmd+Shift+Z)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      const isMac =
+        typeof navigator !== 'undefined' &&
+        /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+      const modKey = isMac ? e.metaKey : e.ctrlKey;
+
+      if (!modKey) return;
+
+      if (e.key === 'z' || e.key === 'Z') {
+        if (e.shiftKey) {
+          e.preventDefault();
+          handleRedo();
+        } else {
+          e.preventDefault();
+          handleUndo();
+        }
+      } else if (e.key === 'y' || e.key === 'Y') {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleUndo, handleRedo]);
+
   // Engine Ready Callback & Object Mutation Listeners
   const handleEngineReady = useCallback(
     (engine: FabricWhiteboardEngine) => {
@@ -326,6 +438,11 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
 
       engine.onObjectAdded((obj) => {
         if (isApplyingRemoteDeltaRef.current) return;
+        if (!isExecutingUndoRedoRef.current) {
+          undoRedoStackRef.current.recordAdd(obj.id, obj, userId);
+          setCanUndo(undoRedoStackRef.current.canUndo(userId));
+          setCanRedo(undoRedoStackRef.current.canRedo(userId));
+        }
         const activeId = pageManagerRef.current.getActivePageId();
         pageManagerRef.current.updatePageCanvas(activeId, engine.exportJson());
         whiteboardAdapter?.broadcastAdd(activeId, obj).catch(() => {});
@@ -340,8 +457,13 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         schedulePersist();
       });
 
-      engine.onObjectRemoved((objId) => {
+      engine.onObjectRemoved((objId, removedObj) => {
         if (isApplyingRemoteDeltaRef.current) return;
+        if (!isExecutingUndoRedoRef.current && removedObj) {
+          undoRedoStackRef.current.recordDelete(objId, removedObj, userId);
+          setCanUndo(undoRedoStackRef.current.canUndo(userId));
+          setCanRedo(undoRedoStackRef.current.canRedo(userId));
+        }
         const activeId = pageManagerRef.current.getActivePageId();
         pageManagerRef.current.updatePageCanvas(activeId, engine.exportJson());
         whiteboardAdapter?.broadcastDelete(activeId, objId).catch(() => {});
@@ -350,7 +472,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
 
       propOnEngineReady?.(engine);
     },
-    [whiteboardAdapter, schedulePersist, propOnEngineReady]
+    [userId, whiteboardAdapter, schedulePersist, propOnEngineReady]
   );
 
   // Laser move handler
@@ -837,6 +959,10 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             laserEngine={laserEngineRef.current}
             onLaserMove={handleLaserMove}
             onEngineReady={handleEngineReady}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
             className="w-full h-full"
           />
         </main>
