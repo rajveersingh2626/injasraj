@@ -73,6 +73,7 @@ export interface WhiteboardStageProps {
   onUndo?: () => void;
   onRedo?: () => void;
   onClearPage?: () => void;
+  onTriggerReward?: (type: 'star' | 'trophy' | 'fire' | 'heart' | 'sparkles') => void;
 
   // Laser Pointer
   onLaserMove?: (point: { x: number; y: number }) => void;
@@ -122,6 +123,7 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
   onUndo,
   onRedo,
   onClearPage,
+  onTriggerReward,
   // Laser
   onLaserMove,
   // Styling
@@ -676,6 +678,7 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
         onRedo={onRedo}
         onClearPage={handleClearPage}
         allowedTools={allowedTools}
+        onTriggerReward={onTriggerReward}
         isTeacher={isTeacher}
         readOnly={readOnly}
       />

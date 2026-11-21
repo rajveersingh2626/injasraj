@@ -22,6 +22,11 @@ import {
 import { VideoCard } from './VideoCard';
 import { ControlBar } from './ControlBar';
 import { ClassroomTimerWidget } from './ClassroomTimerWidget';
+import {
+  RewardCelebrationOverlay,
+  RewardEvent,
+  RewardType,
+} from './RewardCelebrationOverlay';
 import { WhiteboardStage } from '../whiteboard/WhiteboardStage';
 import { BrowserTabBar } from '../whiteboard/BrowserTabBar';
 import { StudioSidePanel } from '../whiteboard/StudioSidePanel';
@@ -159,6 +164,21 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   // Classroom Timer HUD State
   const [isTimerOpen, setIsTimerOpen] = useState<boolean>(false);
   const [remoteTimerState, setRemoteTimerState] = useState<TimerState | undefined>(undefined);
+
+  // Student Reward Celebration Overlay State
+  const [activeReward, setActiveReward] = useState<RewardEvent | null>(null);
+
+  const handleTriggerReward = (type: RewardType = 'star') => {
+    const reward: RewardEvent = {
+      id: `reward-${Date.now()}`,
+      type,
+      teacherName: localName || 'Teacher',
+      message: type === 'star' ? 'Star Awarded! Outstanding!' : 'Great Work!',
+      timestamp: Date.now(),
+    };
+    setActiveReward(reward);
+    whiteboardAdapter?.broadcastCustomEvent?.('student-reward', reward);
+  };
 
   // Whiteboard Pages & Navigation
   const defaultInitialPages = useMemo(
@@ -1058,6 +1078,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             onUndo={handleUndo}
             onRedo={handleRedo}
             onClearPage={handleClearPage}
+            onTriggerReward={role === 'teacher' ? handleTriggerReward : undefined}
             className="w-full h-full"
           />
         </main>
@@ -1121,6 +1142,12 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           whiteboardAdapter?.broadcastCustomEvent?.('timer-state', state);
         }}
         remoteTimerState={remoteTimerState}
+      />
+
+      {/* Student Celebratory Reward & Confetti Overlay */}
+      <RewardCelebrationOverlay
+        activeReward={activeReward}
+        onDismiss={() => setActiveReward(null)}
       />
     </div>
   );

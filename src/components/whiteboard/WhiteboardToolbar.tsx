@@ -18,6 +18,7 @@ import {
   Undo2,
   Redo2,
   Trash2,
+  Star,
 } from 'lucide-react';
 import { WhiteboardToolType, StrokeProperties } from '../../types/whiteboard';
 import { ColorStrokePopover } from './ColorStrokePopover';
@@ -32,6 +33,7 @@ export interface WhiteboardToolbarProps {
   onUndo?: () => void;
   onRedo?: () => void;
   onClearPage?: () => void;
+  onTriggerReward?: (type: 'star' | 'trophy' | 'fire' | 'heart' | 'sparkles') => void;
   allowedTools?: WhiteboardToolType[];
   className?: string;
   isTeacher?: boolean;
@@ -56,6 +58,7 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
   onUndo,
   onRedo,
   onClearPage,
+  onTriggerReward,
   allowedTools,
   className = '',
   readOnly = false,
@@ -419,7 +422,22 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
         <Redo2 className="w-4 h-4" />
       </button>
 
-      {/* 13. Clear Page Action */}
+      {/* 13. Student Reward Trigger */}
+      {onTriggerReward && (
+        <button
+          type="button"
+          onClick={() => onTriggerReward('star')}
+          aria-label="Award Star to Student"
+          data-testid="action-reward"
+          title="Award Star (Reward Student)"
+          style={baseButtonStyle}
+          className="w-9 h-9 rounded-xl flex items-center justify-center border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300 cursor-pointer active:scale-[0.97]"
+        >
+          <Star className="w-4 h-4 fill-amber-400/20" />
+        </button>
+      )}
+
+      {/* 14. Clear Page Action */}
       {onClearPage && (
         <button
           type="button"
