@@ -35,6 +35,7 @@ import { renderPdfPageToDataUrl } from '../../lib/whiteboard/pdf-renderer';
 import { WorksheetMaterial } from '../whiteboard/tabs/MaterialsTab';
 import { Participant } from '../whiteboard/tabs/PeopleTab';
 import { ChatMessage } from '../whiteboard/tabs/ChatTab';
+import { GridPatternType } from '../whiteboard/tabs/ToolsTab';
 
 export type WorkspaceMode = 'classroom' | 'whiteboard';
 
@@ -147,6 +148,9 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   const isExecutingUndoRedoRef = useRef<boolean>(false);
   const [canUndo, setCanUndo] = useState<boolean>(false);
   const [canRedo, setCanRedo] = useState<boolean>(false);
+
+  // Background Canvas Grid Pattern State
+  const [currentGrid, setCurrentGrid] = useState<GridPatternType>('blank');
 
   // Whiteboard Pages & Navigation
   const defaultInitialPages = useMemo(
@@ -474,6 +478,51 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     },
     [userId, whiteboardAdapter, schedulePersist, propOnEngineReady]
   );
+
+  // Background Grid Mode Handler
+  const handleChangeGrid = useCallback((grid: GridPatternType) => {
+    setCurrentGrid(grid);
+    const engineGrid =
+      grid === 'blank' ? 'none' : grid === 'lined' ? 'lines' : grid;
+    engineRef.current?.setGridType(engineGrid);
+  }, []);
+
+  // 1-Click PNG Image Export
+  const handleExportImage = useCallback(() => {
+    if (typeof document === 'undefined') return;
+    const canvas = document.querySelector(
+      'canvas[data-testid="whiteboard-canvas"]'
+    ) as HTMLCanvasElement | null;
+    if (!canvas) return;
+    try {
+      const dataUrl = canvas.toDataURL('image/png');
+      const activePage = pageManagerRef.current.getActivePage();
+      const filename = `lesson-${roomId}-page-${
+        activePage?.pageNumber || currentPageIndex
+      }.png`;
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Failed to export canvas image:', err);
+    }
+  }, [roomId, currentPageIndex]);
+
+  // Guarded Page Clear Handler (Preserves Locked Worksheet Background)
+  const handleClearPage = useCallback(() => {
+    if (!engineRef.current) return;
+    engineRef.current.clearCurrentPage(true);
+    const activeId = pageManagerRef.current.getActivePageId();
+    pageManagerRef.current.updatePageCanvas(activeId, engineRef.current.exportJson());
+    undoRedoStackRef.current.clearUserHistory(userId);
+    setCanUndo(false);
+    setCanRedo(false);
+    whiteboardAdapter?.broadcastDelete(activeId, '__all__').catch(() => {});
+    schedulePersist();
+  }, [userId, whiteboardAdapter, schedulePersist]);
 
   // Laser move handler
   const handleLaserMove = useCallback(
@@ -963,6 +1012,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             canRedo={canRedo}
             onUndo={handleUndo}
             onRedo={handleRedo}
+            onClearPage={handleClearPage}
             className="w-full h-full"
           />
         </main>
@@ -989,6 +1039,9 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           onAddPage={handleAddPage}
           onLoadWorksheet={handleLoadWorksheet}
           worksheets={worksheets}
+          currentGrid={currentGrid}
+          onChangeGrid={handleChangeGrid}
+          onExportImage={handleExportImage}
         />
       </div>
 

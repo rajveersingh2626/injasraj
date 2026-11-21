@@ -246,4 +246,99 @@ describe('Whiteboard UX Perfection & Tool Polish Suite', () => {
       expect(workspaceEngine!.getObjectById('obj-kb-1')).toBeTruthy();
     });
   });
+
+  describe('Task 3: Interactive Grid Mode & 1-Click PNG Image Export', () => {
+    it('updates canvas grid type when selecting options in ToolsTab and exports canvas PNG image', async () => {
+      let workspaceEngine: FabricWhiteboardEngine | null = null;
+      render(
+        <ClassroomWorkspace
+          roomId="room-grid-test"
+          role="teacher"
+          userId="teacher-1"
+          userName="Teacher"
+          initialSidePanelCollapsed={false}
+          onEngineReady={(engine) => {
+            workspaceEngine = engine;
+          }}
+        />
+      );
+
+      // Open Tools Tab
+      const toolsTabBtn = screen.getByTestId('tab-tools');
+      act(() => {
+        fireEvent.click(toolsTabBtn);
+      });
+
+      // Default grid is none
+      expect(workspaceEngine!.getGridType()).toBe('none');
+
+      // Click Dots grid
+      const dotsBtn = screen.getByTestId('grid-option-dots');
+      act(() => {
+        fireEvent.click(dotsBtn);
+      });
+      expect(workspaceEngine!.getGridType()).toBe('dots');
+
+      // Click Lined grid
+      const linedBtn = screen.getByTestId('grid-option-lined');
+      act(() => {
+        fireEvent.click(linedBtn);
+      });
+      expect(workspaceEngine!.getGridType()).toBe('lines');
+
+      // Click Grid pattern
+      const gridBtn = screen.getByTestId('grid-option-grid');
+      act(() => {
+        fireEvent.click(gridBtn);
+      });
+      expect(workspaceEngine!.getGridType()).toBe('grid');
+
+      // Test 1-click PNG image export
+      HTMLCanvasElement.prototype.toDataURL = vi.fn().mockReturnValue('data:image/png;base64,mockpngdata');
+      const exportBtn = screen.getByTestId('export-image-btn');
+      act(() => {
+        fireEvent.click(exportBtn);
+      });
+      expect(HTMLCanvasElement.prototype.toDataURL).toHaveBeenCalledWith('image/png');
+    });
+
+    it('performs guarded clear page preserving background worksheet', async () => {
+      let workspaceEngine: FabricWhiteboardEngine | null = null;
+      render(
+        <ClassroomWorkspace
+          roomId="room-clear-test"
+          role="teacher"
+          userId="teacher-1"
+          userName="Teacher"
+          onEngineReady={(engine) => {
+            workspaceEngine = engine;
+          }}
+        />
+      );
+
+      // Set mock background worksheet image and add an object
+      await act(async () => {
+        await workspaceEngine!.setBackgroundImage('data:image/svg+xml;utf8,<svg></svg>');
+        workspaceEngine!.addObject({
+          id: 'obj-to-clear',
+          type: 'rect',
+          left: 10,
+          top: 10,
+        });
+      });
+
+      expect(workspaceEngine!.getBackgroundImage()).not.toBeNull();
+      expect(workspaceEngine!.getObjectById('obj-to-clear')).toBeTruthy();
+
+      // Trigger clear page
+      const clearBtn = screen.getByTestId('action-clear');
+      act(() => {
+        fireEvent.click(clearBtn);
+      });
+
+      // Object cleared but background preserved
+      expect(workspaceEngine!.getObjectById('obj-to-clear')).toBeFalsy();
+      expect(workspaceEngine!.getBackgroundImage()).not.toBeNull();
+    });
+  });
 });
