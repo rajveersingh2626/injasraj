@@ -134,7 +134,7 @@ export const ColorStrokePopover: React.FC<ColorStrokePopoverProps> = ({
           <div className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase mb-2 px-0.5">
             Color
           </div>
-          <div className="grid grid-cols-6 gap-2" role="radiogroup" aria-label="Color Swatches">
+          <div className="grid grid-cols-7 gap-1.5" role="radiogroup" aria-label="Color Swatches">
             {COLOR_SWATCHES.map((swatch) => {
               const isSelected = currentColor === swatch.hex.toLowerCase();
               return (
@@ -148,20 +148,20 @@ export const ColorStrokePopover: React.FC<ColorStrokePopoverProps> = ({
                   onClick={() => onChange({ color: swatch.hex })}
                   style={{
                     backgroundColor: swatch.hex,
-                    transition: `transform 160ms ${emilSpringEasing}, box-shadow 160ms ease`,
+                    transition: `transform 160ms ${emilSpringEasing}, box-shadow 160ms ease, ring 160ms ease`,
                     touchAction: 'manipulation',
                   }}
-                  className={`w-7 h-7 rounded-full relative cursor-pointer active:scale-[0.97] border border-white/20 transition-all flex items-center justify-center ${
+                  className={`w-7 h-7 rounded-full relative cursor-pointer active:scale-[0.95] border border-white/20 transition-all flex items-center justify-center ${
                     isSelected
-                      ? 'ring-2 ring-white ring-offset-2 ring-offset-[#121218] scale-105'
+                      ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-[#121218] scale-110 shadow-[0_0_12px_rgba(99,102,241,0.5)]'
                       : 'hover:scale-110 opacity-90 hover:opacity-100'
                   }`}
                 >
                   {isSelected && (
                     <span
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        swatch.hex === '#ffffff' ? 'bg-zinc-900' : 'bg-white'
-                      }`}
+                      className={`w-2 h-2 rounded-full ${
+                        swatch.hex.toLowerCase() === '#ffffff' ? 'bg-zinc-900' : 'bg-white'
+                      } shadow-sm`}
                     />
                   )}
                 </button>

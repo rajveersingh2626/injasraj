@@ -341,4 +341,37 @@ describe('Whiteboard UX Perfection & Tool Polish Suite', () => {
       expect(workspaceEngine!.getBackgroundImage()).not.toBeNull();
     });
   });
+
+  describe('Task 4: Tactile Color Swatch Rings & Design Engineering Polish', () => {
+    it('renders tactile active specular rings and handles color changes in ColorStrokePopover', () => {
+      const handleChange = vi.fn();
+      const { rerender } = render(
+        <ColorStrokePopover
+          isOpen={true}
+          strokeProperties={{ color: '#ef4444', width: 4 }}
+          onChange={handleChange}
+        />
+      );
+
+      const redSwatch = screen.getByTestId('color-swatch-ef4444');
+      expect(redSwatch).toBeInTheDocument();
+      expect(redSwatch.getAttribute('aria-checked')).toBe('true');
+      expect(redSwatch.className).toContain('ring-indigo-500');
+      expect(redSwatch.className).toContain('scale-110');
+
+      const blueSwatch = screen.getByTestId('color-swatch-3b82f6');
+      expect(blueSwatch.getAttribute('aria-checked')).toBe('false');
+
+      fireEvent.click(blueSwatch);
+      expect(handleChange).toHaveBeenCalledWith({ color: '#3b82f6' });
+
+      // Stroke width presets test
+      const width4Btn = screen.getByTestId('stroke-width-4');
+      expect(width4Btn.getAttribute('aria-checked')).toBe('true');
+
+      const width8Btn = screen.getByTestId('stroke-width-8');
+      fireEvent.click(width8Btn);
+      expect(handleChange).toHaveBeenCalledWith({ width: 8 });
+    });
+  });
 });
