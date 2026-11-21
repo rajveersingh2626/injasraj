@@ -857,6 +857,22 @@ export class FabricWhiteboardEngine {
     return cloned;
   }
 
+  public addMathFormula(latex: string, svgDataUrl: string, options?: any): any {
+    const formulaObj = {
+      id: generateObjectId(),
+      type: 'formula',
+      latex,
+      src: svgDataUrl,
+      left: options?.left ?? 400,
+      top: options?.top ?? 300,
+      width: options?.width ?? 420,
+      height: options?.height ?? 120,
+      selectable: true,
+      ...options,
+    };
+    return this.addObject(formulaObj);
+  }
+
   public removeObject(idOrObj: string | any): boolean {
     const id = typeof idOrObj === 'string' ? idOrObj : idOrObj?.id;
     if (!id) return false;
@@ -1533,6 +1549,35 @@ export class FabricWhiteboardEngine {
             context.fillText(curLine, left + padding, curY);
           }
         }
+        break;
+      }
+      case 'formula': {
+        const left = obj.left ?? 0;
+        const top = obj.top ?? 0;
+        const width = obj.width ?? 420;
+        const height = obj.height ?? 120;
+        const rx = obj.rx ?? 12;
+
+        context.save();
+        context.beginPath();
+        if (typeof context.roundRect === 'function') {
+          context.roundRect(left, top, width, height, [rx]);
+        } else {
+          context.rect(left, top, width, height);
+        }
+        context.fillStyle = 'rgba(28, 25, 23, 0.95)';
+        context.fill();
+        context.strokeStyle = 'rgba(180, 130, 60, 0.5)';
+        context.lineWidth = 1.5;
+        context.stroke();
+
+        // Render formula text centered
+        context.font = 'italic 26px "Times New Roman", KaTeX_Main, serif';
+        context.fillStyle = '#f5f3e6';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText(obj.latex || 'f(x) = 0', left + width / 2, top + height / 2);
+        context.restore();
         break;
       }
     }

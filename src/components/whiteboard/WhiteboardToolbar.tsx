@@ -19,6 +19,7 @@ import {
   Redo2,
   Trash2,
   Star,
+  Sigma,
 } from 'lucide-react';
 import { WhiteboardToolType, StrokeProperties } from '../../types/whiteboard';
 import { ColorStrokePopover } from './ColorStrokePopover';
@@ -34,6 +35,7 @@ export interface WhiteboardToolbarProps {
   onRedo?: () => void;
   onClearPage?: () => void;
   onTriggerReward?: (type: 'star' | 'trophy' | 'fire' | 'heart' | 'sparkles') => void;
+  onOpenEquationModal?: () => void;
   allowedTools?: WhiteboardToolType[];
   className?: string;
   isTeacher?: boolean;
@@ -59,6 +61,7 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
   onRedo,
   onClearPage,
   onTriggerReward,
+  onOpenEquationModal,
   allowedTools,
   className = '',
   readOnly = false,
@@ -335,6 +338,22 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
       >
         <StickyNote className="w-4 h-4" />
       </button>
+
+      {/* 8b. Math Formula / LaTeX Equation Tool */}
+      {onOpenEquationModal && (
+        <button
+          type="button"
+          onClick={onOpenEquationModal}
+          disabled={readOnly}
+          aria-label="Math formula tool"
+          data-testid="tool-equation"
+          title="Insert Math Equation (LaTeX)"
+          style={baseButtonStyle}
+          className="w-9 h-9 rounded-xl flex items-center justify-center border border-transparent text-amber-300 hover:bg-amber-500/20 hover:text-amber-200 hover:border-amber-500/30 cursor-pointer active:scale-[0.97]"
+        >
+          <Sigma className="w-4 h-4" />
+        </button>
+      )}
 
       {/* 9. Laser Pointer Tool */}
       <button

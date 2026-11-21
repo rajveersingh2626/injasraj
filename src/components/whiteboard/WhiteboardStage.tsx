@@ -27,6 +27,7 @@ import { TouchGestureHandler } from '../../lib/whiteboard/touch-gesture-handler'
 import { WhiteboardToolbar } from './WhiteboardToolbar';
 import { ZoomControls } from './ZoomControls';
 import { PageNavigationBar } from './PageNavigationBar';
+import { MathEquationModal } from './MathEquationModal';
 
 export interface WhiteboardStageProps {
   engine?: FabricWhiteboardEngine;
@@ -166,6 +167,14 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
   const isControlledZoom = controlledZoom !== undefined;
   const [internalZoom, setInternalZoom] = useState<number>(1.0);
   const zoom = isControlledZoom ? controlledZoom : internalZoom;
+
+  // LaTeX Math Equation Modal State
+  const [isEquationModalOpen, setIsEquationModalOpen] = useState(false);
+  const handleInsertEquation = (latex: string, svgDataUrl: string) => {
+    if (activeEngine) {
+      activeEngine.addMathFormula(latex, svgDataUrl);
+    }
+  };
 
   // Viewport bounds for 16:9 letterbox calculation
   const [viewportBounds, setViewportBounds] = useState<ViewportBounds>({
@@ -695,8 +704,16 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
         onClearPage={handleClearPage}
         allowedTools={allowedTools}
         onTriggerReward={onTriggerReward}
+        onOpenEquationModal={() => setIsEquationModalOpen(true)}
         isTeacher={isTeacher}
         readOnly={readOnly}
+      />
+
+      {/* LaTeX Math Formula Modal */}
+      <MathEquationModal
+        isOpen={isEquationModalOpen}
+        onClose={() => setIsEquationModalOpen(false)}
+        onInsertEquation={handleInsertEquation}
       />
     </div>
   );
