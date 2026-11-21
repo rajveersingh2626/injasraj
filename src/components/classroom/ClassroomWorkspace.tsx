@@ -796,13 +796,10 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   };
 
   const handleRenamePage = (pageId: string, newTitle: string) => {
-    const page = pageManagerRef.current.getPage(pageId);
-    if (page) {
-      page.title = newTitle;
-      setPages([...pageManagerRef.current.getAllPages()]);
-      schedulePersist();
-      propOnPagesChange?.(pageManagerRef.current.getAllPages());
-    }
+    pageManagerRef.current.renamePage(pageId, newTitle);
+    setPages([...pageManagerRef.current.getAllPages()]);
+    schedulePersist();
+    propOnPagesChange?.(pageManagerRef.current.getAllPages());
   };
 
   const handleSelectPage = (pageId: string) => {

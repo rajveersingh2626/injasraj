@@ -63,6 +63,7 @@ export class WhiteboardRealtimeAdapter {
   private currentUserId: string;
   private filterSelf: boolean;
   private listeners: Set<(delta: WhiteboardDeltaMessage) => void> = new Set();
+  private customEventListeners: Map<string, Set<(payload: any) => void>> = new Map();
   private disconnected: boolean = false;
 
   constructor(
@@ -87,6 +88,35 @@ export class WhiteboardRealtimeAdapter {
         { event: WHITEBOARD_BROADCAST_EVENT },
         (envelope: any) => {
           this.handleIncomingBroadcast(envelope);
+        }
+      );
+      this.channel.on(
+        'broadcast',
+        { event: 'custom-event' },
+        (envelope: any) => {
+          const payload = envelope?.payload;
+          if (!payload || !payload.eventName) return;
+          if (this.filterSelf && payload.senderId === this.currentUserId) return;
+          const specificListeners = this.customEventListeners.get(payload.eventName);
+          if (specificListeners) {
+            for (const cb of specificListeners) {
+              try {
+                cb(payload.data);
+              } catch (err) {
+                console.error(err);
+              }
+            }
+          }
+          const allListeners = this.customEventListeners.get('__all__');
+          if (allListeners) {
+            for (const cb of allListeners) {
+              try {
+                cb({ eventName: payload.eventName, data: payload.data });
+              } catch (err) {
+                console.error(err);
+              }
+            }
+          }
         }
       );
     }
@@ -320,6 +350,59 @@ export class WhiteboardRealtimeAdapter {
    */
   public onEvent(callback: (delta: WhiteboardDeltaMessage) => void): () => void {
     return this.onDelta(callback);
+  }
+
+  /**
+   * Broadcasts a custom named event across the channel (e.g. rewards, timer state, video sync).
+   */
+  public async broadcastCustomEvent(eventName: string, data: any): Promise<void> {
+    if (this.disconnected || !this.channel || typeof this.channel.send !== 'function') {
+      return;
+    }
+    await this.channel.send({
+      type: 'broadcast',
+      event: 'custom-event',
+      payload: {
+        eventName,
+        data,
+        senderId: this.currentUserId,
+        timestamp: Date.now(),
+      },
+    });
+  }
+
+  /**
+   * Registers a subscriber for custom named events. Supports single-event or catch-all callback.
+   */
+  public onCustomEvent(
+    callbackOrEventName: string | ((eventName: string, payload: any) => void),
+    maybeCallback?: (payload: any) => void
+  ): () => void {
+    if (typeof callbackOrEventName === 'function') {
+      const handler = callbackOrEventName;
+      let set = this.customEventListeners.get('__all__');
+      if (!set) {
+        set = new Set();
+        this.customEventListeners.set('__all__', set);
+      }
+      const wrapped = (msg: any) => handler(msg.eventName, msg.data);
+      set.add(wrapped);
+      return () => {
+        set?.delete(wrapped);
+      };
+    }
+
+    const eventName = callbackOrEventName;
+    const handler = maybeCallback!;
+    let set = this.customEventListeners.get(eventName);
+    if (!set) {
+      set = new Set();
+      this.customEventListeners.set(eventName, set);
+    }
+    set.add(handler);
+    return () => {
+      set?.delete(handler);
+    };
   }
 
   /**

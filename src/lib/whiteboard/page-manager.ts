@@ -138,6 +138,17 @@ export class WhiteboardPageManager {
     return page ? this.clonePage(page) : undefined;
   }
 
+  public getPage(pageId: string): WhiteboardPage | undefined {
+    return this.getPageById(pageId);
+  }
+
+  public renamePage(pageId: string, newTitle: string): boolean {
+    const page = this.pages.find((p) => p.id === pageId);
+    if (!page) return false;
+    page.title = newTitle;
+    return true;
+  }
+
   /**
    * Retrieves a page by its 0-based index, or undefined if index out of bounds.
    */

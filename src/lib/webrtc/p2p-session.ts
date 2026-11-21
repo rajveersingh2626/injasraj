@@ -64,7 +64,7 @@ export const DEFAULT_VIDEO_CONSTRAINTS: MediaTrackConstraints = {
   frameRate: { ideal: 30, max: 30 },
 };
 
-export const DEFAULT_AUDIO_CONSTRAINTS: MediaTrackConstraints = {
+export const DEFAULT_AUDIO_CONSTRAINTS: MediaTrackConstraints & { latency?: number } = {
   echoCancellation: true,
   noiseSuppression: true,
   autoGainControl: true,

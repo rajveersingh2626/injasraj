@@ -60,6 +60,7 @@ export const RewardCelebrationOverlay: React.FC<RewardCelebrationOverlayProps> =
   // Particle confetti effect on canvas
   useEffect(() => {
     if (!activeReward || !canvasRef.current) return;
+    const canvas = canvasRef.current;
     let ctx: CanvasRenderingContext2D | null = null;
     try {
       ctx = canvas.getContext('2d');
