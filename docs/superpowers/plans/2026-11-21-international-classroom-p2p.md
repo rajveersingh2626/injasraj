@@ -10,6 +10,11 @@
 
 **Spec:** [`docs/specs/2026-11-21-international-classroom-p2p-design.md`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/docs/specs/2026-11-21-international-classroom-p2p-design.md)
 
+## Mandatory Execution Directives for Implementers & Subagents
+1. **Atomic Commits & Immediate GitHub Pushes (MANDATORY):** Every task MUST end with its own granular, atomic git commit using Conventional Commits format (`feat(...)`, `test(...)`, `fix(...)`), followed immediately by `git push origin main`. Do NOT batch multiple tasks into a single commit.
+2. **Emil Kowalski Design-Engineering Craft:** All buttons must feature `:active { transform: scale(0.97); }` with `transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1)`. Use `backdrop-filter: blur(16px)` with subtle hairline borders (`rgba(255, 255, 255, 0.08)`) and inset specular rim highlights (`box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12)`). Never animate from `scale(0)` (always start from `scale(0.95)` with opacity).
+3. **Full Tablet & Mobile Responsiveness:** Use `100dvh` for full screen layouts, `env(safe-area-inset-bottom)` for bottom controls, `-webkit-tap-highlight-color: transparent` globally, `touch-action: manipulation` on tappables, minimum `16px` font on inputs (prevents iOS Safari auto-zoom), and responsive layout switching (phone vertical portrait PiP vs tablet/desktop side-by-side).
+
 ## Global Constraints
 - Operational budget: Strictly $0 (no credit card required).
 - Persistence & Auth: Supabase Free Tier (50,000 MAU Auth, 500MB Postgres, 2M Realtime messages/month).
