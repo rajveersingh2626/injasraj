@@ -183,8 +183,9 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
     if (w > 0 && h > 0) {
       const bounds = calculateViewportTransform(w, h, 1920, 1080);
       setViewportBounds(bounds);
+      activeEngine?.requestRender();
     }
-  }, []);
+  }, [activeEngine]);
 
   useEffect(() => {
     updateLetterboxBounds();
@@ -208,6 +209,13 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
       }
     };
   }, [updateLetterboxBounds]);
+
+  // Attach canvas to propEngine if provided
+  useEffect(() => {
+    if (propEngine && canvasRef.current) {
+      propEngine.attachCanvas(canvasRef.current);
+    }
+  }, [propEngine]);
 
   // Initialize internal FabricWhiteboardEngine if not provided
   useEffect(() => {

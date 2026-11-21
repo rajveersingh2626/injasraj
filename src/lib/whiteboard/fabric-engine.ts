@@ -198,6 +198,13 @@ export class FabricWhiteboardEngine {
   private isDrawing: boolean = false;
   private currentStrokePoints: Array<{ x: number; y: number }> = [];
 
+  // 2D Rendering Engine State
+  private renderRequested: boolean = false;
+  private animFrameId: any = null;
+  private gridType: 'none' | 'dots' | 'lines' | 'grid' = 'none';
+  private cachedBgImageElement: HTMLImageElement | null = null;
+  private cachedBgImageSrc: string | null = null;
+
   // Callbacks
   private objectAddedCallbacks: Array<(obj: any) => void> = [];
   private objectModifiedCallbacks: Array<(obj: any) => void> = [];
@@ -242,7 +249,36 @@ export class FabricWhiteboardEngine {
       }
 
       this.attachDomEvents(canvasElement);
+      this.requestRender();
     }
+  }
+
+  public attachCanvas(canvasElement: HTMLCanvasElement): void {
+    if (this.canvasElement === canvasElement) return;
+    this.canvasElement = canvasElement;
+    try {
+      canvasElement.width = this.virtualWidth;
+      canvasElement.height = this.virtualHeight;
+    } catch {}
+    this.attachDomEvents(canvasElement);
+    this.requestRender();
+  }
+
+  public resize(width?: number, height?: number): void {
+    if (this.canvasElement) {
+      if (width && width > 0) this.canvasElement.width = width;
+      if (height && height > 0) this.canvasElement.height = height;
+    }
+    this.requestRender();
+  }
+
+  public setGridType(grid: 'none' | 'dots' | 'lines' | 'grid'): void {
+    this.gridType = grid;
+    this.requestRender();
+  }
+
+  public getGridType(): 'none' | 'dots' | 'lines' | 'grid' {
+    return this.gridType;
   }
 
   // ==========================================
@@ -287,6 +323,8 @@ export class FabricWhiteboardEngine {
         }
       } catch {}
     }
+
+    this.requestRender();
   }
 
   public getActiveTool(): WhiteboardToolType {
@@ -303,6 +341,7 @@ export class FabricWhiteboardEngine {
         ? Math.max(0, Math.min(1, props.opacity))
         : this.strokeProperties.opacity,
     };
+    this.requestRender();
   }
 
   public getStrokeProperties(): StrokeProperties {
@@ -330,6 +369,24 @@ export class FabricWhiteboardEngine {
       hasBorders: false,
     };
 
+    if (typeof Image !== 'undefined') {
+      try {
+        const img = new Image();
+        img.src = dataUrl;
+        img.onload = () => {
+          this.cachedBgImageElement = img;
+          this.cachedBgImageSrc = dataUrl;
+          this.requestRender();
+        };
+        if (img.complete && img.naturalWidth > 0) {
+          this.cachedBgImageElement = img;
+          this.cachedBgImageSrc = dataUrl;
+        }
+      } catch {}
+    }
+
+    this.requestRender();
+
     if (this.fabricCanvas && typeof this.fabricCanvas.setBackgroundImage === 'function') {
       try {
         await new Promise<void>((resolve) => {
@@ -353,6 +410,9 @@ export class FabricWhiteboardEngine {
 
   public clearBackgroundImage(): void {
     this.backgroundImage = null;
+    this.cachedBgImageElement = null;
+    this.cachedBgImageSrc = null;
+    this.requestRender();
     if (this.fabricCanvas) {
       try {
         this.fabricCanvas.backgroundImage = null;
@@ -381,6 +441,8 @@ export class FabricWhiteboardEngine {
     for (const id of removedIds) {
       this.notifyObjectRemoved(id);
     }
+
+    this.requestRender();
 
     if (this.fabricCanvas) {
       try {
@@ -418,8 +480,26 @@ export class FabricWhiteboardEngine {
       this.backgroundImage = deepClone(json.backgroundImage);
       this.backgroundImage.selectable = false;
       this.backgroundImage.evented = false;
+      if (this.backgroundImage.src && typeof Image !== 'undefined') {
+        try {
+          const src = this.backgroundImage.src;
+          const img = new Image();
+          img.src = src;
+          img.onload = () => {
+            this.cachedBgImageElement = img;
+            this.cachedBgImageSrc = src;
+            this.requestRender();
+          };
+          if (img.complete && img.naturalWidth > 0) {
+            this.cachedBgImageElement = img;
+            this.cachedBgImageSrc = src;
+          }
+        } catch {}
+      }
     } else {
       this.backgroundImage = null;
+      this.cachedBgImageElement = null;
+      this.cachedBgImageSrc = null;
     }
 
     if (typeof json.virtualWidth === 'number' && json.virtualWidth > 0) {
@@ -429,6 +509,7 @@ export class FabricWhiteboardEngine {
       this.virtualHeight = json.virtualHeight;
     }
 
+    this.requestRender();
     return Promise.resolve();
   }
 
@@ -572,6 +653,7 @@ export class FabricWhiteboardEngine {
 
     this.objects.push(shape);
     this.notifyObjectAdded(shape);
+    this.requestRender();
     return shape;
   }
 
@@ -604,6 +686,7 @@ export class FabricWhiteboardEngine {
 
     this.objects.push(textObj);
     this.notifyObjectAdded(textObj);
+    this.requestRender();
     return textObj;
   }
 
@@ -639,6 +722,7 @@ export class FabricWhiteboardEngine {
 
     this.objects.push(stickyObj);
     this.notifyObjectAdded(stickyObj);
+    this.requestRender();
     return stickyObj;
   }
 
@@ -689,6 +773,7 @@ export class FabricWhiteboardEngine {
 
     this.objects.push(pathObj);
     this.notifyObjectAdded(pathObj);
+    this.requestRender();
     return pathObj;
   }
 
@@ -703,6 +788,7 @@ export class FabricWhiteboardEngine {
     if (obj) {
       this.selectedObjectIds.add(id);
       obj.selected = true;
+      this.requestRender();
     }
   }
 
@@ -711,6 +797,7 @@ export class FabricWhiteboardEngine {
       obj.selected = false;
     }
     this.selectedObjectIds.clear();
+    this.requestRender();
   }
 
   public getSelectedObjects(): any[] {
@@ -728,6 +815,7 @@ export class FabricWhiteboardEngine {
     for (const id of toDelete) {
       this.notifyObjectRemoved(id);
     }
+    this.requestRender();
     return true;
   }
 
@@ -752,6 +840,7 @@ export class FabricWhiteboardEngine {
       this.objects.push(cloned);
     }
     this.notifyObjectAdded(cloned);
+    this.requestRender();
     return cloned;
   }
 
@@ -763,6 +852,7 @@ export class FabricWhiteboardEngine {
     this.selectedObjectIds.delete(id);
     if (this.objects.length < initialLen) {
       this.notifyObjectRemoved(id);
+      this.requestRender();
       return true;
     }
     return false;
@@ -778,6 +868,7 @@ export class FabricWhiteboardEngine {
     };
     const updated = this.objects[index];
     this.notifyObjectModified(updated);
+    this.requestRender();
     return updated;
   }
 
@@ -879,6 +970,7 @@ export class FabricWhiteboardEngine {
       if (this.activeTool === 'pen' || this.activeTool === 'pencil' || this.activeTool === 'highlighter') {
         this.isDrawing = true;
         this.currentStrokePoints = [pt];
+        this.requestRender();
       }
     };
 
@@ -898,6 +990,7 @@ export class FabricWhiteboardEngine {
 
       if (this.isDrawing) {
         this.currentStrokePoints.push(pt);
+        this.requestRender();
       }
     };
 
@@ -907,6 +1000,7 @@ export class FabricWhiteboardEngine {
       }
       this.isDrawing = false;
       this.currentStrokePoints = [];
+      this.requestRender();
     };
 
     canvas.addEventListener('pointerdown', handlePointerDown as EventListener);
@@ -965,9 +1059,448 @@ export class FabricWhiteboardEngine {
         this.objects.splice(i, 1);
         this.selectedObjectIds.delete(obj.id);
         this.notifyObjectRemoved(obj.id);
+        this.requestRender();
         break;
       }
     }
+  }
+
+  // ==========================================
+  // HTML5 2D Canvas Visual Rendering Engine
+  // ==========================================
+
+  /**
+   * Schedules a canvas redraw on the next animation frame with debouncing.
+   */
+  public requestRender(): void {
+    if (this.renderRequested) return;
+    this.renderRequested = true;
+
+    if (typeof requestAnimationFrame !== 'undefined') {
+      this.animFrameId = requestAnimationFrame(() => {
+        this.renderRequested = false;
+        this.animFrameId = null;
+        this.render();
+      });
+    } else {
+      this.animFrameId = setTimeout(() => {
+        this.renderRequested = false;
+        this.animFrameId = null;
+        this.render();
+      }, 16);
+    }
+  }
+
+  /**
+   * Synchronously paints the canonical 1920x1080 canvas scene onto the canvas context.
+   * Safe to call in headless/JSDOM environments without throwing.
+   */
+  public render(ctx?: CanvasRenderingContext2D): void {
+    let context: CanvasRenderingContext2D | null = null;
+    try {
+      context = ctx || (this.canvasElement?.getContext?.('2d') as CanvasRenderingContext2D | null);
+    } catch {
+      context = null;
+    }
+    if (!context) return;
+
+    try {
+      const width = this.canvasElement?.width || this.virtualWidth;
+      const height = this.canvasElement?.height || this.virtualHeight;
+
+      // Calculate viewport transform to scale & center 1920x1080 virtual canvas
+      const viewport = calculateViewportTransform(
+        width,
+        height,
+        this.virtualWidth,
+        this.virtualHeight
+      );
+
+      // Clear the physical canvas bounds
+      context.clearRect(0, 0, width, height);
+
+      context.save();
+      context.translate(viewport.offsetX, viewport.offsetY);
+      context.scale(viewport.scale, viewport.scale);
+
+      // 1. Draw virtual canvas background (canonical 1920x1080 white sheet)
+      context.fillStyle = '#FFFFFF';
+      context.fillRect(0, 0, this.virtualWidth, this.virtualHeight);
+
+      // 2. Draw optional grid lines or dots
+      this.drawVirtualGrid(context);
+
+      // 3. Draw background image if loaded
+      this.drawBackgroundImage(context);
+
+      // 4. Render all persistent canvas objects in Z-order
+      for (const obj of this.objects) {
+        this.drawObject(context, obj);
+      }
+
+      // 5. Draw active freehand stroke preview if currently drawing
+      if (this.isDrawing && this.currentStrokePoints.length > 0) {
+        this.drawActiveStrokePreview(context);
+      }
+
+      // 6. Draw selection boundary and resize handles for selected objects
+      for (const objId of this.selectedObjectIds) {
+        const obj = this.getObjectById(objId);
+        if (obj) {
+          this.drawSelectionOutline(context, obj);
+        }
+      }
+
+      context.restore();
+    } catch (err) {
+      // Gracefully prevent rendering glitches from breaking event handlers
+      console.error('Error during canvas render:', err);
+    }
+  }
+
+  private drawVirtualGrid(context: CanvasRenderingContext2D): void {
+    if (this.gridType === 'none') return;
+
+    context.save();
+    const step = 40;
+
+    if (this.gridType === 'lines' || this.gridType === 'grid') {
+      context.strokeStyle = '#F1F5F9';
+      context.lineWidth = 1;
+      context.beginPath();
+      for (let x = step; x < this.virtualWidth; x += step) {
+        context.moveTo(x, 0);
+        context.lineTo(x, this.virtualHeight);
+      }
+      for (let y = step; y < this.virtualHeight; y += step) {
+        context.moveTo(0, y);
+        context.lineTo(this.virtualWidth, y);
+      }
+      context.stroke();
+    } else if (this.gridType === 'dots') {
+      context.fillStyle = '#CBD5E1';
+      for (let x = step; x < this.virtualWidth; x += step) {
+        for (let y = step; y < this.virtualHeight; y += step) {
+          context.beginPath();
+          context.arc(x, y, 1.5, 0, Math.PI * 2);
+          context.fill();
+        }
+      }
+    }
+
+    context.restore();
+  }
+
+  private drawBackgroundImage(context: CanvasRenderingContext2D): void {
+    if (!this.backgroundImage || !this.backgroundImage.src) return;
+
+    const src = this.backgroundImage.src;
+    const left = this.backgroundImage.left ?? 0;
+    const top = this.backgroundImage.top ?? 0;
+    const width = this.backgroundImage.width ?? this.virtualWidth;
+    const height = this.backgroundImage.height ?? this.virtualHeight;
+
+    if (this.cachedBgImageElement && this.cachedBgImageSrc === src) {
+      try {
+        context.drawImage(this.cachedBgImageElement, left, top, width, height);
+      } catch {}
+      return;
+    }
+
+    if (typeof Image !== 'undefined') {
+      try {
+        const img = new Image();
+        img.src = src;
+        img.onload = () => {
+          this.cachedBgImageElement = img;
+          this.cachedBgImageSrc = src;
+          this.requestRender();
+        };
+        if (img.complete && img.naturalWidth > 0) {
+          this.cachedBgImageElement = img;
+          this.cachedBgImageSrc = src;
+          context.drawImage(img, left, top, width, height);
+        }
+      } catch {}
+    }
+  }
+
+  private drawObject(context: CanvasRenderingContext2D, obj: any): void {
+    if (!obj) return;
+    context.save();
+    context.globalAlpha = typeof obj.opacity === 'number' ? obj.opacity : 1.0;
+
+    switch (obj.type) {
+      case 'path': {
+        context.strokeStyle = obj.stroke || '#000000';
+        context.lineWidth = obj.strokeWidth || 3;
+        context.lineCap = (obj.strokeLineCap as CanvasLineCap) || 'round';
+        context.lineJoin = (obj.strokeLineJoin as CanvasLineJoin) || 'round';
+        if (typeof Path2D !== 'undefined' && obj.path) {
+          try {
+            const p2d = new Path2D(obj.path);
+            context.stroke(p2d);
+          } catch {
+            this.drawPointsPath(context, obj.points);
+          }
+        } else if (Array.isArray(obj.points) && obj.points.length > 0) {
+          this.drawPointsPath(context, obj.points);
+        }
+        break;
+      }
+      case 'rect': {
+        const left = obj.left ?? 0;
+        const top = obj.top ?? 0;
+        const width = obj.width ?? 100;
+        const height = obj.height ?? 100;
+        const rx = obj.rx ?? 0;
+        context.beginPath();
+        if (rx > 0 && typeof context.roundRect === 'function') {
+          context.roundRect(left, top, width, height, [rx]);
+        } else {
+          context.rect(left, top, width, height);
+        }
+        if (obj.fill && obj.fill !== 'transparent') {
+          context.fillStyle = obj.fill;
+          context.fill();
+        }
+        if (obj.stroke && obj.strokeWidth) {
+          context.strokeStyle = obj.stroke;
+          context.lineWidth = obj.strokeWidth;
+          context.stroke();
+        }
+        break;
+      }
+      case 'circle': {
+        const radius = obj.radius ?? (obj.width ? obj.width / 2 : 50);
+        const centerX = (obj.left ?? 0) + radius;
+        const centerY = (obj.top ?? 0) + radius;
+        context.beginPath();
+        context.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        if (obj.fill && obj.fill !== 'transparent') {
+          context.fillStyle = obj.fill;
+          context.fill();
+        }
+        if (obj.stroke && obj.strokeWidth) {
+          context.strokeStyle = obj.stroke;
+          context.lineWidth = obj.strokeWidth;
+          context.stroke();
+        }
+        break;
+      }
+      case 'triangle': {
+        const left = obj.left ?? 0;
+        const top = obj.top ?? 0;
+        const width = obj.width ?? 100;
+        const height = obj.height ?? 100;
+        context.beginPath();
+        context.moveTo(left + width / 2, top);
+        context.lineTo(left + width, top + height);
+        context.lineTo(left, top + height);
+        context.closePath();
+        if (obj.fill && obj.fill !== 'transparent') {
+          context.fillStyle = obj.fill;
+          context.fill();
+        }
+        if (obj.stroke && obj.strokeWidth) {
+          context.strokeStyle = obj.stroke;
+          context.lineWidth = obj.strokeWidth;
+          context.stroke();
+        }
+        break;
+      }
+      case 'line': {
+        const x1 = obj.x1 ?? obj.left ?? 0;
+        const y1 = obj.y1 ?? obj.top ?? 0;
+        const x2 = obj.x2 ?? (obj.left ?? 0) + (obj.width ?? 0);
+        const y2 = obj.y2 ?? (obj.top ?? 0) + (obj.height ?? 0);
+        context.beginPath();
+        context.moveTo(x1, y1);
+        context.lineTo(x2, y2);
+        context.strokeStyle = obj.stroke || '#000000';
+        context.lineWidth = obj.strokeWidth || 3;
+        context.lineCap = 'round';
+        context.stroke();
+        break;
+      }
+      case 'arrow': {
+        const x1 = obj.x1 ?? obj.left ?? 0;
+        const y1 = obj.y1 ?? obj.top ?? 0;
+        const x2 = obj.x2 ?? (obj.left ?? 0) + (obj.width ?? 0);
+        const y2 = obj.y2 ?? (obj.top ?? 0) + (obj.height ?? 0);
+        context.beginPath();
+        context.moveTo(x1, y1);
+        context.lineTo(x2, y2);
+        context.strokeStyle = obj.stroke || '#000000';
+        context.lineWidth = obj.strokeWidth || 3;
+        context.lineCap = 'round';
+        context.stroke();
+
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        const headLen = obj.headLength ?? 20;
+        context.beginPath();
+        context.moveTo(x2, y2);
+        context.lineTo(
+          x2 - headLen * Math.cos(angle - Math.PI / 6),
+          y2 - headLen * Math.sin(angle - Math.PI / 6)
+        );
+        context.lineTo(
+          x2 - headLen * Math.cos(angle + Math.PI / 6),
+          y2 - headLen * Math.sin(angle + Math.PI / 6)
+        );
+        context.closePath();
+        context.fillStyle = obj.fill || obj.stroke || '#000000';
+        context.fill();
+        break;
+      }
+      case 'text': {
+        const fontSize = obj.fontSize ?? 24;
+        const fontFamily = obj.fontFamily ?? 'Inter, system-ui, sans-serif';
+        context.font = `${fontSize}px ${fontFamily}`;
+        context.fillStyle = obj.fill || obj.color || obj.stroke || '#000000';
+        context.textBaseline = 'top';
+        const left = obj.left ?? 0;
+        const top = obj.top ?? 0;
+        const lines = (obj.text ?? '').toString().split('\n');
+        const lineHeight = fontSize * 1.25;
+        for (let i = 0; i < lines.length; i++) {
+          context.fillText(lines[i], left, top + i * lineHeight);
+        }
+        break;
+      }
+      case 'sticky': {
+        const left = obj.left ?? 0;
+        const top = obj.top ?? 0;
+        const width = obj.width ?? DEFAULT_STICKY_WIDTH;
+        const height = obj.height ?? DEFAULT_STICKY_HEIGHT;
+        const color = obj.color || obj.fill || DEFAULT_STICKY_COLOR;
+
+        context.shadowColor = 'rgba(0, 0, 0, 0.08)';
+        context.shadowBlur = 8;
+        context.shadowOffsetX = 2;
+        context.shadowOffsetY = 4;
+
+        context.beginPath();
+        if (typeof context.roundRect === 'function') {
+          context.roundRect(left, top, width, height, [obj.rx ?? 8]);
+        } else {
+          context.rect(left, top, width, height);
+        }
+        context.fillStyle = color;
+        context.fill();
+
+        context.shadowColor = 'transparent';
+        context.strokeStyle = obj.stroke || '#E2E8F0';
+        context.lineWidth = obj.strokeWidth || 1;
+        context.stroke();
+
+        if (obj.text) {
+          const fontSize = obj.fontSize ?? 18;
+          const fontFamily = obj.fontFamily ?? 'Inter, system-ui, sans-serif';
+          context.font = `${fontSize}px ${fontFamily}`;
+          context.fillStyle = obj.textColor || '#1E293B';
+          context.textBaseline = 'top';
+
+          const padding = 12;
+          const maxLineWidth = width - padding * 2;
+          const lineHeight = fontSize * 1.3;
+          const words = (obj.text as string).split(' ');
+          let curLine = '';
+          let curY = top + padding;
+
+          for (const word of words) {
+            const testLine = curLine ? `${curLine} ${word}` : word;
+            const metrics = context.measureText(testLine);
+            if (metrics.width > maxLineWidth && curLine) {
+              context.fillText(curLine, left + padding, curY);
+              curLine = word;
+              curY += lineHeight;
+              if (curY + lineHeight > top + height - padding) break;
+            } else {
+              curLine = testLine;
+            }
+          }
+          if (curLine && curY + lineHeight <= top + height - padding + lineHeight) {
+            context.fillText(curLine, left + padding, curY);
+          }
+        }
+        break;
+      }
+    }
+
+    context.restore();
+  }
+
+  private drawPointsPath(context: CanvasRenderingContext2D, points: Array<{ x: number; y: number }>): void {
+    if (!points || points.length === 0) return;
+    context.beginPath();
+    context.moveTo(points[0].x, points[0].y);
+    if (points.length === 1) {
+      context.lineTo(points[0].x + 0.1, points[0].y + 0.1);
+    } else {
+      for (let i = 1; i < points.length; i++) {
+        const prev = points[i - 1];
+        const curr = points[i];
+        const midX = (prev.x + curr.x) / 2;
+        const midY = (prev.y + curr.y) / 2;
+        context.quadraticCurveTo(prev.x, prev.y, midX, midY);
+      }
+      const last = points[points.length - 1];
+      context.lineTo(last.x, last.y);
+    }
+    context.stroke();
+  }
+
+  private drawActiveStrokePreview(context: CanvasRenderingContext2D): void {
+    if (this.currentStrokePoints.length === 0) return;
+    context.save();
+    const isHighlighter = this.activeTool === 'highlighter';
+    context.globalAlpha = isHighlighter
+      ? (this.strokeProperties.opacity ?? DEFAULT_HIGHLIGHTER_OPACITY)
+      : (this.strokeProperties.opacity ?? 1.0);
+    context.strokeStyle = this.strokeProperties.color;
+    context.lineWidth = isHighlighter
+      ? Math.max(20, this.strokeProperties.width)
+      : this.strokeProperties.width;
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    this.drawPointsPath(context, this.currentStrokePoints);
+    context.restore();
+  }
+
+  private drawSelectionOutline(context: CanvasRenderingContext2D, obj: any): void {
+    const left = obj.left ?? 0;
+    const top = obj.top ?? 0;
+    const width = obj.type === 'circle' ? (obj.radius ?? 50) * 2 : (obj.width ?? 100);
+    const height = obj.type === 'circle' ? (obj.radius ?? 50) * 2 : (obj.height ?? 100);
+    const pad = 4;
+
+    context.save();
+    context.strokeStyle = '#3B82F6';
+    context.lineWidth = 1.5;
+    if (typeof context.setLineDash === 'function') {
+      context.setLineDash([4, 4]);
+    }
+    context.strokeRect(left - pad, top - pad, width + pad * 2, height + pad * 2);
+
+    if (typeof context.setLineDash === 'function') {
+      context.setLineDash([]);
+    }
+    context.fillStyle = '#FFFFFF';
+    context.strokeStyle = '#2563EB';
+    context.lineWidth = 1;
+    const handleSize = 6;
+    const corners = [
+      { x: left - pad - handleSize / 2, y: top - pad - handleSize / 2 },
+      { x: left + width + pad - handleSize / 2, y: top - pad - handleSize / 2 },
+      { x: left - pad - handleSize / 2, y: top + height + pad - handleSize / 2 },
+      { x: left + width + pad - handleSize / 2, y: top + height + pad - handleSize / 2 },
+    ];
+    for (const c of corners) {
+      context.fillRect(c.x, c.y, handleSize, handleSize);
+      context.strokeRect(c.x, c.y, handleSize, handleSize);
+    }
+    context.restore();
   }
 
   // ==========================================
@@ -975,6 +1508,17 @@ export class FabricWhiteboardEngine {
   // ==========================================
 
   public destroy(): void {
+    if (this.animFrameId) {
+      if (typeof cancelAnimationFrame !== 'undefined') {
+        try {
+          cancelAnimationFrame(this.animFrameId);
+        } catch {}
+      }
+      clearTimeout(this.animFrameId);
+      this.animFrameId = null;
+    }
+    this.renderRequested = false;
+
     for (const cleanup of this.domCleanupFns) {
       try {
         cleanup();

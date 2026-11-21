@@ -178,6 +178,18 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       pageManagerRef.current = new WhiteboardPageManager(initialPages);
       setPages(pageManagerRef.current.getAllPages());
       setCurrentPageIndex(pageManagerRef.current.getActivePageIndex() + 1);
+
+      if (engineRef.current) {
+        const activePage = pageManagerRef.current.getActivePage();
+        if (activePage) {
+          if (activePage.canvasJson) {
+            engineRef.current.loadJson(activePage.canvasJson).catch(() => {});
+          }
+          if (activePage.thumbnailUrl) {
+            engineRef.current.setBackgroundImage(activePage.thumbnailUrl).catch(() => {});
+          }
+        }
+      }
     }
   }, [initialPages]);
 
@@ -261,8 +273,13 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           const idx = pageManagerRef.current.getActivePageIndex();
           setCurrentPageIndex(idx + 1);
           const target = pageManagerRef.current.getActivePage();
-          if (engineRef.current && target?.canvasJson) {
-            engineRef.current.loadJson(target.canvasJson);
+          if (engineRef.current && target) {
+            if (target.canvasJson) {
+              engineRef.current.loadJson(target.canvasJson);
+            }
+            if (target.thumbnailUrl) {
+              engineRef.current.setBackgroundImage(target.thumbnailUrl).catch(() => {});
+            }
           }
         }
       } else if (delta.type === 'permissions-update') {
@@ -295,6 +312,17 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   const handleEngineReady = useCallback(
     (engine: FabricWhiteboardEngine) => {
       engineRef.current = engine;
+
+      // Hydrate state from active page
+      const activePage = pageManagerRef.current.getActivePage();
+      if (activePage) {
+        if (activePage.canvasJson) {
+          engine.loadJson(activePage.canvasJson).catch(() => {});
+        }
+        if (activePage.thumbnailUrl) {
+          engine.setBackgroundImage(activePage.thumbnailUrl).catch(() => {});
+        }
+      }
 
       engine.onObjectAdded((obj) => {
         if (isApplyingRemoteDeltaRef.current) return;
@@ -443,8 +471,13 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       }
       pageManagerRef.current.setActivePage(target.id);
       setCurrentPageIndex(pageNum);
-      if (engineRef.current && target.canvasJson) {
-        engineRef.current.loadJson(target.canvasJson);
+      if (engineRef.current) {
+        if (target.canvasJson) {
+          engineRef.current.loadJson(target.canvasJson);
+        }
+        if (target.thumbnailUrl) {
+          engineRef.current.setBackgroundImage(target.thumbnailUrl).catch(() => {});
+        }
       }
       whiteboardAdapter?.broadcastPageSwitch(target.id).catch(() => {});
       schedulePersist();
@@ -486,8 +519,13 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     if (idx >= 0) {
       setCurrentPageIndex(idx + 1);
       const target = pageManagerRef.current.getActivePage();
-      if (engineRef.current && target.canvasJson) {
-        engineRef.current.loadJson(target.canvasJson);
+      if (engineRef.current && target) {
+        if (target.canvasJson) {
+          engineRef.current.loadJson(target.canvasJson);
+        }
+        if (target.thumbnailUrl) {
+          engineRef.current.setBackgroundImage(target.thumbnailUrl).catch(() => {});
+        }
       }
       whiteboardAdapter?.broadcastPageSwitch(pageId).catch(() => {});
       schedulePersist();

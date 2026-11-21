@@ -593,4 +593,93 @@ describe('FabricWhiteboardEngine', () => {
       interactiveEngine.destroy();
     });
   });
+
+  describe('Canvas 2D Visual Rendering Engine', () => {
+    function createMockContext(): any {
+      return {
+        clearRect: vi.fn(),
+        save: vi.fn(),
+        restore: vi.fn(),
+        translate: vi.fn(),
+        scale: vi.fn(),
+        fillRect: vi.fn(),
+        strokeRect: vi.fn(),
+        beginPath: vi.fn(),
+        closePath: vi.fn(),
+        moveTo: vi.fn(),
+        lineTo: vi.fn(),
+        quadraticCurveTo: vi.fn(),
+        arc: vi.fn(),
+        rect: vi.fn(),
+        roundRect: vi.fn(),
+        stroke: vi.fn(),
+        fill: vi.fn(),
+        fillText: vi.fn(),
+        measureText: vi.fn(() => ({ width: 50 })),
+        drawImage: vi.fn(),
+        setLineDash: vi.fn(),
+      };
+    }
+
+    it('renders virtual canvas boundary, grid, objects, and selection cleanly', async () => {
+      const mockCtx = createMockContext();
+      const testEngine = new FabricWhiteboardEngine();
+
+      testEngine.setGridType('lines');
+      expect(testEngine.getGridType()).toBe('lines');
+
+      // Add objects of various types
+      testEngine.addShape('rect', { left: 10, top: 10, width: 100, height: 80, fill: '#ff0000' });
+      testEngine.addShape('circle', { left: 200, top: 200, radius: 40 });
+      testEngine.addShape('triangle', { left: 400, top: 200, width: 80, height: 80 });
+      testEngine.addShape('line', { x1: 50, y1: 50, x2: 250, y2: 50 });
+      testEngine.addShape('arrow', { x1: 50, y1: 100, x2: 250, y2: 100 });
+      testEngine.addText('Hello World', { left: 300, top: 50 });
+      testEngine.addStickyNote('Note Content', '#FEF08A', { left: 500, top: 100 });
+      testEngine.addFreehandPath([{ x: 10, y: 10 }, { x: 20, y: 20 }]);
+
+      // Select one object
+      const allObjs = testEngine.getObjects();
+      testEngine.selectObject(allObjs[0].id);
+
+      testEngine.render(mockCtx);
+
+      expect(mockCtx.clearRect).toHaveBeenCalled();
+      expect(mockCtx.save).toHaveBeenCalled();
+      expect(mockCtx.fillRect).toHaveBeenCalled();
+      expect(mockCtx.stroke).toHaveBeenCalled();
+      expect(mockCtx.restore).toHaveBeenCalled();
+
+      testEngine.destroy();
+    });
+
+    it('handles background image and dots grid type', async () => {
+      const mockCtx = createMockContext();
+      const testEngine = new FabricWhiteboardEngine();
+      testEngine.setGridType('dots');
+      await testEngine.setBackgroundImage('data:image/png;base64,mock');
+
+      testEngine.render(mockCtx);
+      expect(mockCtx.arc).toHaveBeenCalled(); // dots grid
+      testEngine.destroy();
+    });
+
+    it('handles canvas attachment, resize, and requestRender debouncing', async () => {
+      const canvas = document.createElement('canvas');
+      const testEngine = new FabricWhiteboardEngine();
+      testEngine.attachCanvas(canvas);
+
+      expect(canvas.width).toBe(DEFAULT_VIRTUAL_WIDTH);
+      expect(canvas.height).toBe(DEFAULT_VIRTUAL_HEIGHT);
+
+      testEngine.resize(1280, 720);
+      expect(canvas.width).toBe(1280);
+      expect(canvas.height).toBe(720);
+
+      // requestRender should not throw in headless environment
+      expect(() => testEngine.requestRender()).not.toThrow();
+
+      testEngine.destroy();
+    });
+  });
 });
