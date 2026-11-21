@@ -1,5 +1,5 @@
 import React from 'react';
-import { Minus, Plus, Maximize2 } from 'lucide-react';
+import { Minus, Plus, Maximize2, Eye } from 'lucide-react';
 
 export interface ZoomControlsProps {
   zoom: number; // Scale factor, e.g. 1.0 = 100%
@@ -7,6 +7,9 @@ export interface ZoomControlsProps {
   onZoomOut: () => void;
   onResetZoom?: () => void;
   onFitToScreen?: () => void;
+  isFollowTeacherEnabled?: boolean;
+  onToggleFollowTeacher?: (enabled: boolean) => void;
+  isTeacher?: boolean;
   minZoom?: number;
   maxZoom?: number;
   className?: string;
@@ -18,6 +21,9 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
   onZoomOut,
   onResetZoom,
   onFitToScreen,
+  isFollowTeacherEnabled = false,
+  onToggleFollowTeacher,
+  isTeacher = false,
   minZoom = 0.1,
   maxZoom = 5.0,
   className = '',
@@ -99,6 +105,29 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
         <Maximize2 className="w-3.5 h-3.5" />
         <span>Fit</span>
       </button>
+
+      {/* Follow Teacher Button (Students only) */}
+      {!isTeacher && onToggleFollowTeacher && (
+        <>
+          <div className="w-[1px] h-4 bg-white/[0.08] mx-0.5" />
+          <button
+            type="button"
+            onClick={() => onToggleFollowTeacher(!isFollowTeacherEnabled)}
+            aria-label="Follow Teacher"
+            data-testid="follow-teacher-btn"
+            title="Sync zoom & pan with teacher"
+            style={buttonStyle}
+            className={`px-2.5 h-8 rounded-xl flex items-center justify-center gap-1.5 text-xs font-medium cursor-pointer active:scale-[0.97] transition-all duration-150 ${
+              isFollowTeacherEnabled
+                ? 'bg-amber-600/30 text-amber-300 border border-amber-500/40 active-follow'
+                : 'text-zinc-400 hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <Eye className="w-3.5 h-3.5" />
+            <span>Follow</span>
+          </button>
+        </>
+      )}
     </div>
   );
 };

@@ -180,6 +180,10 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     whiteboardAdapter?.broadcastCustomEvent?.('student-reward', reward);
   };
 
+  // Follow-Teacher Viewport Synchronization State
+  const [isFollowTeacherEnabled, setIsFollowTeacherEnabled] = useState<boolean>(false);
+  const [remoteViewport, setRemoteViewport] = useState<{ zoom: number; panX: number; panY: number } | undefined>(undefined);
+
   // Whiteboard Pages & Navigation
   const defaultInitialPages = useMemo(
     () =>
@@ -1079,6 +1083,9 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             onRedo={handleRedo}
             onClearPage={handleClearPage}
             onTriggerReward={role === 'teacher' ? handleTriggerReward : undefined}
+            isFollowTeacherEnabled={isFollowTeacherEnabled}
+            onToggleFollowTeacher={setIsFollowTeacherEnabled}
+            remoteViewport={remoteViewport}
             className="w-full h-full"
           />
         </main>

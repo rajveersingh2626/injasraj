@@ -46,6 +46,9 @@ export interface WhiteboardStageProps {
   onZoomOut?: () => void;
   onResetZoom?: () => void;
   onFitToScreen?: () => void;
+  isFollowTeacherEnabled?: boolean;
+  onToggleFollowTeacher?: (enabled: boolean) => void;
+  remoteViewport?: { zoom: number; panX: number; panY: number };
   minZoom?: number;
   maxZoom?: number;
 
@@ -99,6 +102,9 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
   onZoomOut,
   onResetZoom,
   onFitToScreen,
+  isFollowTeacherEnabled = false,
+  onToggleFollowTeacher,
+  remoteViewport,
   minZoom = 0.2,
   maxZoom = 4.0,
   // Page state
@@ -130,6 +136,7 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
   className = '',
   style,
 }) => {
+  const isTeacher = role === 'teacher';
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const laserCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -302,6 +309,13 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
       setInternalZoom(1.0);
     }
   };
+
+  // Follow-Teacher Viewport Synchronization effect
+  useEffect(() => {
+    if (!isTeacher && isFollowTeacherEnabled && remoteViewport?.zoom) {
+      setInternalZoom(remoteViewport.zoom);
+    }
+  }, [isTeacher, isFollowTeacherEnabled, remoteViewport?.zoom]);
 
   // Page clear handler
   const handleClearPage = () => {
@@ -504,7 +518,6 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
   };
 
   // Student Status Banner computation
-  const isTeacher = role === 'teacher';
   const shouldRenderBanner =
     showStudentBanner !== undefined
       ? showStudentBanner
@@ -662,6 +675,9 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
         onZoomOut={handleZoomOut}
         onResetZoom={handleResetZoom}
         onFitToScreen={handleFitToScreen}
+        isFollowTeacherEnabled={isFollowTeacherEnabled}
+        onToggleFollowTeacher={onToggleFollowTeacher}
+        isTeacher={isTeacher}
         minZoom={minZoom}
         maxZoom={maxZoom}
       />
