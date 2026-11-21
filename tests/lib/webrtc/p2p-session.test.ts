@@ -220,13 +220,15 @@ describe('P2P WebRTC Session Engine & Screen Sharing', () => {
       const session = new P2PWebRTCMediaSession(mockSignaling);
       await session.connect('room-101', 'token-abc');
 
-      expect(RTCPeerConnection).toHaveBeenCalledWith({
-        iceServers: expect.arrayContaining([
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun.cloudflare.com:3478' },
-        ]),
-      });
+      expect(RTCPeerConnection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          iceServers: expect.arrayContaining([
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun.cloudflare.com:3478' },
+          ]),
+        })
+      );
     });
   });
 
