@@ -61,10 +61,15 @@ const createMockContext = () => {
 
 // Mock PDF buffer helper
 function createMockPdfBuffer(numPages: number = 3): ArrayBuffer {
-  let content = '%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n';
-  content += `2 0 obj\n<< /Type /Pages /Count ${numPages} /Kids [3 0 R] >>\nendobj\n`;
-  content += '3 0 obj\n<< /Type /Page >>\nendobj\n';
-  content += '%%EOF';
+  const content = `%PDF-1.7
+1 0 obj <</Type /Catalog /Pages 2 0 R>> endobj
+2 0 obj <</Type /Pages /Kids [3 0 R 4 0 R 5 0 R] /Count ${numPages}>> endobj
+3 0 obj <</Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]>> endobj
+4 0 obj <</Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]>> endobj
+5 0 obj <</Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]>> endobj
+xref
+trailer <</Size 6 /Root 1 0 R /Info <</Title (Sample Geometry Worksheet)>>>>
+%%EOF`;
   const encoder = new TextEncoder();
   return encoder.encode(content).buffer;
 }
@@ -72,6 +77,7 @@ function createMockPdfBuffer(numPages: number = 3): ArrayBuffer {
 describe('PDF Multi-Page Ingestion, Page Toggling, and Tool Fixes Suite', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    HTMLCanvasElement.prototype.toDataURL = vi.fn().mockReturnValue('data:image/png;base64,mock');
     HTMLCanvasElement.prototype.getContext = vi.fn().mockImplementation((contextId) => {
       if (contextId === '2d') {
         return createMockContext();
@@ -137,44 +143,45 @@ describe('PDF Multi-Page Ingestion, Page Toggling, and Tool Fixes Suite', () => 
       fireEvent.change(fileInput, { target: { files: [mockPdfFile] } });
     });
 
-    // Page indicator should now reflect at least 3 pages
+    // In-tab PDF sub-page navigator should now be displayed
     await waitFor(() => {
-      expect(screen.getByTestId('page-indicator').textContent).toContain('Page 1 of 3');
+      expect(screen.getByTestId('pdf-subpage-navigator')).toBeInTheDocument();
+      expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
     });
 
-    // Next page button should now be enabled
-    const nextBtn = screen.getByTestId('next-page-btn');
-    expect(nextBtn).not.toBeDisabled();
+    // Next PDF page button should now be enabled
+    const nextPdfBtn = screen.getByLabelText('Next PDF Page');
+    expect(nextPdfBtn).not.toBeDisabled();
 
-    // Toggle to Page 2
+    // Toggle to Page 2 of the PDF on the same tab
     await act(async () => {
-      fireEvent.click(nextBtn);
+      fireEvent.click(nextPdfBtn);
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId('page-indicator').textContent).toContain('Page 2 of 3');
+      expect(screen.getByText('Page 2 of 3')).toBeInTheDocument();
     });
 
     // Toggle to Page 3
     await act(async () => {
-      fireEvent.click(nextBtn);
+      fireEvent.click(nextPdfBtn);
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId('page-indicator').textContent).toContain('Page 3 of 3');
+      expect(screen.getByText('Page 3 of 3')).toBeInTheDocument();
     });
 
-    // Previous button should now be enabled to go back
-    const prevBtn = screen.getByTestId('prev-page-btn');
-    expect(prevBtn).not.toBeDisabled();
+    // Previous PDF button should now be enabled to go back
+    const prevPdfBtn = screen.getByLabelText('Previous PDF Page');
+    expect(prevPdfBtn).not.toBeDisabled();
 
     // Toggle back to Page 2
     await act(async () => {
-      fireEvent.click(prevBtn);
+      fireEvent.click(prevPdfBtn);
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId('page-indicator').textContent).toContain('Page 2 of 3');
+      expect(screen.getByText('Page 2 of 3')).toBeInTheDocument();
     });
   });
 

@@ -1173,18 +1173,16 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       const activePage = pageManagerRef.current.getActivePage();
       const activeId = pageManagerRef.current.getActivePageId();
 
-      if (activePage) {
-        if (totalPdfPages > 1) {
-          activePage.pdfDocument = {
-            title: docTitle,
-            pages: pdfPageDataUrls,
-            currentPage: 1,
-            totalPages: totalPdfPages,
-            pageStrokes: {},
-          };
-        } else {
-          delete activePage.pdfDocument;
-        }
+      if (totalPdfPages > 1) {
+        pageManagerRef.current.setPagePdfDocument(activeId, {
+          title: docTitle,
+          pages: pdfPageDataUrls,
+          currentPage: 1,
+          totalPages: totalPdfPages,
+          pageStrokes: {},
+        });
+      } else {
+        pageManagerRef.current.setPagePdfDocument(activeId, undefined);
       }
 
       pageManagerRef.current.updatePageBackground(
@@ -1195,29 +1193,9 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       );
       pageManagerRef.current.renamePage(activeId, docTitle);
 
-      for (let p = 2; p <= totalPdfPages; p++) {
-        const pageBg = pdfPageDataUrls[p - 1];
-        const existing = pageManagerRef.current.getPageByIndex(p - 1);
-        if (existing) {
-          pageManagerRef.current.updatePageBackground(
-            existing.id,
-            typeof fileOrUrl === 'string' ? fileOrUrl : undefined,
-            p,
-            pageBg
-          );
-          pageManagerRef.current.renamePage(existing.id, `${docTitle} (Page ${p})`);
-        } else {
-          const newP = pageManagerRef.current.addPage(`${docTitle} (Page ${p})`);
-          pageManagerRef.current.updatePageBackground(
-            newP.id,
-            typeof fileOrUrl === 'string' ? fileOrUrl : undefined,
-            p,
-            pageBg
-          );
-        }
-      }
-
-      setPages(pageManagerRef.current.getAllPages());
+      // Image Approach: Stay on the current page tab, setting the PDF page as the active background image.
+      // Sub-pages are navigated via the in-canvas PdfSubPageNavigator without creating multiple browser tabs.
+      setPages([...pageManagerRef.current.getAllPages()]);
 
       if (engineRef.current) {
         await engineRef.current.setBackgroundImage(backgroundUrl);

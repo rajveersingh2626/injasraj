@@ -387,4 +387,23 @@ export class WhiteboardPageManager {
     }
     return true;
   }
+
+  /**
+   * Sets or clears the in-tab multi-page PDF document state on a page.
+   */
+  public setPagePdfDocument(
+    pageId: string,
+    pdfDocument?: import('../../types/whiteboard').PdfDocumentState
+  ): boolean {
+    const page = this.pages.find((p) => p.id === pageId);
+    if (!page) {
+      return false;
+    }
+    if (pdfDocument) {
+      page.pdfDocument = deepClone(pdfDocument);
+    } else {
+      delete page.pdfDocument;
+    }
+    return true;
+  }
 }
