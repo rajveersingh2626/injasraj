@@ -41,6 +41,7 @@ export interface ClassroomViewProps {
   onModeChange?: (mode: WorkspaceMode) => void;
   onSave?: (session: WhiteboardSessionRecord) => void;
   onLoadWorksheet?: (fileOrUrl: File | string) => void;
+  restoreRoomId?: string;
 }
 
 export function ClassroomView({
@@ -59,6 +60,7 @@ export function ClassroomView({
   onModeChange,
   onSave,
   onLoadWorksheet,
+  restoreRoomId,
 }: ClassroomViewProps) {
   const router = useRouter();
 
@@ -279,6 +281,7 @@ export function ClassroomView({
           onLeave={handleLeave}
           onSave={onSave}
           onLoadWorksheet={onLoadWorksheet}
+          restoreRoomId={restoreRoomId}
           className="w-full h-full"
         />
       </div>

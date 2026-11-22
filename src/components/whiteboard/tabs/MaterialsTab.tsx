@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { Upload, FileText, CheckCircle2, BookOpen, Loader2 } from 'lucide-react';
+import { Upload, FileText, CheckCircle2, BookOpen, Loader2, History } from 'lucide-react';
 import { GlassCard } from '../../ui/GlassCard';
 import { GlassButton } from '../../ui/GlassButton';
+import { PastClassRecord } from '@/lib/classroom/past-classes';
 
 export interface WorksheetMaterial {
   id: string;
@@ -16,6 +17,9 @@ export interface MaterialsTabProps {
   onLoadWorksheet: (fileOrUrl: File | string) => void;
   worksheets?: WorksheetMaterial[];
   isLoading?: boolean;
+  pastClasses?: PastClassRecord[];
+  onRestoreWhiteboard?: (pastClass: PastClassRecord) => void;
+  isTeacher?: boolean;
   className?: string;
 }
 
@@ -309,6 +313,9 @@ export const MaterialsTab: React.FC<MaterialsTabProps> = ({
   onLoadWorksheet,
   worksheets = DEFAULT_WORKSHEETS,
   isLoading = false,
+  pastClasses = [],
+  onRestoreWhiteboard,
+  isTeacher = true,
   className = '',
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -485,6 +492,59 @@ export const MaterialsTab: React.FC<MaterialsTabProps> = ({
           ))}
         </div>
       </section>
+
+      {/* Past Whiteboards History */}
+      {isTeacher && pastClasses && pastClasses.length > 0 && (
+        <section
+          data-testid="past-whiteboards-section"
+          aria-label="Past Whiteboards History"
+          className="flex flex-col gap-2.5 pt-3 border-t border-white/[0.08]"
+        >
+          <div className="flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase text-amber-400">
+            <History className="w-3.5 h-3.5 text-amber-400" />
+            <span>Past Whiteboards ({pastClasses.length})</span>
+          </div>
+
+          <div className="flex flex-col gap-2" data-testid="past-whiteboards-list">
+            {pastClasses.map((item) => (
+              <GlassCard
+                key={item.id}
+                variant="default"
+                data-testid={`past-whiteboard-card-${item.roomId}`}
+                className="flex flex-col p-3 rounded-xl gap-2 border border-white/[0.08]"
+              >
+                <div className="flex items-start justify-between gap-1">
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[10px] text-zinc-500 font-mono">
+                      {item.roomId}
+                    </span>
+                    <h4 className="text-xs font-semibold text-zinc-100 truncate">
+                      {item.title}
+                    </h4>
+                    <span className="text-[10px] text-amber-400/80">
+                      {item.pageCount} {item.pageCount === 1 ? 'page' : 'pages'} • {new Date(item.date).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-1">
+                  <GlassButton
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    data-testid={`restore-past-wb-${item.roomId}`}
+                    onClick={() => onRestoreWhiteboard?.(item)}
+                    className="w-full text-xs py-1"
+                  >
+                    <History className="w-3.5 h-3.5 mr-1" />
+                    Restore Whiteboard
+                  </GlassButton>
+                </div>
+              </GlassCard>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 };

@@ -47,6 +47,8 @@ export interface StudioSidePanelProps {
   onLoadWorksheet?: (fileOrUrl: File | string) => void;
   worksheets?: WorksheetMaterial[];
   isLoadingMaterials?: boolean;
+  pastClasses?: any[];
+  onRestoreWhiteboard?: (pastClass: any) => void;
 
   // Tools Tab Props
   currentGrid?: GridPatternType;
@@ -87,6 +89,8 @@ export const StudioSidePanel: React.FC<StudioSidePanelProps> = ({
   onLoadWorksheet = () => {},
   worksheets,
   isLoadingMaterials,
+  pastClasses,
+  onRestoreWhiteboard,
   // Tools props
   currentGrid = 'blank',
   onChangeGrid,
@@ -292,6 +296,9 @@ export const StudioSidePanel: React.FC<StudioSidePanelProps> = ({
               worksheets={worksheets}
               onLoadWorksheet={onLoadWorksheet}
               isLoading={isLoadingMaterials}
+              pastClasses={pastClasses}
+              onRestoreWhiteboard={onRestoreWhiteboard}
+              isTeacher={currentUserRole === 'teacher'}
             />
           </div>
 

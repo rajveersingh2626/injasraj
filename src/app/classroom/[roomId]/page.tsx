@@ -14,12 +14,14 @@ function ClassroomContent(props: ClassroomPageProps) {
   // Default strictly to student role unless explicitly requested and authenticated
   let resolvedRole: 'teacher' | 'student' = 'student';
   let resolvedName: string | undefined = undefined;
+  let restoreRoomId: string | undefined = undefined;
 
   if (props.searchParams) {
     const sp = React.use(props.searchParams);
     if (sp?.role === 'teacher') resolvedRole = 'teacher';
     else if (sp?.role === 'student') resolvedRole = 'student';
     if (typeof sp?.name === 'string') resolvedName = sp.name;
+    if (typeof sp?.restoreRoomId === 'string') restoreRoomId = sp.restoreRoomId;
   }
 
   return (
@@ -32,6 +34,7 @@ function ClassroomContent(props: ClassroomPageProps) {
         roomId={unwrappedParams?.roomId || 'default-room'}
         role={resolvedRole}
         userName={resolvedName}
+        restoreRoomId={restoreRoomId}
       />
     </div>
   );

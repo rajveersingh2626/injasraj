@@ -56,6 +56,12 @@ import { WorksheetMaterial } from '../whiteboard/tabs/MaterialsTab';
 import { Participant } from '../whiteboard/tabs/PeopleTab';
 import { ChatMessage } from '../whiteboard/tabs/ChatTab';
 import { GridPatternType } from '../whiteboard/tabs/ToolsTab';
+import {
+  archiveClassToHistory,
+  getPastClasses,
+  getPastClassWhiteboard,
+  PastClassRecord,
+} from '../../lib/classroom/past-classes';
 
 export type WorkspaceMode = 'classroom' | 'whiteboard';
 
@@ -86,6 +92,7 @@ export interface ClassroomWorkspaceProps {
   onSave?: (session: WhiteboardSessionRecord) => void;
   participants?: Participant[];
   initialSidePanelCollapsed?: boolean;
+  restoreRoomId?: string;
   className?: string;
 }
 
@@ -116,6 +123,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   onSave,
   participants: propParticipants,
   initialSidePanelCollapsed = false,
+  restoreRoomId,
   className = '',
 }) => {
   // Mode State: 'classroom' (balanced grid) vs 'whiteboard' (maximized canvas)
@@ -176,6 +184,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   // Classroom Timer HUD State
   const [isTimerOpen, setIsTimerOpen] = useState<boolean>(false);
   const [remoteTimerState, setRemoteTimerState] = useState<TimerState | undefined>(undefined);
+  const [pastClasses, setPastClasses] = useState<PastClassRecord[]>(() => getPastClasses());
 
   // Session Lifecycle State
   const [sessionStatus, setSessionStatus] = useState<ClassSessionStatus>('waiting');
@@ -204,6 +213,19 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     setSessionStatus('completed');
     setIsEndClassModalOpen(true);
     whiteboardAdapter?.broadcastCustomEvent?.('session-status-update', { status: 'completed' });
+
+    // Save full snapshot to Past Classes record
+    try {
+      const activeId = pageManagerRef.current.getActivePageId();
+      if (engineRef.current) {
+        pageManagerRef.current.updatePageCanvas(activeId, engineRef.current.exportJson());
+      }
+      const allPages = pageManagerRef.current.getAllPages();
+      const snapshot = serializeWhiteboardSession(roomId, allPages, activeId, permissions);
+      archiveClassToHistory(roomId, `Classroom Session (${roomId})`, lessonDurationSeconds, snapshot);
+    } catch (err) {
+      console.warn('Failed to archive class to past classes:', err);
+    }
   };
 
   // Student Reward Celebration Overlay State
@@ -416,12 +438,92 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         if (payload?.url) {
           setIsVideoSyncOpen(true);
         }
+      } else if (eventName === 'restore-whiteboard-session') {
+        if (payload?.pages && Array.isArray(payload.pages)) {
+          pageManagerRef.current = new WhiteboardPageManager(payload.pages);
+          setPages([...payload.pages]);
+          const target = pageManagerRef.current.getPageById(payload.activePageId) || payload.pages[0];
+          if (target) {
+            pageManagerRef.current.setActivePage(target.id);
+            const idx = pageManagerRef.current.getActivePageIndex();
+            setCurrentPageIndex(idx + 1);
+            if (engineRef.current) {
+              if (target.canvasJson) {
+                engineRef.current.loadJson(target.canvasJson);
+              } else {
+                engineRef.current.clearCurrentPage(true);
+              }
+              if (target.thumbnailUrl) {
+                engineRef.current.setBackgroundImage(target.thumbnailUrl).catch(() => {});
+              } else {
+                engineRef.current.clearBackgroundImage();
+              }
+            }
+          }
+        }
       }
     });
     return () => {
       if (typeof unsubscribe === 'function') unsubscribe();
     };
   }, [whiteboardAdapter]);
+
+  // Whiteboard Restoration Handler from Past Classes
+  const handleRestoreWhiteboard = useCallback(
+    (pastClass: PastClassRecord) => {
+      const snapshot = pastClass.whiteboardSnapshot;
+      if (!snapshot || !snapshot.pages || snapshot.pages.length === 0) return;
+
+      pageManagerRef.current = new WhiteboardPageManager(snapshot.pages);
+      setPages([...snapshot.pages]);
+      const initialIdx = snapshot.pages.findIndex((p) => p.id === snapshot.active_page_id);
+      const targetIdx = initialIdx >= 0 ? initialIdx : 0;
+      setCurrentPageIndex(targetIdx + 1);
+
+      const activePage = snapshot.pages[targetIdx];
+      if (engineRef.current && activePage) {
+        if (activePage.canvasJson && activePage.canvasJson.objects && activePage.canvasJson.objects.length > 0) {
+          engineRef.current.loadJson(activePage.canvasJson);
+        } else {
+          engineRef.current.clearCurrentPage(true);
+        }
+        if (activePage.thumbnailUrl) {
+          engineRef.current.setBackgroundImage(activePage.thumbnailUrl).catch(() => {});
+        } else {
+          engineRef.current.clearBackgroundImage();
+        }
+      }
+
+      whiteboardAdapter?.broadcastCustomEvent?.('restore-whiteboard-session', {
+        pages: snapshot.pages,
+        activePageId: activePage?.id || snapshot.pages[0].id,
+      });
+      schedulePersist();
+    },
+    [schedulePersist, whiteboardAdapter]
+  );
+
+  // Load restoreRoomId if specified on initial mount
+  useEffect(() => {
+    if (!restoreRoomId) return;
+    let isCancelled = false;
+    getPastClassWhiteboard(restoreRoomId).then((snapshot) => {
+      if (!isCancelled && snapshot && snapshot.pages && snapshot.pages.length > 0) {
+        handleRestoreWhiteboard({
+          id: `restored-${restoreRoomId}`,
+          roomId: restoreRoomId,
+          title: `Restored ${restoreRoomId}`,
+          date: new Date().toISOString(),
+          durationSeconds: 0,
+          pageCount: snapshot.pages.length,
+          whiteboardSnapshot: snapshot,
+        });
+      }
+    });
+    return () => {
+      isCancelled = true;
+    };
+  }, [restoreRoomId, handleRestoreWhiteboard]);
 
   // User-scoped Undo and Redo Execution Handlers
   const handleUndo = useCallback(() => {
@@ -1419,6 +1521,8 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           onAddPage={handleAddPage}
           onLoadWorksheet={handleLoadWorksheet}
           worksheets={worksheets}
+          pastClasses={pastClasses}
+          onRestoreWhiteboard={handleRestoreWhiteboard}
           currentGrid={currentGrid}
           onChangeGrid={handleChangeGrid}
           onExportImage={handleExportImage}
