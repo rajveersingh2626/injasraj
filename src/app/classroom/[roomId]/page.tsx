@@ -11,13 +11,14 @@ function ClassroomContent(props: ClassroomPageProps) {
   // React.use() MUST NOT be called inside try/catch in React 19
   const unwrappedParams = React.use(props.params);
 
-  let resolvedRole: 'teacher' | 'student' = 'teacher';
+  // Default strictly to student role unless explicitly requested and authenticated
+  let resolvedRole: 'teacher' | 'student' = 'student';
   let resolvedName: string | undefined = undefined;
 
   if (props.searchParams) {
     const sp = React.use(props.searchParams);
-    if (sp?.role === 'student') resolvedRole = 'student';
-    else if (sp?.role === 'teacher') resolvedRole = 'teacher';
+    if (sp?.role === 'teacher') resolvedRole = 'teacher';
+    else if (sp?.role === 'student') resolvedRole = 'student';
     if (typeof sp?.name === 'string') resolvedName = sp.name;
   }
 

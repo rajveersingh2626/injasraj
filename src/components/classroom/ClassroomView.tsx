@@ -18,6 +18,12 @@ import {
 import { createBrowserClient } from '../../lib/supabase/client';
 import { IMediaSession } from '../../types/media';
 import { WhiteboardPermissions, WhiteboardPage } from '../../types/whiteboard';
+import {
+  resolveUserClassroomRole,
+  getTeacherSession,
+} from '../../lib/auth/teacher-auth';
+import { TeacherLoginModal } from '../auth/TeacherLoginModal';
+import { Lock, LogIn } from 'lucide-react';
 
 export interface ClassroomViewProps {
   roomId?: string;
@@ -56,8 +62,22 @@ export function ClassroomView({
 }: ClassroomViewProps) {
   const router = useRouter();
 
+  const [activeRole, setActiveRole] = useState<'teacher' | 'student'>(() =>
+    resolveUserClassroomRole(role)
+  );
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
+  // Sync role if prop or auth changes
+  useEffect(() => {
+    setActiveRole(resolveUserClassroomRole(role));
+  }, [role]);
+
+  const teacherSession = getTeacherSession();
   const localName: string =
-    userName || (role === 'teacher' ? 'Teacher' : 'Student');
+    userName ||
+    (activeRole === 'teacher'
+      ? teacherSession?.teacherName || 'Teacher'
+      : 'Student');
 
   // Persistent User ID for this session
   const userIdRef = useRef<string>(
@@ -223,13 +243,29 @@ export function ClassroomView({
   return (
     <main
       data-testid="classroom-page"
-      className="w-full h-[100dvh] bg-zinc-950 overflow-hidden select-none"
+      className="relative w-full h-[100dvh] bg-zinc-950 overflow-hidden select-none"
       style={{ overscrollBehavior: 'none' }}
     >
+      {/* Floating Teacher Login Pill if user is in student view */}
+      {activeRole === 'student' && (
+        <div className="absolute top-3.5 right-4 z-40 flex items-center">
+          <button
+            type="button"
+            data-testid="teacher-login-trigger-btn"
+            onClick={() => setIsLoginModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-stone-900/90 hover:bg-stone-800 text-amber-400 border border-amber-500/30 backdrop-blur-md shadow-lg transition-all active:scale-95 cursor-pointer"
+            title="Log in with Teacher Passcode"
+          >
+            <Lock className="w-3.5 h-3.5" />
+            <span>Teacher Login</span>
+          </button>
+        </div>
+      )}
+
       <div data-testid="classroom-container" className="w-full h-full">
         <ClassroomWorkspace
           roomId={roomId}
-          role={role}
+          role={activeRole}
           userName={localName}
           userId={userId}
           mediaSession={activeMediaSession}
@@ -246,6 +282,14 @@ export function ClassroomView({
           className="w-full h-full"
         />
       </div>
+
+      <TeacherLoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onLoginSuccess={(name) => {
+          setActiveRole('teacher');
+        }}
+      />
     </main>
   );
 }
