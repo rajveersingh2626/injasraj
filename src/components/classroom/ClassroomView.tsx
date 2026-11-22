@@ -128,12 +128,13 @@ export function ClassroomView({
   const internalMediaSession = useMemo(() => {
     if (injectedMediaSession) return injectedMediaSession;
 
-    // Use LiveKit when configured or in browser client
-    if (
-      typeof window !== 'undefined' &&
-      (process.env.NEXT_PUBLIC_LIVEKIT_URL || process.env.LIVEKIT_URL)
-    ) {
-      return new LiveKitMediaSession();
+    // Primary: Always use LiveKit Cloud SFU in browser for reliable multi-party video
+    if (typeof window !== 'undefined') {
+      try {
+        return new LiveKitMediaSession();
+      } catch (err) {
+        console.warn('LiveKit init fallback to P2P:', err);
+      }
     }
 
     const signaling = new SupabaseSignalingAdapter(undefined, userId);
@@ -232,7 +233,7 @@ export function ClassroomView({
         if (activeMediaSession instanceof LiveKitMediaSession) {
           const res = await fetch(
             `/api/livekit/token?room=${encodeURIComponent(roomId)}&username=${encodeURIComponent(
-              userName || userId
+              localName || userId
             )}&role=${activeRole}`
           );
           if (res.ok) {
