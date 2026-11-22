@@ -77,6 +77,9 @@ export default function TeacherDashboardPage() {
   const [activeRooms, setActiveRooms] = useState<ManagedRoom[]>([]);
   const [pastClasses, setPastClasses] = useState<PastClassRecord[]>([]);
 
+  // Student Portal State
+  const [studentJoinRoomId, setStudentJoinRoomId] = useState<string>('');
+
   // Instant room creation input
   const [customRoomId, setCustomRoomId] = useState<string>('');
   const [generatedRoomId, setGeneratedRoomId] = useState<string>('');
@@ -84,6 +87,13 @@ export default function TeacherDashboardPage() {
   // Shareable booking link state
   const [origin, setOrigin] = useState<string>('');
   const [isCopied, setIsCopied] = useState<boolean>(false);
+
+  const handleStudentJoinRoom = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const clean = studentJoinRoomId.trim();
+    if (!clean) return;
+    router.push(`/classroom/${encodeURIComponent(clean)}?role=student`);
+  };
 
   const refreshRoomsAndHistory = useCallback(async () => {
     const { active, expired } = checkAndExpireRooms();
@@ -257,294 +267,378 @@ export default function TeacherDashboardPage() {
             </button>
           )}
 
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            <div className="relative flex-1 sm:w-52">
-              <input
-                type="text"
-                placeholder="Custom room ID (optional)"
-                value={customRoomId}
-                onChange={(e) => setCustomRoomId(e.target.value)}
-                className="w-full bg-zinc-900/90 border border-zinc-800/90 rounded-lg px-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/70"
-              />
+          {teacherSession && (
+            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+              <div className="relative flex-1 sm:w-52">
+                <input
+                  type="text"
+                  placeholder="Custom room ID (optional)"
+                  value={customRoomId}
+                  onChange={(e) => setCustomRoomId(e.target.value)}
+                  className="w-full bg-zinc-900/90 border border-zinc-800/90 rounded-lg px-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/70"
+                />
+              </div>
+
+              <GlassButton
+                variant="default"
+                onClick={handleGenerateInstantRoom}
+                data-testid="instant-room-btn"
+                className="flex items-center space-x-1.5 text-xs py-1.5"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Create Link</span>
+              </GlassButton>
+
+              <GlassButton
+                variant="primary"
+                onClick={() => handleJoinInstantRoom()}
+                data-testid="launch-room-btn"
+                className="flex items-center space-x-1.5 text-xs py-1.5"
+              >
+                <Video className="w-3.5 h-3.5" />
+                <span>Start Instant Class</span>
+              </GlassButton>
             </div>
-
-            <GlassButton
-              variant="default"
-              onClick={handleGenerateInstantRoom}
-              data-testid="instant-room-btn"
-              className="flex items-center space-x-1.5 text-xs py-1.5"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Create Link</span>
-            </GlassButton>
-
-            <GlassButton
-              variant="primary"
-              onClick={() => handleJoinInstantRoom()}
-              data-testid="launch-room-btn"
-              className="flex items-center space-x-1.5 text-xs py-1.5"
-            >
-              <Video className="w-3.5 h-3.5" />
-              <span>Start Instant Class</span>
-            </GlassButton>
-          </div>
+          )}
         </div>
       </header>
 
-      {/* Generated Instant Room Alert Banner */}
-      {generatedRoomId && (
-        <GlassCard className="p-4 border-indigo-500/40 bg-indigo-950/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center space-x-3">
-            <Radio className="w-5 h-5 text-indigo-400 animate-pulse" />
-            <div>
-              <p className="text-sm font-semibold text-zinc-100">
-                Instant Room Ready:{' '}
-                <span className="text-indigo-300 font-mono">{generatedRoomId}</span>
-              </p>
-              <p className="text-xs text-zinc-400">
-                Share this room ID or link with your student to start right away.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <GlassButton
-              variant="primary"
-              size="sm"
-              onClick={() => handleJoinInstantRoom(generatedRoomId)}
-              className="flex items-center space-x-1"
-            >
-              <Video className="w-3.5 h-3.5" />
-              <span>Enter Room</span>
-            </GlassButton>
-          </div>
-        </GlassCard>
-      )}
-
-      {/* Shareable Booking Link Card */}
-      <GlassCard className="p-5">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center space-x-2">
-              <Users className="w-4 h-4 text-emerald-400" />
-              <h2 className="text-base font-semibold text-zinc-100">
-                Shareable Student Booking Link
-              </h2>
-            </div>
-            <p className="text-xs sm:text-sm text-zinc-400">
-              Students automatically see your available slots converted seamlessly into their local timezone.
+      {/* Public Student Portal (Shown when Teacher is not authenticated) */}
+      {!teacherSession ? (
+        <section
+          data-testid="student-portal-section"
+          aria-label="Student Portal"
+          className="space-y-8 max-w-4xl mx-auto w-full py-8"
+        >
+          <div className="text-center space-y-2.5">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-100">
+              Welcome to Injasraj Virtual Classroom
+            </h2>
+            <p className="text-sm text-zinc-400 max-w-xl mx-auto">
+              Join a live interactive lesson with your room code, or book an upcoming 1:1 session across international timezones.
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-            <div
-              data-testid="shareable-booking-link"
-              className="bg-zinc-900 border border-zinc-800 rounded-lg px-3.5 py-2 text-xs sm:text-sm text-zinc-300 font-mono truncate max-w-md select-all"
-            >
-              {fullBookingUrl}
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Join by Code Card */}
+            <GlassCard className="p-6 space-y-4 border-indigo-500/30 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                  <Video className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg font-semibold text-zinc-100">Join a Live Class</h3>
+                <p className="text-xs text-zinc-400">
+                  Have a room code or link from your tutor? Enter it below to join the classroom directly.
+                </p>
+              </div>
 
-            <GlassButton
-              variant="default"
-              onClick={handleCopyLink}
-              data-testid="copy-booking-link-btn"
-              className="flex items-center justify-center space-x-1.5 whitespace-nowrap"
-            >
-              {isCopied ? (
-                <>
-                  <Check className="w-4 h-4 text-emerald-400" />
-                  <span className="text-emerald-400 font-medium">Copied!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4 text-zinc-300" />
-                  <span>Copy Link</span>
-                </>
-              )}
-            </GlassButton>
-
-            <Link href={bookingPath} target="_blank" rel="noopener noreferrer">
-              <GlassButton
-                variant="ghost"
-                className="flex items-center justify-center space-x-1.5 whitespace-nowrap w-full"
-              >
-                <ExternalLink className="w-4 h-4 text-zinc-400" />
-                <span>Preview Student View</span>
-              </GlassButton>
-            </Link>
-          </div>
-        </div>
-      </GlassCard>
-
-      {/* Navigation Tabs */}
-      <div className="flex items-center space-x-2 border-b border-zinc-800/80 pb-2 overflow-x-auto no-scrollbar">
-        <button
-          onClick={() => setActiveTab('active_links')}
-          className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
-            activeTab === 'active_links'
-              ? 'bg-zinc-800/90 text-white shadow-sm'
-              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
-          }`}
-        >
-          <Link2 className="w-4 h-4 text-emerald-400" />
-          <span>Active Class Links</span>
-          <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-emerald-500/20 text-emerald-300 font-mono">
-            {activeRooms.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('past_classes')}
-          className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
-            activeTab === 'past_classes'
-              ? 'bg-zinc-800/90 text-white shadow-sm'
-              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
-          }`}
-        >
-          <History className="w-4 h-4 text-amber-400" />
-          <span>Past Classes</span>
-          <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-zinc-700/60 text-zinc-300 font-mono">
-            {pastClasses.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('lessons')}
-          className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
-            activeTab === 'lessons'
-              ? 'bg-zinc-800/90 text-white shadow-sm'
-              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
-          }`}
-        >
-          <Calendar className="w-4 h-4" />
-          <span>Upcoming Lessons</span>
-          <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-zinc-700/60 text-zinc-300 font-mono">
-            {lessons.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('availability')}
-          className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
-            activeTab === 'availability'
-              ? 'bg-zinc-800/90 text-white shadow-sm'
-              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
-          }`}
-        >
-          <Clock className="w-4 h-4" />
-          <span>Weekly Availability</span>
-        </button>
-      </div>
-
-      {/* Success Notification */}
-      {saveSuccessMsg && (
-        <div className="bg-emerald-950/30 border border-emerald-500/40 rounded-xl p-3 text-emerald-300 text-sm flex items-center space-x-2">
-          <Check className="w-4 h-4 text-emerald-400" />
-          <span>{saveSuccessMsg}</span>
-        </div>
-      )}
-
-      {/* Tab: Active Class Links & Room Manager */}
-      {activeTab === 'active_links' && (
-        <section aria-label="Active Class Links Manager">
-          <ActiveRoomsManager
-            rooms={activeRooms}
-            onDeleteRoom={handleDeleteActiveRoom}
-            onJoinAsTeacher={handleJoinInstantRoom}
-          />
-        </section>
-      )}
-
-      {/* Tab: Past Classes & Whiteboard History */}
-      {activeTab === 'past_classes' && (
-        <section aria-label="Past Classes & Whiteboard Archives">
-          <PastClassesManager
-            pastClasses={pastClasses}
-            onDeletePastClass={handleDeletePastClass}
-            onLaunchWithWhiteboard={handleLaunchWithPastWhiteboard}
-          />
-        </section>
-      )}
-
-      {/* Tab: Weekly Availability Form */}
-      {activeTab === 'availability' && (
-        <section aria-label="Teacher Availability Management" className="space-y-4">
-          <TeacherAvailabilityForm
-            teacherId={DEFAULT_TEACHER_ID}
-            initialAvailabilities={availabilities}
-            onSave={handleSaveAvailability}
-          />
-        </section>
-      )}
-
-      {/* Tab: Upcoming Lessons List */}
-      {activeTab === 'lessons' && (
-        <section
-          data-testid="upcoming-lessons-list"
-          aria-label="Upcoming Scheduled Lessons"
-          className="space-y-4"
-        >
-          {lessons.length === 0 ? (
-            <GlassCard className="p-8 text-center text-zinc-400">
-              <BookOpen className="w-10 h-10 mx-auto text-zinc-500 mb-2 opacity-60" />
-              <p className="text-base font-medium">No upcoming lessons yet</p>
-              <p className="text-xs text-zinc-500 mt-1">
-                Share your booking link to let international students schedule 1:1 sessions.
-              </p>
+              <form onSubmit={handleStudentJoinRoom} className="space-y-3 pt-2">
+                <input
+                  type="text"
+                  data-testid="student-room-code-input"
+                  placeholder="e.g. room-101 or code"
+                  value={studentJoinRoomId}
+                  onChange={(e) => setStudentJoinRoomId(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                />
+                <GlassButton
+                  type="submit"
+                  variant="primary"
+                  data-testid="student-join-room-btn"
+                  className="w-full py-2.5 text-sm font-semibold flex items-center justify-center space-x-2"
+                >
+                  <Video className="w-4 h-4" />
+                  <span>Enter Classroom</span>
+                </GlassButton>
+              </form>
             </GlassCard>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {lessons.map((lesson) => {
-                const formattedIst = formatLessonDateTime(
-                  lesson.start_time_utc,
-                  TEACHER_TIMEZONE
-                );
 
-                return (
-                  <GlassCard
-                    key={lesson.id}
-                    className="p-5 flex flex-col justify-between space-y-4 hover:border-zinc-700/70 transition-colors"
+            {/* Book 1:1 Session Card */}
+            <GlassCard className="p-6 space-y-4 border-emerald-500/30 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg font-semibold text-zinc-100">Book 1:1 Lesson</h3>
+                <p className="text-xs text-zinc-400">
+                  View tutor availability converted into your local timezone and schedule an upcoming 1:1 session.
+                </p>
+              </div>
+
+              <div className="pt-2">
+                <Link href={bookingPath}>
+                  <GlassButton
+                    variant="default"
+                    data-testid="student-book-portal-btn"
+                    className="w-full py-2.5 text-sm font-semibold flex items-center justify-center space-x-2"
                   >
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="px-2 py-0.5 text-xs font-semibold rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 capitalize">
-                          {lesson.status}
-                        </span>
-                        <span className="text-xs font-mono text-zinc-500">
-                          Room: {lesson.room_id}
-                        </span>
-                      </div>
+                    <span>View Calendar & Book</span>
+                    <ExternalLink className="w-4 h-4" />
+                  </GlassButton>
+                </Link>
+              </div>
+            </GlassCard>
+          </div>
+        </section>
+      ) : (
+        /* Teacher Hub (Protected behind Teacher Passcode Login) */
+        <>
+          {/* Generated Instant Room Alert Banner */}
+          {generatedRoomId && (
+            <GlassCard className="p-4 border-indigo-500/40 bg-indigo-950/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center space-x-3">
+                <Radio className="w-5 h-5 text-indigo-400 animate-pulse" />
+                <div>
+                  <p className="text-sm font-semibold text-zinc-100">
+                    Instant Room Ready:{' '}
+                    <span className="text-indigo-300 font-mono">{generatedRoomId}</span>
+                  </p>
+                  <p className="text-xs text-zinc-400">
+                    Share this room ID or link with your student to start right away.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <GlassButton
+                  variant="primary"
+                  size="sm"
+                  onClick={() => handleJoinInstantRoom(generatedRoomId)}
+                  className="flex items-center space-x-1"
+                >
+                  <Video className="w-3.5 h-3.5" />
+                  <span>Enter Room</span>
+                </GlassButton>
+              </div>
+            </GlassCard>
+          )}
 
-                      <h3 className="text-base font-semibold text-zinc-100">
-                        {lesson.student_name}
-                      </h3>
-                      <p className="text-xs text-zinc-400 font-mono">
-                        {lesson.student_email}
-                      </p>
+          {/* Shareable Booking Link Card */}
+          <GlassCard className="p-5">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <Users className="w-4 h-4 text-emerald-400" />
+                  <h2 className="text-base font-semibold text-zinc-100">
+                    Shareable Student Booking Link
+                  </h2>
+                </div>
+                <p className="text-xs sm:text-sm text-zinc-400">
+                  Students automatically see your available slots converted seamlessly into their local timezone.
+                </p>
+              </div>
 
-                      <div className="flex items-center space-x-2 text-xs text-zinc-300 pt-1">
-                        <Clock className="w-3.5 h-3.5 text-indigo-400" />
-                        <span>Teacher IST: {formattedIst}</span>
-                      </div>
-                    </div>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                <div
+                  data-testid="shareable-booking-link"
+                  className="bg-zinc-900 border border-zinc-800 rounded-lg px-3.5 py-2 text-xs sm:text-sm text-zinc-300 font-mono truncate max-w-md select-all"
+                >
+                  {fullBookingUrl}
+                </div>
 
-                    <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between">
-                      <span className="text-xs text-zinc-400">1:1 Video Session</span>
-                      <GlassButton
-                        variant="primary"
-                        size="sm"
-                        onClick={() => handleJoinInstantRoom(lesson.room_id)}
-                        className="flex items-center space-x-1.5"
-                      >
-                        <Video className="w-3.5 h-3.5" />
-                        <span>Join Room</span>
-                      </GlassButton>
-                    </div>
-                  </GlassCard>
-                );
-              })}
+                <GlassButton
+                  variant="default"
+                  onClick={handleCopyLink}
+                  data-testid="copy-booking-link-btn"
+                  className="flex items-center justify-center space-x-1.5 whitespace-nowrap"
+                >
+                  {isCopied ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <span className="text-emerald-400 font-medium">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 text-zinc-300" />
+                      <span>Copy Link</span>
+                    </>
+                  )}
+                </GlassButton>
+
+                <Link href={bookingPath} target="_blank" rel="noopener noreferrer">
+                  <GlassButton
+                    variant="ghost"
+                    className="flex items-center justify-center space-x-1.5 whitespace-nowrap w-full"
+                  >
+                    <ExternalLink className="w-4 h-4 text-zinc-400" />
+                    <span>Preview Student View</span>
+                  </GlassButton>
+                </Link>
+              </div>
+            </div>
+          </GlassCard>
+
+          {/* Navigation Tabs */}
+          <div className="flex items-center space-x-2 border-b border-zinc-800/80 pb-2 overflow-x-auto no-scrollbar">
+            <button
+              onClick={() => setActiveTab('active_links')}
+              className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+                activeTab === 'active_links'
+                  ? 'bg-zinc-800/90 text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
+              }`}
+            >
+              <Link2 className="w-4 h-4 text-emerald-400" />
+              <span>Active Class Links</span>
+              <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-emerald-500/20 text-emerald-300 font-mono">
+                {activeRooms.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('past_classes')}
+              className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+                activeTab === 'past_classes'
+                  ? 'bg-zinc-800/90 text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
+              }`}
+            >
+              <History className="w-4 h-4 text-amber-400" />
+              <span>Past Classes</span>
+              <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-zinc-700/60 text-zinc-300 font-mono">
+                {pastClasses.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('lessons')}
+              className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+                activeTab === 'lessons'
+                  ? 'bg-zinc-800/90 text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              <span>Upcoming Lessons</span>
+              <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-zinc-700/60 text-zinc-300 font-mono">
+                {lessons.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('availability')}
+              className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+                activeTab === 'availability'
+                  ? 'bg-zinc-800/90 text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
+              }`}
+            >
+              <Clock className="w-4 h-4" />
+              <span>Weekly Availability</span>
+            </button>
+          </div>
+
+          {/* Success Notification */}
+          {saveSuccessMsg && (
+            <div className="bg-emerald-950/30 border border-emerald-500/40 rounded-xl p-3 text-emerald-300 text-sm flex items-center space-x-2">
+              <Check className="w-4 h-4 text-emerald-400" />
+              <span>{saveSuccessMsg}</span>
             </div>
           )}
-        </section>
+
+          {/* Tab: Active Class Links & Room Manager */}
+          {activeTab === 'active_links' && (
+            <section aria-label="Active Class Links Manager">
+              <ActiveRoomsManager
+                rooms={activeRooms}
+                onDeleteRoom={handleDeleteActiveRoom}
+                onJoinAsTeacher={handleJoinInstantRoom}
+              />
+            </section>
+          )}
+
+          {/* Tab: Past Classes & Whiteboard History */}
+          {activeTab === 'past_classes' && (
+            <section aria-label="Past Classes & Whiteboard Archives">
+              <PastClassesManager
+                pastClasses={pastClasses}
+                onDeletePastClass={handleDeletePastClass}
+                onLaunchWithWhiteboard={handleLaunchWithPastWhiteboard}
+              />
+            </section>
+          )}
+
+          {/* Tab: Weekly Availability Form */}
+          {activeTab === 'availability' && (
+            <section aria-label="Teacher Availability Management" className="space-y-4">
+              <TeacherAvailabilityForm
+                teacherId={DEFAULT_TEACHER_ID}
+                initialAvailabilities={availabilities}
+                onSave={handleSaveAvailability}
+              />
+            </section>
+          )}
+
+          {/* Tab: Upcoming Lessons List */}
+          {activeTab === 'lessons' && (
+            <section
+              data-testid="upcoming-lessons-list"
+              aria-label="Upcoming Scheduled Lessons"
+              className="space-y-4"
+            >
+              {lessons.length === 0 ? (
+                <GlassCard className="p-8 text-center text-zinc-400">
+                  <BookOpen className="w-10 h-10 mx-auto text-zinc-500 mb-2 opacity-60" />
+                  <p className="text-base font-medium">No upcoming lessons yet</p>
+                  <p className="text-xs text-zinc-500 mt-1">
+                    Share your booking link to let international students schedule 1:1 sessions.
+                  </p>
+                </GlassCard>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {lessons.map((lesson) => {
+                    const formattedIst = formatLessonDateTime(
+                      lesson.start_time_utc,
+                      TEACHER_TIMEZONE
+                    );
+
+                    return (
+                      <GlassCard
+                        key={lesson.id}
+                        className="p-5 flex flex-col justify-between space-y-4 hover:border-zinc-700/70 transition-colors"
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="px-2 py-0.5 text-xs font-semibold rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 capitalize">
+                              {lesson.status}
+                            </span>
+                            <span className="text-xs font-mono text-zinc-500">
+                              Room: {lesson.room_id}
+                            </span>
+                          </div>
+
+                          <h3 className="text-base font-semibold text-zinc-100">
+                            {lesson.student_name}
+                          </h3>
+                          <p className="text-xs text-zinc-400 font-mono">
+                            {lesson.student_email}
+                          </p>
+
+                          <div className="flex items-center space-x-2 text-xs text-zinc-300 pt-1">
+                            <Clock className="w-3.5 h-3.5 text-indigo-400" />
+                            <span>Teacher IST: {formattedIst}</span>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between">
+                          <span className="text-xs text-zinc-400">1:1 Video Session</span>
+                          <GlassButton
+                            variant="primary"
+                            size="sm"
+                            onClick={() => handleJoinInstantRoom(lesson.room_id)}
+                            className="flex items-center space-x-1.5"
+                          >
+                            <Video className="w-3.5 h-3.5" />
+                            <span>Join Room</span>
+                          </GlassButton>
+                        </div>
+                      </GlassCard>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          )}
+        </>
       )}
 
       {/* Teacher Login Modal */}

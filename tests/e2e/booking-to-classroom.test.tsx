@@ -168,6 +168,18 @@ describe('Task 10 E2E Platform Integration: Booking to Live Classroom', () => {
   });
 
   describe('Suite 1: Platform Home & Teacher Dashboard (src/app/page.tsx)', () => {
+    beforeEach(() => {
+      loginTeacher('injasraj123');
+    });
+
+    it('displays student portal when teacher is not logged in', () => {
+      logoutTeacher();
+      render(<TeacherDashboardPage />);
+      expect(screen.getByTestId('student-portal-section')).toBeInTheDocument();
+      expect(screen.getByText('Join a Live Class')).toBeInTheDocument();
+      expect(screen.getByTestId('teacher-login-modal-trigger')).toBeInTheDocument();
+      expect(screen.queryByTestId('instant-room-btn')).toBeNull();
+    });
     it('renders platform branding, teacher timezone badge, and instant room generator', () => {
       render(<TeacherDashboardPage />);
 
