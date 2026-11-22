@@ -212,8 +212,10 @@ describe('Task 10 E2E Platform Integration: Booking to Live Classroom', () => {
       fireEvent.click(lessonsTab);
 
       expect(screen.getByTestId('upcoming-lessons-list')).toBeInTheDocument();
-      expect(screen.getByText('Emma Watson')).toBeInTheDocument();
-      expect(screen.getByText('Kenji Sato')).toBeInTheDocument();
+      expect(screen.getByText('No upcoming lessons yet')).toBeInTheDocument();
+      expect(
+        screen.getByText(/Share your booking link to let international students schedule 1:1 sessions/i)
+      ).toBeInTheDocument();
     });
   });
 

@@ -62,36 +62,11 @@ const INITIAL_AVAILABILITIES: TeacherAvailability[] = [1, 2, 3, 4, 5].map((day) 
   slot_duration_minutes: 60,
 }));
 
-const INITIAL_LESSONS: Lesson[] = [
-  {
-    id: 'lesson-101',
-    room_id: 'lesson-room-101',
-    teacher_id: DEFAULT_TEACHER_ID,
-    student_name: 'Emma Watson',
-    student_email: 'emma@oxford-intl.edu',
-    start_time_utc: new Date(Date.now() + 86400000).toISOString(),
-    end_time_utc: new Date(Date.now() + 86400000 + 3600000).toISOString(),
-    status: 'scheduled',
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'lesson-102',
-    room_id: 'lesson-room-102',
-    teacher_id: DEFAULT_TEACHER_ID,
-    student_name: 'Kenji Sato',
-    student_email: 'kenji@tokyo-ed.jp',
-    start_time_utc: new Date(Date.now() + 172800000).toISOString(),
-    end_time_utc: new Date(Date.now() + 172800000 + 3600000).toISOString(),
-    status: 'scheduled',
-    created_at: new Date().toISOString(),
-  },
-];
-
 export default function TeacherDashboardPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'availability' | 'active_links' | 'lessons' | 'past_classes'>('availability');
   const [availabilities, setAvailabilities] = useState<TeacherAvailability[]>(INITIAL_AVAILABILITIES);
-  const [lessons, setLessons] = useState<Lesson[]>(INITIAL_LESSONS);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
 
   // Authentication State
