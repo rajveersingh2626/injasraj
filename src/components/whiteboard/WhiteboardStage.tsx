@@ -718,8 +718,6 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
     switch (tool) {
       case 'select':
         return 'cursor-default';
-      case 'pan':
-        return 'cursor-grab';
       case 'text':
         return 'cursor-text';
       case 'sticky':
