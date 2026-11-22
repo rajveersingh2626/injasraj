@@ -448,7 +448,7 @@ export async function exportMultiPagePdf(
   pages: any[],
   roomId: string = 'classroom'
 ): Promise<Blob> {
-  const effectivePages =
+  const rawPages =
     pages && pages.length > 0
       ? pages
       : [
@@ -459,6 +459,24 @@ export async function exportMultiPagePdf(
             canvasJson: {},
           },
         ];
+
+  const effectivePages: any[] = [];
+  rawPages.forEach((p: any) => {
+    if (p.pdfDocument && p.pdfDocument.totalPages > 1 && Array.isArray(p.pdfDocument.pages)) {
+      for (let sub = 1; sub <= p.pdfDocument.totalPages; sub++) {
+        const subStrokes =
+          p.pdfDocument.pageStrokes?.[sub] ||
+          (sub === (p.pdfDocument.currentPage || 1) ? p.canvasJson : { objects: [] });
+        effectivePages.push({
+          title: `${p.pdfDocument.title || p.title} (Page ${sub} of ${p.pdfDocument.totalPages})`,
+          canvasJson: subStrokes,
+          thumbnailUrl: p.pdfDocument.pages[sub - 1] || p.thumbnailUrl,
+        });
+      }
+    } else {
+      effectivePages.push(p);
+    }
+  });
 
   const encoder = new TextEncoder();
   const pageCount = effectivePages.length;
@@ -614,4 +632,48 @@ export async function downloadMultiPagePdf(
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   }
+}
+
+export interface PdfConvertedDocument {
+  title: string;
+  totalPages: number;
+  pages: string[]; // array of image data URLs
+}
+
+/**
+ * Converts an entire PDF file or buffer into an ordered array of high-res image data URLs.
+ */
+export async function convertPdfToPageImages(
+  bufferOrFile: ArrayBuffer | Uint8Array | File,
+  scale: number = DEFAULT_PDF_RENDER_SCALE,
+  onProgress?: (current: number, total: number) => void
+): Promise<PdfConvertedDocument> {
+  let bytes: Uint8Array;
+  if (typeof File !== 'undefined' && bufferOrFile instanceof File) {
+    const arrayBuffer = await bufferOrFile.arrayBuffer();
+    bytes = new Uint8Array(arrayBuffer);
+  } else if (bufferOrFile instanceof Uint8Array) {
+    bytes = bufferOrFile;
+  } else {
+    bytes = new Uint8Array(bufferOrFile as ArrayBuffer);
+  }
+
+  const meta = await extractPdfMetadata(bytes);
+  const totalPages = Math.max(1, meta.pageCount || 1);
+  const title = meta.title || 'Document';
+  const pages: string[] = [];
+
+  for (let i = 1; i <= totalPages; i++) {
+    const rendered = await renderPdfPageToDataUrl(bytes, i, scale);
+    pages.push(rendered.dataUrl);
+    if (onProgress) {
+      onProgress(i, totalPages);
+    }
+  }
+
+  return {
+    title,
+    totalPages,
+    pages,
+  };
 }

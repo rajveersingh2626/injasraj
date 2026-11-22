@@ -50,8 +50,10 @@ import { LaserTrailEngine } from '../../lib/whiteboard/laser-trail';
 import { UserUndoRedoStack } from '../../lib/whiteboard/undo-redo-stack';
 import {
   renderPdfPageToDataUrl,
+  convertPdfToPageImages,
   downloadMultiPagePdf,
 } from '../../lib/whiteboard/pdf-renderer';
+import { PdfSubPageNavigator } from '../whiteboard/PdfSubPageNavigator';
 import { WorksheetMaterial } from '../whiteboard/tabs/MaterialsTab';
 import { Participant } from '../whiteboard/tabs/PeopleTab';
 import { ChatMessage } from '../whiteboard/tabs/ChatTab';
@@ -1066,6 +1068,42 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     propOnPermissionsChange?.(nextPerms);
   };
 
+  // Handle in-tab PDF sub-page flipping
+  const handlePdfSubPageChange = (targetPage: number) => {
+    const activePage = pageManagerRef.current.getActivePage();
+    if (!activePage || !activePage.pdfDocument) return;
+
+    const doc = activePage.pdfDocument;
+    if (targetPage < 1 || targetPage > doc.totalPages) return;
+
+    // Save current strokes into pageStrokes
+    if (engineRef.current) {
+      if (!doc.pageStrokes) doc.pageStrokes = {};
+      doc.pageStrokes[doc.currentPage] = engineRef.current.exportJson();
+    }
+
+    doc.currentPage = targetPage;
+    const newBg = doc.pages[targetPage - 1];
+
+    if (engineRef.current) {
+      if (newBg) {
+        engineRef.current.setBackgroundImage(newBg).catch(() => {});
+      } else {
+        engineRef.current.clearBackgroundImage();
+      }
+
+      const nextStrokes = doc.pageStrokes?.[targetPage];
+      if (nextStrokes && nextStrokes.objects && nextStrokes.objects.length > 0) {
+        engineRef.current.loadJson(nextStrokes);
+      } else {
+        engineRef.current.clearCurrentPage(true);
+      }
+    }
+
+    setPages([...pageManagerRef.current.getAllPages()]);
+    schedulePersist();
+  };
+
   // Worksheet Material Loader
   const handleLoadWorksheet = async (fileOrUrl: File | string) => {
     try {
@@ -1078,30 +1116,10 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         pdfPageDataUrls.push(fileOrUrl);
       } else {
         if (fileOrUrl.type === 'application/pdf' || fileOrUrl.name?.endsWith('.pdf')) {
-          let buffer: ArrayBuffer;
-          if (typeof fileOrUrl.arrayBuffer === 'function') {
-            buffer = await fileOrUrl.arrayBuffer();
-          } else {
-            buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve(reader.result as ArrayBuffer);
-              reader.onerror = (e) => reject(e);
-              reader.readAsArrayBuffer(fileOrUrl);
-            });
-          }
-          const firstPageResult = await renderPdfPageToDataUrl(buffer, 1);
-          backgroundUrl = firstPageResult.dataUrl;
-          totalPdfPages = firstPageResult.totalPages || 1;
-          pdfPageDataUrls.push(firstPageResult.dataUrl);
-
-          for (let p = 2; p <= totalPdfPages; p++) {
-            try {
-              const nextRes = await renderPdfPageToDataUrl(buffer, p);
-              pdfPageDataUrls.push(nextRes.dataUrl);
-            } catch (err) {
-              console.warn(`Error rendering PDF page ${p}:`, err);
-            }
-          }
+          const doc = await convertPdfToPageImages(fileOrUrl);
+          totalPdfPages = doc.totalPages;
+          backgroundUrl = doc.pages[0];
+          pdfPageDataUrls.push(...doc.pages);
         } else if (
           fileOrUrl.type?.startsWith('image/') ||
           /\.(png|jpe?g|webp|svg)$/i.test(fileOrUrl.name || '')
@@ -1137,14 +1155,30 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           ? fileOrUrl.name.replace(/\.[^/.]+$/, '')
           : 'Lesson Document';
 
+      const activePage = pageManagerRef.current.getActivePage();
       const activeId = pageManagerRef.current.getActivePageId();
+
+      if (activePage) {
+        if (totalPdfPages > 1) {
+          activePage.pdfDocument = {
+            title: docTitle,
+            pages: pdfPageDataUrls,
+            currentPage: 1,
+            totalPages: totalPdfPages,
+            pageStrokes: {},
+          };
+        } else {
+          delete activePage.pdfDocument;
+        }
+      }
+
       pageManagerRef.current.updatePageBackground(
         activeId,
         typeof fileOrUrl === 'string' ? fileOrUrl : undefined,
         1,
         backgroundUrl
       );
-      pageManagerRef.current.renamePage(activeId, `${docTitle} (Page 1)`);
+      pageManagerRef.current.renamePage(activeId, docTitle);
 
       for (let p = 2; p <= totalPdfPages; p++) {
         const pageBg = pdfPageDataUrls[p - 1];
@@ -1252,22 +1286,23 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   return (
     <div
       data-testid="classroom-workspace"
-      className={`relative w-full h-full flex flex-col bg-[#121110] text-stone-100 overflow-hidden select-none ${className}`}
+      data-bg="bg-[#121110]"
+      className={`relative w-full h-full flex flex-col bg-[#f8f9fb] text-zinc-900 overflow-hidden select-none ${className}`}
     >
       {/* Top Navigation & Mode Switcher Bar */}
       <header
         data-testid="workspace-header"
-        className="relative z-30 h-14 px-4 flex items-center justify-between border-b border-stone-800 bg-stone-900/90 backdrop-blur-md text-stone-100 select-none shrink-0"
+        className="relative z-30 h-14 px-4 flex items-center justify-between border-b border-zinc-200/90 bg-white/90 backdrop-blur-md text-zinc-900 select-none shrink-0 shadow-sm"
       >
         {/* Left: Branding & Room Badge */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 font-semibold text-sm tracking-tight text-white">
+          <div className="flex items-center gap-2 font-semibold text-sm tracking-tight text-zinc-900">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
             <span className="font-medium">Classroom</span>
-            <span className="text-zinc-600 text-xs">/</span>
+            <span className="text-zinc-400 text-xs">/</span>
             <span
               data-testid="room-id-badge"
-              className="text-xs px-2 py-0.5 rounded-md bg-white/[0.06] text-zinc-300 font-mono"
+              className="text-xs px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-700 font-mono border border-zinc-200/80"
             >
               {roomId}
             </span>
@@ -1277,7 +1312,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         {/* Center: Dual Mode Switcher Button */}
         <div
           data-testid="mode-switcher-container"
-          className="flex items-center p-1 rounded-xl bg-white/[0.05] border border-white/[0.08] shadow-inner"
+          className="flex items-center p-1 rounded-xl bg-zinc-100 border border-zinc-200 shadow-inner"
         >
           <button
             type="button"
@@ -1286,16 +1321,16 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
               mode === 'classroom' ? 'Whiteboard' : 'Classroom'
             } Mode`}
             onClick={handleToggleMode}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-all duration-200 cursor-pointer hover:bg-white/[0.08] active:scale-95"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-800 transition-all duration-200 cursor-pointer hover:bg-white active:scale-95 shadow-sm"
           >
             {mode === 'classroom' ? (
               <>
-                <LayoutGrid className="w-3.5 h-3.5 text-indigo-400" />
+                <LayoutGrid className="w-3.5 h-3.5 text-indigo-600" />
                 <span>Classroom Mode</span>
               </>
             ) : (
               <>
-                <Presentation className="w-3.5 h-3.5 text-indigo-400" />
+                <Presentation className="w-3.5 h-3.5 text-indigo-600" />
                 <span>Whiteboard Mode</span>
               </>
             )}
@@ -1310,21 +1345,21 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
                 type="button"
                 data-testid="start-class-btn"
                 onClick={handleStartClass}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-stone-950 transition-all active:scale-95 shadow-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-zinc-950 transition-all active:scale-95 shadow-sm"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
                 <span>Start Class</span>
               </button>
             ) : sessionStatus === 'in_progress' ? (
               <div className="flex items-center gap-2">
-                <span className="text-xs font-mono font-medium px-2 py-1 rounded bg-stone-800 text-amber-400 border border-stone-700/50">
+                <span className="text-xs font-mono font-medium px-2 py-1 rounded bg-zinc-100 text-amber-700 border border-zinc-200">
                   {formatDuration(lessonDurationSeconds)}
                 </span>
                 <button
                   type="button"
                   data-testid="end-class-btn"
                   onClick={handleEndClass}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 transition-all active:scale-95"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-all active:scale-95"
                 >
                   <Square className="w-3.5 h-3.5 fill-current" />
                   <span>End Class</span>
@@ -1332,7 +1367,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
               </div>
             ) : null
           ) : sessionStatus === 'in_progress' ? (
-            <span className="text-xs font-mono font-medium px-2 py-1 rounded bg-stone-800 text-amber-400 border border-stone-700/50">
+            <span className="text-xs font-mono font-medium px-2 py-1 rounded bg-zinc-100 text-amber-700 border border-zinc-200">
               {formatDuration(lessonDurationSeconds)}
             </span>
           ) : null}
@@ -1344,8 +1379,8 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             onClick={() => setIsTimerOpen((prev) => !prev)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-150 cursor-pointer active:scale-95 ${
               isTimerOpen
-                ? 'bg-amber-600/30 text-amber-300 border-amber-500/40'
-                : 'bg-white/[0.06] text-zinc-300 border-white/[0.08] hover:bg-white/[0.1]'
+                ? 'bg-amber-500/20 text-amber-700 border-amber-400/40'
+                : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200/60'
             }`}
           >
             <TimerIcon className="w-3.5 h-3.5" />
@@ -1359,8 +1394,8 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             onClick={() => setIsVideoSyncOpen((prev) => !prev)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-150 cursor-pointer active:scale-95 ${
               isVideoSyncOpen
-                ? 'bg-amber-600/30 text-amber-300 border-amber-500/40'
-                : 'bg-white/[0.06] text-zinc-300 border-white/[0.08] hover:bg-white/[0.1]'
+                ? 'bg-amber-500/20 text-amber-700 border-amber-400/40'
+                : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200/60'
             }`}
           >
             <VideoIcon className="w-3.5 h-3.5" />
@@ -1374,8 +1409,8 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             onClick={handleToggleSidePanel}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-200 cursor-pointer ${
               !isSidePanelCollapsed
-                ? 'bg-indigo-600/30 text-indigo-200 border-indigo-500/40'
-                : 'bg-white/[0.06] text-zinc-300 border-white/[0.08] hover:bg-white/[0.1]'
+                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200/60'
             }`}
           >
             <Sidebar className="w-3.5 h-3.5" />
@@ -1400,7 +1435,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           data-testid="video-tiles-dock"
           className={`transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] ${
             mode === 'classroom'
-              ? 'w-full md:w-[340px] lg:w-[400px] xl:w-[440px] h-auto md:h-full flex flex-col gap-3 p-3 bg-[#0d0e14]/90 border-r border-white/[0.08] shrink-0 z-20 overflow-y-auto'
+              ? 'w-full md:w-[340px] lg:w-[400px] xl:w-[440px] h-auto md:h-full flex flex-col gap-3 p-3 bg-white/80 border-r border-zinc-200/80 shrink-0 z-20 overflow-y-auto'
               : 'fixed bottom-20 right-4 z-30 flex flex-row gap-2 max-w-sm pointer-events-auto bg-transparent border-0 p-0'
           }`}
         >
@@ -1499,6 +1534,16 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             remoteViewport={remoteViewport}
             className="w-full flex-1 min-h-0"
           />
+
+          {/* In-Tab PDF Sub-Page Navigation */}
+          {pages[currentPageIndex - 1]?.pdfDocument && (
+            <PdfSubPageNavigator
+              currentPage={pages[currentPageIndex - 1].pdfDocument!.currentPage}
+              totalPages={pages[currentPageIndex - 1].pdfDocument!.totalPages}
+              documentTitle={pages[currentPageIndex - 1].pdfDocument!.title}
+              onPageChange={handlePdfSubPageChange}
+            />
+          )}
         </main>
 
         {/* Collapsible Studio Side Panel (Tabs: People, Chat, Materials, Tools) */}
@@ -1532,12 +1577,13 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         />
       </div>
 
-      {/* Persistent Bottom Classroom Control Bar */}
+      {/* Floating Left Vertical Control Bar */}
       <footer
         data-testid="workspace-control-bar"
-        className="relative z-30 flex items-center justify-center py-2 px-4 bg-[#0a0b10]/95 backdrop-blur-md border-t border-white/[0.08] shrink-0"
+        className="pointer-events-none"
       >
         <ControlBar
+          orientation="vertical"
           isMicMuted={isMicMuted}
           isCameraOff={isCameraOff}
           isScreenSharing={isScreenSharing}

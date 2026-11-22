@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ClassroomWorkspace, WorkspaceMode } from './ClassroomWorkspace';
 import { P2PWebRTCMediaSession } from '../../lib/webrtc/p2p-session';
+import { LiveKitMediaSession } from '../../lib/webrtc/livekit-session';
 import { SupabaseSignalingAdapter } from '../../lib/signaling/supabase-signaling';
 import {
   WhiteboardRealtimeAdapter,
@@ -100,9 +101,17 @@ export function ClassroomView({
   );
   const userId = userIdRef.current;
 
-  // Instantiate or reuse WebRTC media session with correct polite peer role
+  // Instantiate or reuse WebRTC / LiveKit media session
   const internalMediaSession = useMemo(() => {
     if (injectedMediaSession) return injectedMediaSession;
+
+    // Use LiveKit when configured or in browser client
+    if (
+      typeof window !== 'undefined' &&
+      (process.env.NEXT_PUBLIC_LIVEKIT_URL || process.env.LIVEKIT_URL)
+    ) {
+      return new LiveKitMediaSession();
+    }
 
     const signaling = new SupabaseSignalingAdapter(undefined, userId);
     const polite = activeRole !== 'teacher';
@@ -195,13 +204,23 @@ export function ClassroomView({
     let isCancelled = false;
 
     const connectSession = async () => {
-      // Connect signaling & WebRTC
+      // Connect signaling & WebRTC / LiveKit
       try {
-        if (typeof activeMediaSession.connect === 'function') {
+        if (activeMediaSession instanceof LiveKitMediaSession) {
+          const res = await fetch(
+            `/api/livekit/token?room=${encodeURIComponent(roomId)}&username=${encodeURIComponent(
+              userName || userId
+            )}&role=${activeRole}`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            await activeMediaSession.connect(roomId, data.token);
+          }
+        } else if (typeof activeMediaSession.connect === 'function') {
           await activeMediaSession.connect(roomId, userId);
         }
       } catch (err) {
-        console.warn('WebRTC session connect notice:', err);
+        console.warn('WebRTC/LiveKit session connect notice:', err);
       }
 
       // Try acquiring local media if available in browser

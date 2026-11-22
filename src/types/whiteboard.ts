@@ -31,6 +31,14 @@ export interface StrokeProperties {
   fontFamily?: string;
 }
 
+export interface PdfDocumentState {
+  title?: string;
+  pages: string[]; // array of image data URLs
+  currentPage: number; // 1-based index
+  totalPages: number;
+  pageStrokes?: Record<number, any>; // serialized canvas JSON per subpage
+}
+
 export interface WhiteboardPage {
   id: string;
   pageNumber: number;
@@ -40,6 +48,7 @@ export interface WhiteboardPage {
   backgroundImageUrl?: string;
   canvasJson: any; // Serialized Fabric.js v6 canvas object graph
   thumbnailUrl?: string;
+  pdfDocument?: PdfDocumentState;
 }
 
 export interface WhiteboardPermissions {

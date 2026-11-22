@@ -59,7 +59,7 @@ export const BrowserTabBar: React.FC<BrowserTabBarProps> = ({
 
   return (
     <div
-      className="flex items-center w-full px-2 pt-1 gap-1 bg-stone-900/95 border-b border-stone-800/90 select-none overflow-x-auto no-scrollbar"
+      className="flex items-center w-full px-2 pt-1 gap-1 bg-zinc-100/90 border-b border-zinc-200/80 select-none overflow-x-auto no-scrollbar"
       data-testid="browser-tab-bar"
     >
       <div className="flex items-center gap-1 min-w-0 flex-1">
@@ -74,11 +74,11 @@ export const BrowserTabBar: React.FC<BrowserTabBarProps> = ({
               onClick={() => onSelectTab(page.id)}
               className={`group relative flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-t-lg cursor-pointer transition-colors duration-150 max-w-[200px] min-w-[120px] ${
                 isActive
-                  ? 'bg-stone-800 text-stone-100 border-t-2 border-t-amber-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] active-tab'
-                  : 'bg-stone-900 text-stone-400 hover:bg-stone-800/60 hover:text-stone-300'
+                  ? 'bg-white text-zinc-900 border-t-2 border-t-amber-500 shadow-sm active-tab font-semibold'
+                  : 'bg-zinc-100/60 text-zinc-500 hover:bg-zinc-200/60 hover:text-zinc-800'
               }`}
             >
-              <FileText className="w-3.5 h-3.5 shrink-0 opacity-70 text-amber-500/80" />
+              <FileText className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-amber-600' : 'text-zinc-400'}`} />
 
               {isEditing ? (
                 <input
@@ -88,7 +88,7 @@ export const BrowserTabBar: React.FC<BrowserTabBarProps> = ({
                   onChange={(e) => setEditTitle(e.target.value)}
                   onBlur={() => handleCommitRename(page.id)}
                   onKeyDown={(e) => handleKeyDown(e, page.id)}
-                  className="bg-stone-950 text-stone-100 px-1 py-0.5 rounded text-xs border border-amber-500/50 outline-none w-full"
+                  className="bg-white text-zinc-900 px-1 py-0.5 rounded text-xs border border-amber-500/50 outline-none w-full shadow-inner"
                   onClick={(e) => e.stopPropagation()}
                 />
               ) : (
@@ -109,7 +109,7 @@ export const BrowserTabBar: React.FC<BrowserTabBarProps> = ({
                     e.stopPropagation();
                     onCloseTab(page.id);
                   }}
-                  className="opacity-0 group-hover:opacity-100 hover:bg-stone-700/60 text-stone-400 hover:text-stone-200 rounded p-0.5 transition-opacity duration-150 active:scale-95"
+                  className="opacity-0 group-hover:opacity-100 hover:bg-zinc-200/70 text-zinc-400 hover:text-zinc-700 rounded p-0.5 transition-opacity duration-150 active:scale-95"
                   title="Close Tab"
                 >
                   <X className="w-3 h-3" />
@@ -123,7 +123,7 @@ export const BrowserTabBar: React.FC<BrowserTabBarProps> = ({
           type="button"
           onClick={onAddTab}
           aria-label="New whiteboard tab"
-          className="flex items-center justify-center p-1.5 text-stone-400 hover:text-amber-400 hover:bg-stone-800/80 rounded-md transition-all duration-150 active:scale-95"
+          className="flex items-center justify-center p-1.5 text-zinc-500 hover:text-amber-600 hover:bg-zinc-200/60 rounded-md transition-all duration-150 active:scale-95"
           title="Add New Whiteboard Tab"
         >
           <Plus className="w-3.5 h-3.5" />

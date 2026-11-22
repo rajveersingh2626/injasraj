@@ -36,12 +36,7 @@ export const PageNavigationBar: React.FC<PageNavigationBarProps> = ({
       role="navigation"
       aria-label="Whiteboard Page Navigation"
       data-testid="page-nav-bar"
-      className={`absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-2 py-1.5 rounded-full border border-[rgba(255,255,255,0.08)] backdrop-blur-[16px] select-none text-zinc-200 ${className}`}
-      style={{
-        background: 'rgba(18, 18, 24, 0.78)',
-        boxShadow:
-          'inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 32px -4px rgba(0, 0, 0, 0.48)',
-      }}
+      className={`absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-2 py-1.5 rounded-full border border-zinc-200/90 backdrop-blur-[16px] select-none text-zinc-800 bg-white/90 shadow-[0_8px_30px_rgb(0,0,0,0.08)] ${className}`}
     >
       {/* Previous Page Button */}
       <button
@@ -52,7 +47,7 @@ export const PageNavigationBar: React.FC<PageNavigationBarProps> = ({
         data-testid="prev-page-btn"
         title="Previous page"
         style={buttonStyle}
-        className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer active:scale-[0.97] hover:bg-white/10 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
+        className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer active:scale-[0.97] hover:bg-zinc-100 text-zinc-700 hover:text-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
       >
         <ChevronLeft className="w-4 h-4" />
       </button>
@@ -60,7 +55,7 @@ export const PageNavigationBar: React.FC<PageNavigationBarProps> = ({
       {/* Page Indicator */}
       <div
         data-testid="page-indicator"
-        className="px-2.5 text-xs font-medium tracking-tight text-zinc-300 min-w-[80px] text-center"
+        className="px-2.5 text-xs font-semibold tracking-tight text-zinc-700 min-w-[80px] text-center"
       >
         <span>Page {currentPage} of {totalPages}</span>
       </div>
@@ -74,13 +69,13 @@ export const PageNavigationBar: React.FC<PageNavigationBarProps> = ({
         data-testid="next-page-btn"
         title="Next page"
         style={buttonStyle}
-        className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer active:scale-[0.97] hover:bg-white/10 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
+        className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer active:scale-[0.97] hover:bg-zinc-100 text-zinc-700 hover:text-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
       >
         <ChevronRight className="w-4 h-4" />
       </button>
 
       {/* Separator */}
-      <div className="w-[1px] h-4 bg-white/[0.08] mx-0.5" />
+      <div className="w-[1px] h-4 bg-zinc-200 mx-0.5" />
 
       {/* Add Page Button */}
       {onAddPage && (
@@ -92,7 +87,7 @@ export const PageNavigationBar: React.FC<PageNavigationBarProps> = ({
           data-testid="add-page-btn"
           title="Add new page"
           style={buttonStyle}
-          className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer active:scale-[0.97] hover:bg-white/10 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
+          className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer active:scale-[0.97] hover:bg-zinc-100 text-zinc-700 hover:text-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
         >
           <Plus className="w-4 h-4" />
         </button>
@@ -110,8 +105,8 @@ export const PageNavigationBar: React.FC<PageNavigationBarProps> = ({
           style={buttonStyle}
           className={`w-8 h-8 rounded-full flex items-center justify-center cursor-pointer active:scale-[0.97] ${
             isThumbnailsOpen
-              ? 'bg-white/20 text-white border border-white/30'
-              : 'hover:bg-white/10 hover:text-white'
+              ? 'bg-white/20 text-zinc-900 border border-zinc-300'
+              : 'hover:bg-zinc-100 text-zinc-700 hover:text-zinc-900'
           }`}
         >
           <Layers className="w-4 h-4" />

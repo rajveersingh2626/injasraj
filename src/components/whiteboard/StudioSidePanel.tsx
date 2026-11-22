@@ -180,10 +180,10 @@ export const StudioSidePanel: React.FC<StudioSidePanelProps> = ({
           aria-label="Expand side panel"
           title="Open Studio Side Panel"
           onClick={handleCollapseToggle}
-          className="fixed top-20 right-3 z-40 flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#121218]/90 backdrop-blur-[16px] text-zinc-200 hover:text-white hover:bg-[#1c1c24] shadow-lg transition-all duration-200 active:scale-95 cursor-pointer"
+          className="fixed top-20 right-3 z-40 flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-200 bg-white/95 backdrop-blur-[16px] text-zinc-700 hover:text-zinc-900 hover:bg-zinc-100 shadow-md transition-all duration-200 active:scale-95 cursor-pointer"
         >
           <ChevronLeft className="w-4 h-4" />
-          <span className="text-xs font-medium">Studio</span>
+          <span className="text-xs font-semibold">Studio</span>
         </button>
       )}
 
@@ -197,9 +197,9 @@ export const StudioSidePanel: React.FC<StudioSidePanelProps> = ({
         style={{
           boxShadow: effectiveCollapsed
             ? 'none'
-            : '-8px 0 32px -4px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
+            : '-8px 0 32px -4px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
         }}
-        className={`fixed top-14 right-0 z-30 h-[calc(100dvh-3.5rem)] w-[320px] max-w-full flex flex-col bg-[#121218]/95 backdrop-blur-[20px] border-l border-white/[0.08] text-zinc-100 transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] ${
+        className={`fixed top-14 right-0 z-30 h-[calc(100dvh-3.5rem)] w-[320px] max-w-full flex flex-col bg-white/95 backdrop-blur-[20px] border-l border-zinc-200 text-zinc-800 shadow-xl transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] ${
           effectiveCollapsed
             ? 'translate-x-full pointer-events-none'
             : 'translate-x-0'
@@ -208,11 +208,11 @@ export const StudioSidePanel: React.FC<StudioSidePanelProps> = ({
         {/* Panel Header */}
         <div
           data-testid="side-panel-header"
-          className="flex items-center justify-between px-4 py-3 border-b border-white/[0.08] bg-white/[0.02]"
+          className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 bg-zinc-50/70"
         >
           <div className="flex items-center gap-2">
-            <Sidebar className="w-4 h-4 text-indigo-400" />
-            <h2 className="text-sm font-semibold tracking-tight text-white">
+            <Sidebar className="w-4 h-4 text-indigo-600" />
+            <h2 className="text-sm font-semibold tracking-tight text-zinc-900">
               Studio Panel
             </h2>
           </div>
@@ -223,7 +223,7 @@ export const StudioSidePanel: React.FC<StudioSidePanelProps> = ({
             aria-label="Collapse side panel"
             title="Collapse side panel"
             onClick={handleCollapseToggle}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer active:scale-95"
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors cursor-pointer active:scale-95"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -233,7 +233,7 @@ export const StudioSidePanel: React.FC<StudioSidePanelProps> = ({
         <nav
           data-testid="panel-tab-bar"
           aria-label="Studio Panel Tabs"
-          className="grid grid-cols-4 gap-1 p-2 border-b border-white/[0.08] bg-black/20 select-none"
+          className="grid grid-cols-4 gap-1 p-2 border-b border-zinc-200 bg-zinc-50/50 select-none"
         >
           {tabs.map((tab) => {
             const isActive = currentActiveTab === tab.id;
@@ -248,8 +248,8 @@ export const StudioSidePanel: React.FC<StudioSidePanelProps> = ({
                 onClick={() => handleSelectTab(tab.id)}
                 className={`flex flex-col items-center justify-center gap-1 py-1.5 px-1 rounded-xl text-[11px] font-medium transition-all duration-150 cursor-pointer active:scale-95 ${
                   isActive
-                    ? 'bg-indigo-600/30 text-white border border-indigo-500/40 shadow-[0_0_12px_rgba(99,102,241,0.25)]'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent'
+                    ? 'bg-white text-zinc-900 border border-zinc-200 shadow-sm font-semibold'
+                    : 'text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100/60 border border-transparent'
                 }`}
               >
                 {tab.icon}

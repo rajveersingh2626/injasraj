@@ -54,4 +54,39 @@ describe('Multi-Page Lesson PDF Exporter', () => {
     const arrayBuffer = await pdfBlob.arrayBuffer();
     expect(isPdfBuffer(new Uint8Array(arrayBuffer))).toBe(true);
   });
+
+  it('exports all sub-pages when a page contains a navigable multi-page pdfDocument', async () => {
+    const pagesWithPdf: WhiteboardPage[] = [
+      {
+        id: 'page-pdf-1',
+        pageNumber: 1,
+        title: 'Uploaded Algebra PDF',
+        canvasJson: { objects: [{ type: 'rect', left: 50, top: 50, width: 80, height: 80 }] },
+        pdfDocument: {
+          title: 'Algebra Worksheet',
+          pages: [
+            'data:image/png;base64,mock1',
+            'data:image/png;base64,mock2',
+            'data:image/png;base64,mock3',
+          ],
+          currentPage: 1,
+          totalPages: 3,
+          pageStrokes: {
+            2: { objects: [{ type: 'circle', left: 100, top: 100, radius: 40 }] },
+          },
+        },
+      },
+    ];
+
+    const pdfBlob = await exportMultiPagePdf(pagesWithPdf, 'room-pdf-test');
+    expect(pdfBlob).toBeDefined();
+    const arrayBuffer = await pdfBlob.arrayBuffer();
+    const text = new TextDecoder().decode(new Uint8Array(arrayBuffer));
+
+    const pageMatches = text.match(/\/Type\s*\/Page\b/g);
+    expect(pageMatches?.length).toBe(3);
+    expect(text).toContain('Algebra Worksheet \\(Page 1 of 3\\)');
+    expect(text).toContain('Algebra Worksheet \\(Page 2 of 3\\)');
+    expect(text).toContain('Algebra Worksheet \\(Page 3 of 3\\)');
+  });
 });

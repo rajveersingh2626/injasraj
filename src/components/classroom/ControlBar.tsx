@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, MicOff, Video, VideoOff, Monitor, Settings, PhoneOff, X } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, Monitor, Settings, PhoneOff, X, GripVertical } from 'lucide-react';
 import { GlassButton } from '../ui/GlassButton';
 
 export interface ControlBarProps {
+  orientation?: 'vertical' | 'horizontal';
   isMicMuted?: boolean;
   isCameraOff?: boolean;
   isScreenSharing?: boolean;
@@ -41,6 +42,7 @@ const BlurIcon: React.FC<BlurIconProps> = ({ children, activeKey }) => {
 };
 
 export const ControlBar: React.FC<ControlBarProps> = ({
+  orientation = 'vertical',
   isMicMuted = false,
   isCameraOff = false,
   isScreenSharing = false,
@@ -58,6 +60,10 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 }) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const [dragTop, setDragTop] = useState<number | null>(null);
+  const isDraggingRef = useRef(false);
+  const startYRef = useRef(0);
+  const initialTopRef = useRef(0);
 
   // Close settings popover on click outside or Escape
   useEffect(() => {
@@ -83,16 +89,69 @@ export const ControlBar: React.FC<ControlBarProps> = ({
     };
   }, [isSettingsOpen]);
 
+  // Handle vertical drag repositioning
+  const handlePointerDownDrag = (e: React.PointerEvent) => {
+    isDraggingRef.current = true;
+    startYRef.current = e.clientY;
+    initialTopRef.current = dragTop ?? (typeof window !== 'undefined' ? window.innerHeight / 2 : 300);
+
+    const onPointerMove = (moveEvent: PointerEvent) => {
+      if (!isDraggingRef.current) return;
+      const deltaY = moveEvent.clientY - startYRef.current;
+      const newTop = Math.max(80, Math.min(window.innerHeight - 80, initialTopRef.current + deltaY));
+      setDragTop(newTop);
+    };
+
+    const onPointerUp = () => {
+      isDraggingRef.current = false;
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+  };
+
+  const isVertical = orientation === 'vertical';
+
+  const containerPositionStyle: React.CSSProperties = {
+    paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))',
+    ...(isVertical
+      ? dragTop !== null
+        ? { top: `${dragTop}px`, transform: 'translateY(-50%)' }
+        : {}
+      : {}),
+  };
+
   return (
     <div
       data-testid="control-bar-container"
-      style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
-      className={`fixed bottom-0 inset-x-0 z-40 flex justify-center px-4 pt-2 pointer-events-none ${className}`}
+      style={containerPositionStyle}
+      className={
+        isVertical
+          ? `fixed left-4 ${dragTop === null ? 'top-1/2 -translate-y-1/2' : ''} z-40 pointer-events-none ${className}`
+          : `fixed bottom-0 inset-x-0 z-40 flex justify-center px-4 pt-2 pointer-events-none ${className}`
+      }
     >
       <div
         data-testid="control-bar"
-        className="pointer-events-auto relative flex items-center gap-2 sm:gap-3 p-2 sm:p-2.5 rounded-2xl bg-[#09090b]/85 border border-white/10 backdrop-blur-[20px] shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+        className={`pointer-events-auto relative flex ${
+          isVertical ? 'flex-col' : 'flex-row'
+        } items-center gap-2 sm:gap-2.5 p-2 sm:p-2.5 rounded-2xl bg-white/90 border border-zinc-200/90 shadow-[0_8px_30px_rgb(0,0,0,0.08)] backdrop-blur-xl text-zinc-800 transition-shadow duration-200`}
       >
+        {/* Drag Grip Handle */}
+        {isVertical && (
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label="Drag control dock"
+            onPointerDown={handlePointerDownDrag}
+            className="cursor-grab active:cursor-grabbing text-zinc-400 hover:text-zinc-600 p-0.5 rounded-md hover:bg-zinc-100 transition-colors touch-none"
+          >
+            <GripVertical className="w-4 h-4" />
+          </div>
+        )}
+
         {/* Device Settings Popover */}
         {isSettingsOpen && (
           <div
@@ -100,19 +159,23 @@ export const ControlBar: React.FC<ControlBarProps> = ({
             data-testid="device-settings-popover"
             style={{
               boxShadow:
-                'inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 16px 36px -4px rgba(0, 0, 0, 0.7)',
+                '0 20px 40px -8px rgba(0, 0, 0, 0.12), 0 0 1px 1px rgba(0,0,0,0.05)',
             }}
-            className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 w-80 max-w-[calc(100vw-2rem)] p-4 rounded-2xl bg-[#0e0e14]/95 border border-white/10 backdrop-blur-[20px] z-50 text-zinc-100 animate-in fade-in zoom-in-95 duration-150"
+            className={
+              isVertical
+                ? 'absolute left-full ml-3 top-0 w-80 max-w-[calc(100vw-5rem)] p-4 rounded-2xl bg-white/95 border border-zinc-200 shadow-xl backdrop-blur-xl z-50 text-zinc-800 animate-in fade-in zoom-in-95 duration-150'
+                : 'absolute bottom-full mb-3 left-1/2 -translate-x-1/2 w-80 max-w-[calc(100vw-2rem)] p-4 rounded-2xl bg-white/95 border border-zinc-200 shadow-xl backdrop-blur-xl z-50 text-zinc-800 animate-in fade-in zoom-in-95 duration-150'
+            }
           >
-            <div className="flex items-center justify-between pb-2 mb-3 border-b border-white/10">
-              <h3 className="text-sm font-semibold flex items-center gap-2 text-zinc-200">
-                <Settings className="w-4 h-4 text-indigo-400" />
+            <div className="flex items-center justify-between pb-2 mb-3 border-b border-zinc-200">
+              <h3 className="text-sm font-semibold flex items-center gap-2 text-zinc-800">
+                <Settings className="w-4 h-4 text-indigo-600" />
                 Audio & Video Settings
               </h3>
               <button
                 type="button"
                 onClick={() => setIsSettingsOpen(false)}
-                className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/5 cursor-pointer"
+                className="text-zinc-400 hover:text-zinc-800 p-1 rounded-lg hover:bg-zinc-100 cursor-pointer transition-colors"
                 aria-label="Close settings"
               >
                 <X className="w-4 h-4" />
@@ -124,9 +187,9 @@ export const ControlBar: React.FC<ControlBarProps> = ({
               <div>
                 <label
                   htmlFor="audio-device-select"
-                  className="block text-zinc-400 mb-1 font-medium flex items-center gap-1.5"
+                  className="text-zinc-600 mb-1 font-medium flex items-center gap-1.5"
                 >
-                  <Mic className="w-3.5 h-3.5 text-zinc-300" />
+                  <Mic className="w-3.5 h-3.5 text-zinc-500" />
                   Microphone
                 </label>
                 <select
@@ -134,20 +197,19 @@ export const ControlBar: React.FC<ControlBarProps> = ({
                   data-testid="audio-device-select"
                   value={selectedAudioDeviceId}
                   onChange={(e) => onSelectAudioDevice?.(e.target.value)}
-                  className="w-full bg-[#161620] border border-white/10 rounded-xl px-3 py-2 text-zinc-200 text-xs focus:outline-none focus:border-indigo-400/60"
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-zinc-800 text-xs focus:outline-none focus:border-indigo-500 focus:bg-white"
                 >
                   {audioDevices.length > 0 ? (
                     audioDevices.map((d, i) => (
                       <option
                         key={d.deviceId || `audio-${i}`}
                         value={d.deviceId}
-                        className="bg-zinc-900 text-white"
                       >
                         {d.label || `Microphone ${i + 1}`}
                       </option>
                     ))
                   ) : (
-                    <option value="default" className="bg-zinc-900 text-white">
+                    <option value="default">
                       Default Microphone
                     </option>
                   )}
@@ -158,9 +220,9 @@ export const ControlBar: React.FC<ControlBarProps> = ({
               <div>
                 <label
                   htmlFor="video-device-select"
-                  className="block text-zinc-400 mb-1 font-medium flex items-center gap-1.5"
+                  className="text-zinc-600 mb-1 font-medium flex items-center gap-1.5"
                 >
-                  <Video className="w-3.5 h-3.5 text-zinc-300" />
+                  <Video className="w-3.5 h-3.5 text-zinc-500" />
                   Camera
                 </label>
                 <select
@@ -168,20 +230,19 @@ export const ControlBar: React.FC<ControlBarProps> = ({
                   data-testid="video-device-select"
                   value={selectedVideoDeviceId}
                   onChange={(e) => onSelectVideoDevice?.(e.target.value)}
-                  className="w-full bg-[#161620] border border-white/10 rounded-xl px-3 py-2 text-zinc-200 text-xs focus:outline-none focus:border-indigo-400/60"
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-zinc-800 text-xs focus:outline-none focus:border-indigo-500 focus:bg-white"
                 >
                   {videoDevices.length > 0 ? (
                     videoDevices.map((d, i) => (
                       <option
                         key={d.deviceId || `video-${i}`}
                         value={d.deviceId}
-                        className="bg-zinc-900 text-white"
                       >
                         {d.label || `Camera ${i + 1}`}
                       </option>
                     ))
                   ) : (
-                    <option value="default" className="bg-zinc-900 text-white">
+                    <option value="default">
                       Default Camera
                     </option>
                   )}
@@ -202,9 +263,9 @@ export const ControlBar: React.FC<ControlBarProps> = ({
         >
           <BlurIcon activeKey={isMicMuted}>
             {isMicMuted ? (
-              <MicOff className="w-5 h-5 text-red-200" />
+              <MicOff className="w-5 h-5 text-red-500" />
             ) : (
-              <Mic className="w-5 h-5 text-zinc-100" />
+              <Mic className="w-5 h-5 text-zinc-700" />
             )}
           </BlurIcon>
         </GlassButton>
@@ -220,9 +281,9 @@ export const ControlBar: React.FC<ControlBarProps> = ({
         >
           <BlurIcon activeKey={isCameraOff}>
             {isCameraOff ? (
-              <VideoOff className="w-5 h-5 text-red-200" />
+              <VideoOff className="w-5 h-5 text-red-500" />
             ) : (
-              <Video className="w-5 h-5 text-zinc-100" />
+              <Video className="w-5 h-5 text-zinc-700" />
             )}
           </BlurIcon>
         </GlassButton>
@@ -238,7 +299,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
         >
           <BlurIcon activeKey={isScreenSharing}>
             <Monitor
-              className={`w-5 h-5 ${isScreenSharing ? 'text-emerald-300' : 'text-zinc-100'}`}
+              className={`w-5 h-5 ${isScreenSharing ? 'text-emerald-500' : 'text-zinc-700'}`}
             />
           </BlurIcon>
         </GlassButton>
@@ -254,13 +315,13 @@ export const ControlBar: React.FC<ControlBarProps> = ({
         >
           <BlurIcon activeKey={isSettingsOpen}>
             <Settings
-              className={`w-5 h-5 ${isSettingsOpen ? 'text-indigo-300' : 'text-zinc-200'}`}
+              className={`w-5 h-5 ${isSettingsOpen ? 'text-indigo-600' : 'text-zinc-600'}`}
             />
           </BlurIcon>
         </GlassButton>
 
         {/* Divider */}
-        <div className="h-6 w-[1px] bg-white/10 mx-0.5 sm:mx-1" />
+        <div className={isVertical ? 'w-6 h-[1px] bg-zinc-200 my-0.5 sm:my-1' : 'h-6 w-[1px] bg-zinc-200 mx-0.5 sm:mx-1'} />
 
         {/* Leave Class Button */}
         <GlassButton
@@ -269,12 +330,12 @@ export const ControlBar: React.FC<ControlBarProps> = ({
           size="md"
           aria-label="Leave class"
           onClick={onLeaveClass}
-          className="rounded-xl px-4 sm:px-5 font-semibold text-white bg-rose-600/40 border-rose-500/50 hover:bg-rose-600/60"
+          className="rounded-xl px-4 sm:px-5 font-semibold text-white bg-rose-600/80 border-rose-500 hover:bg-rose-700 active:scale-95"
         >
           <BlurIcon activeKey="leave">
             <PhoneOff className="w-5 h-5 mr-0 sm:mr-1.5 text-white" />
           </BlurIcon>
-          <span className="hidden sm:inline">Leave</span>
+          <span className={isVertical ? 'text-[10px] mt-0.5' : 'hidden sm:inline'}>Leave</span>
         </GlassButton>
       </div>
     </div>
