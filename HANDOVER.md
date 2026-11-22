@@ -9,8 +9,11 @@
 ## 1. Current Repository Status
 
 - **Current Branch**: `main`
-- **Latest Commit**: `7c769a8` (*feat: LiveKit video SFU, navigable PDF slides, light theme and vertical left dock*)
-- **Test Suite**: **63/63 test files passed (682/682 tests)** via Vitest.
+- **Latest Commits**:
+  - `3f3b357`: *fix(dashboard): remove demo lessons and placeholder data from main website*
+  - `7bfebed`: *feat(classroom): add StudentNameModal for student entry and name persistence*
+  - `bca816f`: *feat(classroom): remove teacher login from classroom page and enable multi-student presence*
+- **Test Suite**: **64/64 test suites passed (689/689 tests)** via Vitest.
 - **Production Build**: **Clean build** via `npm run build` (Next.js 15.5.29 App Router, React 19).
 - **Working Tree**: Clean.
 

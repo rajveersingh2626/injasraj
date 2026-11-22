@@ -100,15 +100,17 @@
 ### Classroom Components (`src/components/classroom/`)
 - [`src/components/classroom/ClassroomView.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/classroom/ClassroomView.tsx):
   - Main container integrating WebRTC media session, Supabase signaling, Whiteboard Realtime adapter, and Postgres persistence manager.
-  - Displays floating **"Teacher Login"** button for student views.
+  - Enforces student security barrier; student view contains zero teacher login triggers.
+  - Prompts students for their display name via `StudentNameModal` and broadcasts real-time participant presence.
   - Renders **"Classroom Session Expired"** screen if room is revoked or exceeded 15m.
-  - Enforces `polite = activeRole !== 'teacher'` for perfect WebRTC negotiation.
+- [`src/components/classroom/StudentNameModal.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/classroom/StudentNameModal.tsx):
+  - Accessible modal dialog for entering and persisting student display name (`injasraj_student_name`).
 - [`src/components/classroom/ClassroomWorkspace.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/classroom/ClassroomWorkspace.tsx):
-  - The master classroom layout: left draggable vertical `ControlBar`, dual video grid, infinite whiteboard on center/right, top floating page navigation bar, bottom floating toolbar, bottom `PdfSubPageNavigator`, right collapsible studio panel.
+  - The master classroom layout: dual/multi video grid on left, infinite whiteboard on center/right, top floating page navigation bar, bottom floating toolbar, right collapsible studio panel.
+  - Supports multiple remote students with dynamic participant tiles and individual drawing permissions in People tab.
   - Light theme styling with airy warm zinc-50 backgrounds and subtle borders.
   - Handles dual-mode switching (`whiteboard` vs `video_focus`).
   - Implements `handleRestoreWhiteboard` for reloading past whiteboard sessions onto canvas and broadcasting across peers.
-  - Handles in-tab PDF sub-page slide switching and synchronized multi-page stroke preservation.
   - Auto-archives session to history on `handleEndClass`.
 - [`src/components/classroom/ClassroomContainer.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/classroom/ClassroomContainer.tsx):
   - Responsive container wrapper managing aspect ratio and fullscreen toggles.
