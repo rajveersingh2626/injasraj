@@ -24,7 +24,8 @@ import {
   getTeacherSession,
 } from '../../lib/auth/teacher-auth';
 import { recordRoomJoin, getRoomById } from '../../lib/classroom/room-manager';
-import { TeacherLoginModal } from '../auth/TeacherLoginModal';
+import { StudentNameModal, STUDENT_NAME_STORAGE_KEY } from './StudentNameModal';
+import { Participant } from '../whiteboard/tabs/PeopleTab';
 import { Lock, LogIn, AlertOctagon, ArrowLeft } from 'lucide-react';
 
 export interface ClassroomViewProps {
@@ -69,7 +70,29 @@ export function ClassroomView({
   const [activeRole, setActiveRole] = useState<'teacher' | 'student'>(() =>
     resolveUserClassroomRole(role)
   );
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [resolvedStudentName, setResolvedStudentName] = useState<string>(() => {
+    if (userName && userName.trim() !== '') return userName.trim();
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(STUDENT_NAME_STORAGE_KEY);
+        if (stored && stored.trim() !== '') return stored.trim();
+      } catch {}
+    }
+    return '';
+  });
+  const [isNameModalOpen, setIsNameModalOpen] = useState<boolean>(() => {
+    const isStudent = resolveUserClassroomRole(role) === 'student';
+    if (!isStudent) return false;
+    if (userName && userName.trim() !== '') return false;
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(STUDENT_NAME_STORAGE_KEY);
+        if (stored && stored.trim() !== '') return false;
+      } catch {}
+    }
+    return true;
+  });
+  const [remoteParticipants, setRemoteParticipants] = useState<Participant[]>([]);
   const [isRoomExpired, setIsRoomExpired] = useState<boolean>(() => {
     const existing = getRoomById(roomId);
     return existing?.status === 'expired';
@@ -93,7 +116,7 @@ export function ClassroomView({
     userName ||
     (activeRole === 'teacher'
       ? teacherSession?.teacherName || 'Teacher'
-      : 'Student');
+      : resolvedStudentName || 'Student');
 
   // Persistent User ID for this session
   const userIdRef = useRef<string>(
@@ -300,28 +323,96 @@ export function ClassroomView({
     );
   }
 
+  // Broadcast and listen to participant presence across all students and teacher
+  useEffect(() => {
+    if (!activeWhiteboardAdapter) return;
+
+    const unsubscribe = activeWhiteboardAdapter.onCustomEvent(
+      'participant-presence',
+      (payload: any) => {
+        if (!payload?.id || payload.id === userId) return;
+
+        if (payload.action === 'leave' || payload.isOnline === false) {
+          setRemoteParticipants((prev) => prev.filter((p) => p.id !== payload.id));
+          return;
+        }
+
+        setRemoteParticipants((prev) => {
+          const exists = prev.find((p) => p.id === payload.id);
+          const updated: Participant = {
+            id: payload.id,
+            name: payload.name || (payload.role === 'teacher' ? 'Teacher' : 'Student'),
+            role: payload.role || 'student',
+            isMicOn: !payload.isAudioMuted,
+            isCameraOn: !payload.isVideoOff,
+            isDrawingAllowed: Boolean(payload.hasDrawingPermission),
+          };
+          if (exists) {
+            return prev.map((p) => (p.id === payload.id ? updated : p));
+          }
+          return [...prev, updated];
+        });
+
+        // Acknowledge new arrivals
+        if (payload.action === 'join') {
+          activeWhiteboardAdapter
+            .broadcastCustomEvent('participant-presence', {
+              id: userId,
+              name: localName,
+              role: activeRole,
+              isOnline: true,
+              action: 'acknowledge',
+            })
+            .catch(() => {});
+        }
+      }
+    );
+
+    // Broadcast our presence on join
+    activeWhiteboardAdapter
+      .broadcastCustomEvent('participant-presence', {
+        id: userId,
+        name: localName,
+        role: activeRole,
+        isOnline: true,
+        action: 'join',
+      })
+      .catch(() => {});
+
+    return () => {
+      unsubscribe();
+      activeWhiteboardAdapter
+        .broadcastCustomEvent('participant-presence', {
+          id: userId,
+          name: localName,
+          role: activeRole,
+          isOnline: false,
+          action: 'leave',
+        })
+        .catch(() => {});
+    };
+  }, [activeWhiteboardAdapter, userId, localName, activeRole]);
+
+  // Combined participant list
+  const allParticipants: Participant[] = useMemo(() => {
+    const localParticipant: Participant = {
+      id: userId,
+      name: localName,
+      role: activeRole,
+      isMicOn: true,
+      isCameraOn: true,
+      isSelf: true,
+      isDrawingAllowed: activeRole === 'teacher',
+    };
+    return [localParticipant, ...remoteParticipants];
+  }, [userId, localName, activeRole, remoteParticipants]);
+
   return (
     <main
       data-testid="classroom-page"
       className="relative w-full h-[100dvh] bg-zinc-950 overflow-hidden select-none"
       style={{ overscrollBehavior: 'none' }}
     >
-      {/* Floating Teacher Login Pill if user is in student view */}
-      {activeRole === 'student' && (
-        <div className="absolute top-3.5 right-4 z-40 flex items-center">
-          <button
-            type="button"
-            data-testid="teacher-login-trigger-btn"
-            onClick={() => setIsLoginModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-stone-900/90 hover:bg-stone-800 text-amber-400 border border-amber-500/30 backdrop-blur-md shadow-lg transition-all active:scale-95 cursor-pointer"
-            title="Log in with Teacher Passcode"
-          >
-            <Lock className="w-3.5 h-3.5" />
-            <span>Teacher Login</span>
-          </button>
-        </div>
-      )}
-
       <div data-testid="classroom-container" className="w-full h-full">
         <ClassroomWorkspace
           roomId={roomId}
@@ -340,15 +431,17 @@ export function ClassroomView({
           onSave={onSave}
           onLoadWorksheet={onLoadWorksheet}
           restoreRoomId={restoreRoomId}
+          participants={allParticipants}
           className="w-full h-full"
         />
       </div>
 
-      <TeacherLoginModal
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
-        onLoginSuccess={(name) => {
-          setActiveRole('teacher');
+      <StudentNameModal
+        isOpen={isNameModalOpen}
+        initialName={resolvedStudentName}
+        onJoin={(name) => {
+          setResolvedStudentName(name);
+          setIsNameModalOpen(false);
         }}
       />
     </main>

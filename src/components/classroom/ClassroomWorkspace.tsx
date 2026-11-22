@@ -137,6 +137,21 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   const localRoleBadge = role === 'teacher' ? 'Teacher' : 'Student';
   const remoteRoleBadge = role === 'teacher' ? 'Student' : 'Teacher';
 
+  // Remote participants list for multi-student support
+  const remotePeers = useMemo(() => {
+    if (propParticipants && propParticipants.length > 0) {
+      const filtered = propParticipants.filter((p) => p.id !== userId);
+      if (filtered.length > 0) return filtered;
+    }
+    return [
+      {
+        id: role === 'teacher' ? 'student-peer' : 'teacher-peer',
+        name: remoteName,
+        role: (role === 'teacher' ? 'student' : 'teacher') as 'teacher' | 'student',
+      },
+    ];
+  }, [propParticipants, userId, role, remoteName]);
+
   // Media Streams & Devices State
   const [localStream, setLocalStream] = useState<MediaStream | null>(
     propLocalStream || null
@@ -1458,7 +1473,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             />
           </div>
 
-          {/* Remote Participant Video Tile */}
+          {/* Primary Remote Participant Video Tile */}
           <div
             data-testid="remote-video-wrapper"
             className={`transition-all duration-300 ease-out overflow-hidden rounded-xl ${
@@ -1468,14 +1483,36 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             }`}
           >
             <VideoCard
-              participantName={remoteName}
-              roleBadge={remoteRoleBadge}
+              participantName={remotePeers[0]?.name || remoteName}
+              roleBadge={remotePeers[0]?.role === 'teacher' ? 'Teacher' : 'Student'}
               stream={remoteStream}
               isLocal={false}
               isCameraOff={isRemoteCameraOff}
               isAudioMuted={isRemoteAudioMuted}
             />
           </div>
+
+          {/* Additional Remote Students Tiles */}
+          {remotePeers.slice(1).map((peer) => (
+            <div
+              key={peer.id}
+              data-testid={`remote-student-tile-${peer.id}`}
+              className={`transition-all duration-300 ease-out overflow-hidden rounded-xl ${
+                mode === 'classroom'
+                  ? 'w-full aspect-video shadow-lg border border-white/[0.08]'
+                  : 'w-36 md:w-44 aspect-video shadow-2xl border border-white/20 backdrop-blur-md'
+              }`}
+            >
+              <VideoCard
+                participantName={peer.name}
+                roleBadge={peer.role === 'teacher' ? 'Teacher' : 'Student'}
+                stream={null}
+                isLocal={false}
+                isCameraOff={true}
+                isAudioMuted={false}
+              />
+            </div>
+          ))}
         </div>
 
         {/* Whiteboard Interactive Canvas Stage */}
