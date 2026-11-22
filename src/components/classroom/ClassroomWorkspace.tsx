@@ -453,8 +453,9 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
               } else {
                 engineRef.current.clearCurrentPage(true);
               }
-              if (target.thumbnailUrl) {
-                engineRef.current.setBackgroundImage(target.thumbnailUrl).catch(() => {});
+              const bgUrl = target.backgroundImageUrl || target.thumbnailUrl;
+              if (bgUrl) {
+                engineRef.current.setBackgroundImage(bgUrl).catch(() => {});
               } else {
                 engineRef.current.clearBackgroundImage();
               }
@@ -487,8 +488,9 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         } else {
           engineRef.current.clearCurrentPage(true);
         }
-        if (activePage.thumbnailUrl) {
-          engineRef.current.setBackgroundImage(activePage.thumbnailUrl).catch(() => {});
+        const bgUrl = activePage.backgroundImageUrl || activePage.thumbnailUrl;
+        if (bgUrl) {
+          engineRef.current.setBackgroundImage(bgUrl).catch(() => {});
         } else {
           engineRef.current.clearBackgroundImage();
         }

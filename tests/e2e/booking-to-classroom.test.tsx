@@ -11,6 +11,7 @@ import ClassroomPage from '../../src/app/classroom/[roomId]/page';
 import { ClassroomView } from '../../src/components/classroom/ClassroomView';
 import { IMediaSession, ConnectionQuality } from '../../src/types/media';
 import { SlotItem } from '../../src/utils/timezone';
+import { loginTeacher, logoutTeacher } from '../../src/lib/auth/teacher-auth';
 
 // Extend expect for jest-dom matchers
 expect.extend({
@@ -318,6 +319,7 @@ describe('Task 10 E2E Platform Integration: Booking to Live Classroom', () => {
     });
 
     it('mounts classroom page as teacher with teacher badges and controls', async () => {
+      loginTeacher('injasraj123');
       render(
         <ClassroomView
           roomId="room-teacher-99"
@@ -333,6 +335,7 @@ describe('Task 10 E2E Platform Integration: Booking to Live Classroom', () => {
       );
 
       expect(screen.getAllByText(/Injasraj/)[0]).toBeInTheDocument();
+      logoutTeacher();
     });
 
     it('mounts ClassroomPage default export with Promise params', async () => {

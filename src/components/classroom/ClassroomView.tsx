@@ -22,8 +22,9 @@ import {
   resolveUserClassroomRole,
   getTeacherSession,
 } from '../../lib/auth/teacher-auth';
+import { recordRoomJoin, getRoomById } from '../../lib/classroom/room-manager';
 import { TeacherLoginModal } from '../auth/TeacherLoginModal';
-import { Lock, LogIn } from 'lucide-react';
+import { Lock, LogIn, AlertOctagon, ArrowLeft } from 'lucide-react';
 
 export interface ClassroomViewProps {
   roomId?: string;
@@ -68,6 +69,18 @@ export function ClassroomView({
     resolveUserClassroomRole(role)
   );
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isRoomExpired, setIsRoomExpired] = useState<boolean>(() => {
+    const existing = getRoomById(roomId);
+    return existing?.status === 'expired';
+  });
+
+  // Track room join & stamp 15m instant timer on direct entry
+  useEffect(() => {
+    const joined = recordRoomJoin(roomId);
+    if (joined?.status === 'expired') {
+      setIsRoomExpired(true);
+    }
+  }, [roomId]);
 
   // Sync role if prop or auth changes
   useEffect(() => {
@@ -83,18 +96,18 @@ export function ClassroomView({
 
   // Persistent User ID for this session
   const userIdRef = useRef<string>(
-    propUserId || `peer_${role}_${Math.random().toString(36).substring(2, 9)}`
+    propUserId || `peer_${activeRole}_${Math.random().toString(36).substring(2, 9)}`
   );
   const userId = userIdRef.current;
 
-  // Instantiate or reuse WebRTC media session
+  // Instantiate or reuse WebRTC media session with correct polite peer role
   const internalMediaSession = useMemo(() => {
     if (injectedMediaSession) return injectedMediaSession;
 
     const signaling = new SupabaseSignalingAdapter(undefined, userId);
-    const polite = role !== 'teacher';
+    const polite = activeRole !== 'teacher';
     return new P2PWebRTCMediaSession(signaling, { polite });
-  }, [injectedMediaSession, role, userId]);
+  }, [injectedMediaSession, activeRole, userId]);
 
   const activeMediaSession = injectedMediaSession || internalMediaSession;
 
@@ -241,6 +254,32 @@ export function ClassroomView({
       window.location.href = '/';
     }
   };
+
+  if (isRoomExpired) {
+    return (
+      <main
+        data-testid="classroom-expired-page"
+        className="relative flex flex-col items-center justify-center w-full h-[100dvh] bg-zinc-950 text-white p-6 select-none"
+      >
+        <div className="max-w-md w-full bg-stone-900/90 border border-red-500/30 rounded-2xl p-6 text-center shadow-2xl backdrop-blur-xl">
+          <div className="w-12 h-12 rounded-full bg-red-500/10 text-red-400 flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+            <Lock className="w-6 h-6" />
+          </div>
+          <h2 className="text-xl font-bold tracking-tight mb-2">Classroom Session Expired</h2>
+          <p className="text-sm text-stone-400 mb-6">
+            This classroom link has expired (15-minute time limit exceeded) or was revoked by the teacher.
+          </p>
+          <button
+            type="button"
+            onClick={handleLeave}
+            className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-semibold text-sm transition-all shadow-md active:scale-95 cursor-pointer"
+          >
+            Return to Dashboard
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main

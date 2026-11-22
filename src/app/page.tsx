@@ -110,13 +110,13 @@ export default function TeacherDashboardPage() {
   const [origin, setOrigin] = useState<string>('');
   const [isCopied, setIsCopied] = useState<boolean>(false);
 
-  const refreshRoomsAndHistory = useCallback(() => {
+  const refreshRoomsAndHistory = useCallback(async () => {
     const { active, expired } = checkAndExpireRooms();
     // Auto-archive any expired instant rooms to past classes
     if (expired.length > 0) {
-      expired.forEach((exp) => {
-        archiveClassToHistory(exp.roomId, exp.title, 900);
-      });
+      await Promise.all(
+        expired.map((exp) => archiveClassToHistory(exp.roomId, exp.title, 900))
+      );
     }
     setActiveRooms(active);
     setPastClasses(getPastClasses());
