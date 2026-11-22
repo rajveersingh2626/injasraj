@@ -10,12 +10,13 @@
 **Injasraj Classroom** is a high-performance, real-time, peer-to-peer virtual classroom and collaborative teaching whiteboard built specifically for online instruction (e.g. Punjabi, mathematics, science).
 
 ### Core Pillars
-1. **P2P WebRTC Audio/Video**: Low-latency direct media streaming between Teacher and Student with automatic bitrate adaptation, bandwidth estimation, and connection quality monitoring.
-2. **Deterministic Dual-Mode Fabric.js Whiteboard Engine**: Hardware-accelerated, infinite canvas supporting multi-page notebooks, PDF ingestion, rough/excalidraw shapes, freehand drawing, dedicated object eraser, laser pointer trails, zoom/pan transforms, and LaTeX formula insertion.
+1. **LiveKit SFU & P2P WebRTC Video Conferencing**: Low-latency media streaming with LiveKit Cloud SFU (simulcast, automatic quality scaling, adaptive bitrate) backed by P2P WebRTC fallback.
+2. **Deterministic Dual-Mode Fabric.js Whiteboard Engine**: Hardware-accelerated, infinite canvas supporting multi-page notebooks, in-tab navigable PDF slide decks, rough/excalidraw shapes, freehand drawing, dedicated object eraser, laser pointer trails, zoom/pan transforms, and LaTeX formula insertion.
 3. **Realtime Broadcast Synchronization**: Zero-backend state broadcast via Supabase Realtime Channel (`broadcast` mode) for cursor tracking, drawing commands, laser trails, page flips, and viewport sync ("Follow Teacher").
-4. **Persistent Debounced Storage**: Automatic multi-page saving to Supabase Postgres with in-memory / `localStorage` fallback, preserving full canvas JSON and background images.
+4. **Persistent Debounced Storage**: Automatic multi-page saving to Supabase Postgres with in-memory / `localStorage` fallback, preserving full canvas JSON, background images, and PDF slide decks.
 5. **Teacher Authentication & Strict Role Enforcement**: Security barrier ensuring all shareable links default to **Student View**. Only users authenticated with passcode `injasraj123` can unlock **Teacher View** and teacher controls.
 6. **Active Room Lifecycle & Auto-Archival**: Real-time room manager with 15-minute TTL on instant sessions, instant room revoking, and automatic multi-page whiteboard archival to **Past Classes** with 1-click reload.
+7. **Emil Kowalski Design Engineering & Vertical Left Dock**: Warm, airy light theme (`zinc-50` / `stone-50`), draggable vertical left control bar to prevent toolbar collisions, and floating glass pills.
 
 ---
 
@@ -23,15 +24,16 @@
 
 | Layer | Technology / Library | Role & Details |
 | :--- | :--- | :--- |
-| **Framework** | Next.js 15.5+ (App Router) | React 19 server/client components, dynamic routes (`[roomId]`, `[teacherId]`). |
+| **Framework** | Next.js 15.5+ (App Router) | React 19 server/client components, dynamic routes (`[roomId]`, `[teacherId]`), API route handlers. |
 | **Runtime & Language**| TypeScript 5.9+ / Node.js 24+ | Strict type checking, zero `any` tolerance on critical paths. |
-| **Styling & UI** | Tailwind CSS 3.4+, Lucide React | Emil Kowalski design philosophy: warm stone palette, zero neon glow, 1px subtle borders, micro-interactions. |
+| **Styling & UI** | Tailwind CSS 3.4+, Lucide React | Emil Kowalski design philosophy: warm airy light palette, subtle 1px zinc borders, translucent glass pills, micro-interactions. |
 | **Whiteboard Canvas** | Fabric.js 6.x | Custom engine managing canvas objects, freehand paths, text, eraser mode, zoom/pan, export. |
+| **Video Conferencing**| LiveKit Cloud SFU (`livekit-client`, `livekit-server-sdk`) | Cloud SFU for high-fidelity multi-participant video/audio streaming, JWT token minting route, track subscriptions. |
 | **Signaling & State** | `@supabase/supabase-js` | WebSocket signaling for WebRTC peer discovery and Realtime Broadcast whiteboard events. |
-| **P2P Media** | WebRTC Native APIs | `RTCPeerConnection`, `MediaStream`, unified plan, perfect negotiation (`polite` pattern). |
+| **P2P Fallback Media**| WebRTC Native APIs | `RTCPeerConnection`, `MediaStream`, unified plan, perfect negotiation (`polite` pattern). |
 | **Math Rendering** | KaTeX | Real-time LaTeX rendering for mathematical formulas rendered directly onto canvas. |
-| **PDF Processing** | PDF.js / Custom HTML Canvas | Multi-page PDF ingestion converting pages to canvas background dimensions. |
-| **Testing** | Vitest 3.2+, Testing Library | 58 test suites, 662 unit & integration tests, mock WebRTC, mock Supabase channel. |
+| **PDF Processing** | PDF.js (`pdfjs-dist`) / Custom HTML Canvas | Multi-page PDF rasterization into raw 2x images, in-tab slide navigation, and multi-page composite PDF export. |
+| **Testing** | Vitest 3.2+, Testing Library | 63 test suites, 682 unit & integration tests, mock LiveKit, mock WebRTC, mock Supabase channel. |
 
 ---
 
@@ -62,6 +64,9 @@
 - [`src/app/classroom/[roomId]/page.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/app/classroom/[roomId]/page.tsx): **Live Classroom Route Entry**.
   - Next.js 15 App Router component handling Promise-based `params` and `searchParams`.
   - Enforces `student` role by default unless explicitly authenticated. Renders `<ClassroomView />`.
+- [`src/app/api/livekit/token/route.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/app/api/livekit/token/route.ts): **LiveKit SFU JWT Token API**.
+  - Generates secure `AccessToken` signed with `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET`.
+  - Grants room permissions (`roomJoin`, `canPublish`, `canSubscribe`) keyed to participant identity and role (`teacher` or `student`).
 
 ---
 
@@ -99,9 +104,11 @@
   - Renders **"Classroom Session Expired"** screen if room is revoked or exceeded 15m.
   - Enforces `polite = activeRole !== 'teacher'` for perfect WebRTC negotiation.
 - [`src/components/classroom/ClassroomWorkspace.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/classroom/ClassroomWorkspace.tsx):
-  - The master classroom layout: dual video grid on left, infinite whiteboard on center/right, top floating page navigation bar, bottom floating toolbar, right collapsible studio panel.
+  - The master classroom layout: left draggable vertical `ControlBar`, dual video grid, infinite whiteboard on center/right, top floating page navigation bar, bottom floating toolbar, bottom `PdfSubPageNavigator`, right collapsible studio panel.
+  - Light theme styling with airy warm zinc-50 backgrounds and subtle borders.
   - Handles dual-mode switching (`whiteboard` vs `video_focus`).
   - Implements `handleRestoreWhiteboard` for reloading past whiteboard sessions onto canvas and broadcasting across peers.
+  - Handles in-tab PDF sub-page slide switching and synchronized multi-page stroke preservation.
   - Auto-archives session to history on `handleEndClass`.
 - [`src/components/classroom/ClassroomContainer.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/classroom/ClassroomContainer.tsx):
   - Responsive container wrapper managing aspect ratio and fullscreen toggles.
@@ -110,13 +117,15 @@
 - [`src/components/classroom/ClassroomVideoSync.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/classroom/ClassroomVideoSync.tsx):
   - Media stream synchronization component keeping video elements attached without flicker.
 - [`src/components/classroom/ControlBar.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/classroom/ControlBar.tsx):
-  - Classroom action bar: mic toggle, camera toggle, screen share, layout mode toggle, and leave/end class buttons.
+  - Redesigned classroom action bar supporting both vertical left dock (`orientation: 'vertical'`) and horizontal layout.
+  - Features draggable repositioning handle (`GripVertical`), mic toggle, camera toggle, screen share, layout mode toggle, settings popover, and leave/end class buttons.
+  - Eliminates overlap collisions with bottom whiteboard tools.
 - [`src/components/classroom/EndClassSummaryModal.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/classroom/EndClassSummaryModal.tsx):
   - Summary modal shown at end of class displaying duration, pages drawn, and option to save/export notes.
 - [`src/components/classroom/RewardCelebrationOverlay.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/classroom/RewardCelebrationOverlay.tsx):
   - Interactive confetti and reward celebration animation triggered by teacher for student accomplishments.
 - [`src/components/classroom/VideoCard.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/classroom/VideoCard.tsx):
-  - Individual video tile rendering participant video stream, audio indicator, connection quality HUD, and role badges.
+  - Individual video tile rendering participant video stream, audio indicator, connection quality HUD, and role badges. Light-themed with clean borders.
 
 ---
 
@@ -134,25 +143,28 @@
 - [`src/components/whiteboard/WhiteboardToolbar.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/whiteboard/WhiteboardToolbar.tsx):
   - Floating bottom toolbar: Select (V), Pen (P), Highlighter (H), Eraser (E), Shapes, Text (T), Laser Pointer (L), Math (M), Undo (Ctrl+Z), Redo (Ctrl+Y), Clear Page.
 - [`src/components/whiteboard/PageNavigationBar.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/whiteboard/PageNavigationBar.tsx):
-  - Top pill component displaying `< Page X of Y >`, Previous Page, Next Page, and Add Page (+) buttons.
+  - Top pill component displaying `< Page X of Y >`, Previous Page, Next Page, and Add Page (+) buttons in light glass styling.
+- [`src/components/whiteboard/PdfSubPageNavigator.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/whiteboard/PdfSubPageNavigator.tsx):
+  - Floating in-tab sub-page pagination bar docked at the bottom of the active whiteboard tab when a PDF slide deck is loaded.
+  - Allows navigating through PDF slides (`< Page X of Y >`) with keyboard shortcuts (Left/Right arrow) while preserving per-slide ink annotations.
 - [`src/components/whiteboard/ColorStrokePopover.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/whiteboard/ColorStrokePopover.tsx):
   - Popover palette for selecting pen colors (black, blue, red, green, purple, amber) and stroke widths.
 - [`src/components/whiteboard/MathEquationModal.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/whiteboard/MathEquationModal.tsx):
   - LaTeX formula editor modal with live KaTeX preview and instant insertion as canvas image/SVG.
 - [`src/components/whiteboard/StudioSidePanel.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/whiteboard/StudioSidePanel.tsx):
-  - Collapsible right studio sidebar with tabs: People, Chat, Materials, Tools.
+  - Collapsible right studio sidebar with tabs: People, Chat, Materials, Tools. Light glass styling.
 - [`src/components/whiteboard/ZoomControls.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/whiteboard/ZoomControls.tsx):
   - Bottom-left floating zoom HUD: Zoom Out (-), Zoom Level %, Zoom In (+), Reset/Fit to Screen.
 - [`src/components/whiteboard/BrowserTabBar.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/whiteboard/BrowserTabBar.tsx):
-  - Multi-tab navigation header for multi-document workflows.
+  - Multi-tab navigation header for multi-document workflows with warm light glass styling and amber active border.
 - [`src/components/whiteboard/tabs/PeopleTab.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/whiteboard/tabs/PeopleTab.tsx):
   - Classroom Authority panel: Global Lock toggle, Laser-Only toggle, participant list with individual draw permission switches.
 - [`src/components/whiteboard/tabs/ChatTab.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/whiteboard/tabs/ChatTab.tsx):
-  - Real-time in-classroom text chat between teacher and students.
+  - Real-time in-classroom text chat between teacher and students with teacher correction syntax.
 - [`src/components/whiteboard/tabs/MaterialsTab.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/whiteboard/tabs/MaterialsTab.tsx):
-  - Worksheet library, PDF upload dropzone, and **Past Whiteboards** restoration section with 1-click restore.
+  - Worksheet library, PDF upload dropzone (rasterizes uploaded PDFs to raw images), and **Past Whiteboards** restoration section with 1-click restore.
 - [`src/components/whiteboard/tabs/ToolsTab.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/components/whiteboard/tabs/ToolsTab.tsx):
-  - Extra teaching tools: Graph grid toggle, lined paper toggle, reward stars, export full notebook to PDF / PNG.
+  - Extra teaching tools: Graph grid toggle, lined paper toggle, reward stars, export full notebook (including all PDF slides and ink) to PDF / PNG.
 
 ---
 
@@ -167,7 +179,8 @@
   - In-memory state machine for multi-page notebook (`WhiteboardPageManager`).
   - Maintains page order, page snapshots, active page pointer, page insertion, page deletion, and serialization.
 - [`src/lib/whiteboard/pdf-renderer.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/lib/whiteboard/pdf-renderer.ts):
-  - Ingests uploaded PDF binary buffers, renders individual pages via canvas, and converts them to image backgrounds for consecutive whiteboard pages.
+  - `convertPdfToPageImages(pdfDataUrl)`: Ingests uploaded PDF binary / data URL using `pdfjs-dist`, renders each page into high-res raw images (2x scale for crisp retina display), and returns array of image data URLs.
+  - `exportMultiPagePdf(pages)`: Composites all pages and sub-pages (raster background + Fabric JSON stroke drawings) into a unified downloadable multi-page PDF document.
 - [`src/lib/whiteboard/undo-redo-stack.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/lib/whiteboard/undo-redo-stack.ts):
   - Command-pattern undo/redo stack (`UndoRedoStack`) capturing JSON delta snapshots on canvas object additions, modifications, and deletions. Supports Ctrl+Z and Ctrl+Y shortcuts.
 - [`src/lib/whiteboard/laser-trail.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/lib/whiteboard/laser-trail.ts):
@@ -186,10 +199,17 @@
 
 ---
 
-### WebRTC & Signaling (`src/lib/webrtc/` and `src/lib/signaling/`)
+### WebRTC, LiveKit & Signaling (`src/lib/webrtc/` and `src/lib/signaling/`)
+- [`src/lib/webrtc/livekit-session.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/lib/webrtc/livekit-session.ts):
+  - `LiveKitMediaSession` implementing `IMediaSession` using `livekit-client`.
+  - Connects to LiveKit Cloud SFU (`LIVEKIT_URL`), acquires JWT token from `/api/livekit/token`, manages mic/camera/screen-share publishing, remote track subscription, and network quality score translation.
 - [`src/lib/webrtc/p2p-session.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/lib/webrtc/p2p-session.ts):
   - `P2PWebRTCMediaSession` implementing WebRTC connection lifecycle with `polite` peer negotiation.
-  - Handles SDP offer/answer exchange, ICE candidates, local/remote stream attachment, track renegotiation, and connection recovery.
+  - Fallback media provider handling direct SDP offer/answer exchange, ICE candidates, local/remote stream attachment, track renegotiation, and connection recovery.
+- [`src/lib/webrtc/stats-parser.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/lib/webrtc/stats-parser.ts):
+  - Queries `peerConnection.getStats()` to extract real-time RTT (latency), packet loss %, jitter, and calculates overall connection quality (`good`, `fair`, `poor`).
+- [`src/lib/signaling/supabase-signaling.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/lib/signaling/supabase-signaling.ts):
+  - Supabase Realtime Channel adapter routing WebRTC signaling messages (`offer`, `answer`, `ice-candidate`, `peer-joined`, `peer-left`).
 - [`src/lib/webrtc/stats-parser.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/lib/webrtc/stats-parser.ts):
   - Queries `peerConnection.getStats()` to extract real-time RTT (latency), packet loss %, jitter, and calculates overall connection quality (`good`, `fair`, `poor`).
 - [`src/lib/signaling/supabase-signaling.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/lib/signaling/supabase-signaling.ts):
@@ -219,7 +239,7 @@
 ---
 
 ### Type Definitions (`src/types/`)
-- [`src/types/whiteboard.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/types/whiteboard.ts): Data contracts for `WhiteboardPage`, `WhiteboardPermissions`, `WhiteboardSessionData`, `ToolMode`, and real-time broadcast payloads.
+- [`src/types/whiteboard.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/types/whiteboard.ts): Data contracts for `WhiteboardPage`, `PdfDocumentState`, `PdfPageImage`, `WhiteboardPermissions`, `WhiteboardSessionData`, `ToolMode`, and real-time broadcast payloads.
 - [`src/types/media.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/types/media.ts): Contracts for `IMediaSession`, `ISignalingAdapter`, `ConnectionQuality`, and WebRTC statistics.
 - [`src/types/database.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/types/database.ts): Database row contracts for `whiteboard_sessions`, `lessons`, and `teacher_availability`.
 
@@ -227,17 +247,23 @@
 
 ## 4. Key Architectural Patterns & Invariants
 
-### A. Perfect WebRTC Negotiation (`polite` peer)
-To prevent glare when both peers create offers simultaneously or renegotiate:
+### A. LiveKit Cloud SFU Video Architecture
+- Primary video conferencing is powered by **LiveKit Cloud SFU** (`livekit-client` + `livekit-server-sdk`).
+- Token route at `/api/livekit/token` creates cryptographically signed access tokens keyed to room ID and user identity (`teacher` vs `student`).
+- `LiveKitMediaSession` adheres to `IMediaSession` interface: automatically connects to `LIVEKIT_URL`, handles simulcast track subscriptions, mic/camera/screen-share publishing, and emits connection quality.
+- If LiveKit credentials are absent or connection fails, the classroom seamlessly falls back to `P2PWebRTCMediaSession`.
+
+### B. Perfect WebRTC Negotiation (`polite` peer fallback)
+To prevent glare when both peers create offers simultaneously or renegotiate in P2P mode:
 - **Teacher** is the **impolite peer** (`polite: false`).
 - **Student** is the **polite peer** (`polite: true`).
 - In `ClassroomView.tsx`, this is dynamically set as: `polite = activeRole !== 'teacher'`.
 
-### B. Student-Default Security Invariant
+### C. Student-Default Security Invariant
 - **Rule**: Direct access to `/classroom/[roomId]` MUST NEVER grant teacher controls.
 - Any incoming link is treated as `student` unless verified against `getTeacherSession()` in `localStorage`/cookies or explicitly authenticated via passcode `injasraj123`.
 
-### C. 15-Minute Instant Room Expiry
+### D. 15-Minute Instant Room Expiry
 - When an instant room is created, it is marked `status: 'active'`.
 - The moment a participant joins, `recordRoomJoin(roomId)` stamps `joinedAt`.
 - Exactly 15 minutes after `joinedAt`, the room expires:
@@ -245,7 +271,14 @@ To prevent glare when both peers create offers simultaneously or renegotiate:
   - Its full whiteboard is automatically archived into `injasraj_past_classes`.
   - Anyone still inside or visiting the link receives the **Classroom Session Expired** screen.
 
-### D. Multi-Page Whiteboard Snapshots
-- A whiteboard notebook consists of `pages: WhiteboardPage[]` with `active_page_id`.
-- Each page retains `canvasJson` (all vectors, shapes, text) and `backgroundImageUrl` (worksheet/PDF scan).
-- Restoration handles both canvas objects and background images seamlessly without wiping worksheets.
+### E. In-Tab Navigable PDF Slides & Export Composite
+- When a user uploads a PDF, `convertPdfToPageImages()` rasterizes every page into high-resolution raw images.
+- Rather than bloating the workspace by spawning separate whiteboard tabs for every single PDF page, the PDF stays within **one whiteboard tab**.
+- An in-tab bottom pagination pill (`PdfSubPageNavigator`) lets users flip between slides (`< Page X of Y >`).
+- User drawings and annotations on each slide are cached in `pdfDocument.pageStrokes[pageNumber]`. Flipping slides swaps background image and restores associated ink.
+- When exporting all whiteboards to multi-page PDF (`exportMultiPagePdf`), each slide is composited with its drawings in sequential order.
+
+### F. Vertical Left Dock & Emil Kowalski Light Aesthetics
+- To solve toolbar collision where bottom-docked camera/mic menus overlapped the whiteboard tools and PDF navigator, `ControlBar` is docked vertically on the left edge (`orientation: 'vertical'`).
+- Includes a vertical drag handle (`GripVertical`) for tactile user adjustment and rightward-facing popovers.
+- The interface employs Emil Kowalski design engineering principles: warm, airy light palette (`zinc-50` / `stone-50`), crisp 1px borders, subtle drop shadows, and zero neon glare.
