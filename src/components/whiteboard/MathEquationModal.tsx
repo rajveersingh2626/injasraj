@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Sigma, Check } from 'lucide-react';
+import katex from 'katex';
 
 export interface MathEquationModalProps {
   isOpen: boolean;
@@ -32,14 +33,26 @@ const MATH_SYMBOLS: MathSymbolButton[] = [
 
 export function generateFormulaSvgDataUrl(latex: string): string {
   const clean = latex.trim() || 'f(x) = 0';
-  const escaped = clean
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  let renderedMath = '';
+  try {
+    renderedMath = katex.renderToString(clean, {
+      displayMode: true,
+      throwOnError: false,
+    });
+  } catch {
+    renderedMath = clean
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="450" height="130" viewBox="0 0 450 130">
     <rect width="100%" height="100%" rx="12" fill="rgba(24, 23, 21, 0.95)" stroke="rgba(180, 130, 60, 0.4)" stroke-width="2"/>
-    <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" font-family="KaTeX_Main, Times New Roman, serif" font-size="26" font-style="italic" fill="#f5f3e6">${escaped}</text>
+    <foreignObject x="10" y="10" width="430" height="110">
+      <div xmlns="http://www.w3.org/1999/xhtml" style="display:flex;align-items:center;justify-content:center;height:100%;color:#f5f3e6;font-size:24px;">
+        ${renderedMath}
+      </div>
+    </foreignObject>
   </svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
@@ -133,9 +146,21 @@ export const MathEquationModal: React.FC<MathEquationModalProps> = ({
             Preview:
           </label>
           <div className="flex items-center justify-center p-4 rounded-xl bg-stone-950/60 border border-stone-800 min-h-[70px]">
-            <span className="font-serif italic text-xl text-stone-100 tracking-wide">
-              {latex || 'Type LaTeX above to see preview'}
-            </span>
+            <div
+              className="font-serif italic text-xl text-stone-100 tracking-wide text-center"
+              dangerouslySetInnerHTML={{
+                __html: (() => {
+                  try {
+                    return katex.renderToString(latex || 'f(x) = 0', {
+                      displayMode: true,
+                      throwOnError: false,
+                    });
+                  } catch {
+                    return latex || 'Type LaTeX above to see preview';
+                  }
+                })(),
+              }}
+            />
           </div>
         </div>
 

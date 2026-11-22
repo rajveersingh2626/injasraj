@@ -488,13 +488,79 @@ export async function exportMultiPagePdf(
     );
   });
 
+function renderCanvasObjectsToPdf(canvasObjects: any[]): string {
+  if (!Array.isArray(canvasObjects) || canvasObjects.length === 0) return '';
+  let stream = '';
+
+  for (const obj of canvasObjects) {
+    if (!obj || typeof obj !== 'object') continue;
+    const strokeWidth = obj.strokeWidth || 2;
+    stream += `${strokeWidth} w\n0.7 0.5 0.2 RG\n0.12 0.11 0.10 rg\n`;
+
+    switch (obj.type) {
+      case 'rect': {
+        const left = obj.left ?? 0;
+        const width = obj.width ?? 100;
+        const height = obj.height ?? 100;
+        const bottom = 1080 - ((obj.top ?? 0) + height);
+        stream += `${left} ${bottom} ${width} ${height} re B\n`;
+        break;
+      }
+      case 'circle': {
+        const radius = obj.radius ?? 50;
+        const cx = (obj.left ?? 0) + radius;
+        const cy = 1080 - ((obj.top ?? 0) + radius);
+        const k = radius * 0.5522847498;
+        stream += `${cx + radius} ${cy} m\n`;
+        stream += `${cx + radius} ${cy + k} ${cx + k} ${cy + radius} ${cx} ${cy + radius} c\n`;
+        stream += `${cx - k} ${cy + radius} ${cx - radius} ${cy + k} ${cx - radius} ${cy} c\n`;
+        stream += `${cx - radius} ${cy - k} ${cx - k} ${cy - radius} ${cx} ${cy - radius} c\n`;
+        stream += `${cx + k} ${cy - radius} ${cx + radius} ${cy - k} ${cx + radius} ${cy} c\n`;
+        stream += `B\n`;
+        break;
+      }
+      case 'line':
+      case 'arrow': {
+        const x1 = obj.x1 ?? obj.left ?? 0;
+        const y1 = 1080 - (obj.y1 ?? obj.top ?? 0);
+        const x2 = obj.x2 ?? (x1 + 100);
+        const y2 = 1080 - (obj.y2 ?? (obj.y1 ?? 0) + 100);
+        stream += `${x1} ${y1} m\n${x2} ${y2} l\nS\n`;
+        break;
+      }
+      case 'path': {
+        if (Array.isArray(obj.points) && obj.points.length > 0) {
+          obj.points.forEach((pt: { x: number; y: number }, i: number) => {
+            const py = 1080 - pt.y;
+            stream += `${pt.x} ${py} ${i === 0 ? 'm' : 'l'}\n`;
+          });
+          stream += `S\n`;
+        }
+        break;
+      }
+      case 'text': {
+        const text = (obj.text || '').replace(/[()\\]/g, '\\$&');
+        const tx = obj.left ?? 100;
+        const ty = 1080 - (obj.top ?? 100);
+        const fontSize = Math.min(36, Math.max(12, obj.fontSize || 20));
+        stream += `BT\n/F1 ${fontSize} Tf\n${tx} ${ty} Td\n(${text}) Tj\nET\n`;
+        break;
+      }
+    }
+  }
+
+  return stream;
+}
+
   // Content Stream Objects
   effectivePages.forEach((page, idx) => {
     const contentNum = firstContentObjNum + idx;
     const titleEscaped = (page.title || `Page ${idx + 1}`).replace(/[()\\]/g, '\\$&');
     const roomEscaped = roomId.replace(/[()\\]/g, '\\$&');
+    const vectorOps = renderCanvasObjectsToPdf(page.canvasJson?.objects || []);
     const contentStream =
-      `BT\n/F1 28 Tf\n80 1000 Td\n(${titleEscaped}) Tj\n/F1 14 Tf\n0 -35 Td\n(Classroom Session: ${roomEscaped} - Page ${idx + 1} of ${pageCount}) Tj\nET\n`;
+      `BT\n/F1 28 Tf\n80 1000 Td\n(${titleEscaped}) Tj\n/F1 14 Tf\n0 -35 Td\n(Classroom Session: ${roomEscaped} - Page ${idx + 1} of ${pageCount}) Tj\nET\n` +
+      vectorOps;
     const streamLen = encoder.encode(contentStream).length;
     objects.push(
       `${contentNum} 0 obj\n<< /Length ${streamLen} >>\nstream\n${contentStream}endstream\nendobj\n`

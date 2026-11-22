@@ -31,6 +31,9 @@ export const RewardCelebrationOverlay: React.FC<RewardCelebrationOverlayProps> =
       if (typeof window !== 'undefined' && (window.AudioContext || (window as any).webkitAudioContext)) {
         const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
         const ctx = new AudioCtx();
+        if (ctx.state === 'suspended') {
+          ctx.resume().catch(() => {});
+        }
         const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
         notes.forEach((freq, idx) => {
           const osc = ctx.createOscillator();

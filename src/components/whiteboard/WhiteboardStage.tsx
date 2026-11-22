@@ -47,6 +47,7 @@ export interface WhiteboardStageProps {
   onZoomOut?: () => void;
   onResetZoom?: () => void;
   onFitToScreen?: () => void;
+  onViewportChange?: (viewport: { zoom: number; panX: number; panY: number }) => void;
   isFollowTeacherEnabled?: boolean;
   onToggleFollowTeacher?: (enabled: boolean) => void;
   remoteViewport?: { zoom: number; panX: number; panY: number };
@@ -103,6 +104,7 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
   onZoomOut,
   onResetZoom,
   onFitToScreen,
+  onViewportChange,
   isFollowTeacherEnabled = false,
   onToggleFollowTeacher,
   remoteViewport,
@@ -318,6 +320,13 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
       setInternalZoom(1.0);
     }
   };
+
+  // Broadcast teacher viewport changes to students
+  useEffect(() => {
+    if (isTeacher && onViewportChange) {
+      onViewportChange({ zoom, panX: 0, panY: 0 });
+    }
+  }, [isTeacher, zoom, onViewportChange]);
 
   // Follow-Teacher Viewport Synchronization effect
   useEffect(() => {

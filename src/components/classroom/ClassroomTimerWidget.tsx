@@ -38,6 +38,9 @@ export const ClassroomTimerWidget: React.FC<ClassroomTimerWidgetProps> = ({
       if (typeof window !== 'undefined' && (window.AudioContext || (window as any).webkitAudioContext)) {
         const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
         const ctx = new AudioCtx();
+        if (ctx.state === 'suspended') {
+          ctx.resume().catch(() => {});
+        }
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';

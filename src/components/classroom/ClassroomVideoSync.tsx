@@ -40,7 +40,7 @@ export const ClassroomVideoSync: React.FC<ClassroomVideoSyncProps> = ({
       setCurrentTime(remoteVideoState.currentTime);
       if (videoRef.current) {
         try {
-          if (Math.abs(videoRef.current.currentTime - remoteVideoState.currentTime) > 1.5) {
+          if (Math.abs(videoRef.current.currentTime - remoteVideoState.currentTime) > 0.75) {
             videoRef.current.currentTime = remoteVideoState.currentTime;
           }
           if (remoteVideoState.isPlaying) {

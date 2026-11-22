@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ZoomControls } from '../../src/components/whiteboard/ZoomControls';
+import { WhiteboardStage } from '../../src/components/whiteboard/WhiteboardStage';
 
 expect.extend({
   toBeInTheDocument(received) {
@@ -77,5 +78,23 @@ describe('Follow-Teacher Viewport Synchronization', () => {
     );
 
     expect(screen.queryByRole('button', { name: /follow teacher/i })).not.toBeInTheDocument();
+  });
+
+  it('invokes onViewportChange when teacher zoom changes', () => {
+    const onViewportChange = vi.fn();
+
+    render(
+      <WhiteboardStage
+        role="teacher"
+        zoom={1.25}
+        onViewportChange={onViewportChange}
+      />
+    );
+
+    expect(onViewportChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        zoom: 1.25,
+      })
+    );
   });
 });

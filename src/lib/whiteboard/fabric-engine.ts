@@ -1595,11 +1595,27 @@ export class FabricWhiteboardEngine {
         const width = obj.width ?? 100;
         const height = obj.height ?? 100;
         const rx = obj.rx ?? 0;
-        context.beginPath();
-        if (rx > 0 && typeof context.roundRect === 'function') {
-          context.roundRect(left, top, width, height, [rx]);
+        const roughness = obj.roughness ?? 0;
+
+        if (roughness > 0) {
+          const r = roughness * 1.5;
+          const j1 = Math.sin(left) * r;
+          const j2 = Math.cos(top) * r;
+          const j3 = Math.sin(left + width) * r;
+          const j4 = Math.cos(top + height) * r;
+          context.beginPath();
+          context.moveTo(left + j1, top + j2);
+          context.lineTo(left + width + j3, top + j1);
+          context.lineTo(left + width + j2, top + height + j4);
+          context.lineTo(left + j3, top + height + j1);
+          context.closePath();
         } else {
-          context.rect(left, top, width, height);
+          context.beginPath();
+          if (rx > 0 && typeof context.roundRect === 'function') {
+            context.roundRect(left, top, width, height, [rx]);
+          } else {
+            context.rect(left, top, width, height);
+          }
         }
         if (obj.fill && obj.fill !== 'transparent') {
           context.fillStyle = obj.fill;
@@ -1627,8 +1643,22 @@ export class FabricWhiteboardEngine {
         const radius = obj.radius ?? (obj.width ? obj.width / 2 : 50);
         const centerX = (obj.left ?? 0) + radius;
         const centerY = (obj.top ?? 0) + radius;
+        const roughness = obj.roughness ?? 0;
+
         context.beginPath();
-        context.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        if (roughness > 0) {
+          const r = roughness * 1.5;
+          for (let a = 0; a <= Math.PI * 2 + 0.1; a += Math.PI / 4) {
+            const jitter = Math.sin(a * 4 + centerX) * r;
+            const px = centerX + (radius + jitter) * Math.cos(a);
+            const py = centerY + (radius + jitter) * Math.sin(a);
+            if (a === 0) context.moveTo(px, py);
+            else context.lineTo(px, py);
+          }
+          context.closePath();
+        } else {
+          context.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        }
         if (obj.fill && obj.fill !== 'transparent') {
           context.fillStyle = obj.fill;
           context.fill();
@@ -1688,9 +1718,17 @@ export class FabricWhiteboardEngine {
         const y1 = obj.y1 ?? obj.top ?? 0;
         const x2 = obj.x2 ?? (obj.left ?? 0) + (obj.width ?? 0);
         const y2 = obj.y2 ?? (obj.top ?? 0) + (obj.height ?? 0);
+        const roughness = obj.roughness ?? 0;
         context.beginPath();
-        context.moveTo(x1, y1);
-        context.lineTo(x2, y2);
+        if (roughness > 0) {
+          const mx = (x1 + x2) / 2 + Math.sin(x1 + y1) * roughness * 2;
+          const my = (y1 + y2) / 2 + Math.cos(x2 + y2) * roughness * 2;
+          context.moveTo(x1, y1);
+          context.quadraticCurveTo(mx, my, x2, y2);
+        } else {
+          context.moveTo(x1, y1);
+          context.lineTo(x2, y2);
+        }
         context.strokeStyle = obj.stroke || '#000000';
         context.lineWidth = obj.strokeWidth || 3;
         context.lineCap = 'round';
@@ -1702,9 +1740,17 @@ export class FabricWhiteboardEngine {
         const y1 = obj.y1 ?? obj.top ?? 0;
         const x2 = obj.x2 ?? (obj.left ?? 0) + (obj.width ?? 0);
         const y2 = obj.y2 ?? (obj.top ?? 0) + (obj.height ?? 0);
+        const roughness = obj.roughness ?? 0;
         context.beginPath();
-        context.moveTo(x1, y1);
-        context.lineTo(x2, y2);
+        if (roughness > 0) {
+          const mx = (x1 + x2) / 2 + Math.sin(x1 + y1) * roughness * 2;
+          const my = (y1 + y2) / 2 + Math.cos(x2 + y2) * roughness * 2;
+          context.moveTo(x1, y1);
+          context.quadraticCurveTo(mx, my, x2, y2);
+        } else {
+          context.moveTo(x1, y1);
+          context.lineTo(x2, y2);
+        }
         context.strokeStyle = obj.stroke || '#000000';
         context.lineWidth = obj.strokeWidth || 3;
         context.lineCap = 'round';
@@ -1820,12 +1866,32 @@ export class FabricWhiteboardEngine {
         context.lineWidth = 1.5;
         context.stroke();
 
-        // Render formula text centered
-        context.font = 'italic 26px "Times New Roman", KaTeX_Main, serif';
-        context.fillStyle = '#f5f3e6';
-        context.textAlign = 'center';
-        context.textBaseline = 'middle';
-        context.fillText(obj.latex || 'f(x) = 0', left + width / 2, top + height / 2);
+        // Render formula text or cached vector SVG image
+        if (obj._imageElement && obj._imageElement.complete) {
+          context.drawImage(obj._imageElement, left, top, width, height);
+        } else if (obj.src && typeof Image !== 'undefined') {
+          if (!obj._imageLoading) {
+            obj._imageLoading = true;
+            const img = new Image();
+            img.onload = () => {
+              obj._imageElement = img;
+              obj._imageLoading = false;
+              this.requestRender();
+            };
+            img.src = obj.src;
+          }
+          context.font = 'italic 26px "Times New Roman", KaTeX_Main, serif';
+          context.fillStyle = '#f5f3e6';
+          context.textAlign = 'center';
+          context.textBaseline = 'middle';
+          context.fillText(obj.latex || 'f(x) = 0', left + width / 2, top + height / 2);
+        } else {
+          context.font = 'italic 26px "Times New Roman", KaTeX_Main, serif';
+          context.fillStyle = '#f5f3e6';
+          context.textAlign = 'center';
+          context.textBaseline = 'middle';
+          context.fillText(obj.latex || 'f(x) = 0', left + width / 2, top + height / 2);
+        }
         context.restore();
         break;
       }

@@ -41,9 +41,10 @@ describe('Multi-Page Lesson PDF Exporter', () => {
     expect(pageMatches).toBeDefined();
     expect(pageMatches?.length).toBe(3);
 
-    // Verify titles/metadata are embedded
+    // Verify titles/metadata and vector drawings are embedded
     expect(text).toContain('Trigonometry Overview');
     expect(text).toContain('Practice Problems');
+    expect(text).toContain('re B');
     expect(text).toContain('%%EOF');
   });
 

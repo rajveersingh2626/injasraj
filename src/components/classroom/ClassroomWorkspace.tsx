@@ -486,7 +486,21 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     setCanRedo(undoRedoStackRef.current.canRedo(userId));
   }, [userId, whiteboardAdapter, schedulePersist]);
 
-  // Global Keyboard Shortcuts (Ctrl+Z, Ctrl+Y, Cmd+Z, Cmd+Shift+Z)
+  // Teacher Viewport Broadcast Handler
+  const handleViewportChange = useCallback(
+    (viewport: { zoom: number; panX: number; panY: number }) => {
+      if (
+        role === 'teacher' &&
+        whiteboardAdapter &&
+        typeof (whiteboardAdapter as any).broadcastCustomEvent === 'function'
+      ) {
+        (whiteboardAdapter as any).broadcastCustomEvent('viewport-change', viewport);
+      }
+    },
+    [role, whiteboardAdapter]
+  );
+
+  // Global Keyboard Shortcuts (Ctrl+Z, Ctrl+Y, Cmd+Z, Cmd+Shift+Z, Lock, Z-Order)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -517,6 +531,45 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       } else if (e.key === 'y' || e.key === 'Y') {
         e.preventDefault();
         handleRedo();
+      } else if (e.shiftKey && (e.key === 'l' || e.key === 'L')) {
+        // Excalidraw Lock / Unlock Selected Objects
+        const selected = engineRef.current?.getSelectedObjects() || [];
+        if (selected.length > 0) {
+          e.preventDefault();
+          selected.forEach((obj: any) => {
+            if (engineRef.current?.isObjectLocked(obj.id)) {
+              engineRef.current?.unlockObject(obj.id);
+            } else {
+              engineRef.current?.lockObject(obj.id);
+            }
+          });
+        }
+      } else if (e.key === ']') {
+        // Excalidraw Bring Forward / Bring to Front
+        const selected = engineRef.current?.getSelectedObjects() || [];
+        if (selected.length > 0) {
+          e.preventDefault();
+          selected.forEach((obj: any) => {
+            if (e.shiftKey) {
+              engineRef.current?.bringToFront(obj.id);
+            } else {
+              engineRef.current?.bringForward(obj.id);
+            }
+          });
+        }
+      } else if (e.key === '[') {
+        // Excalidraw Send Backward / Send to Back
+        const selected = engineRef.current?.getSelectedObjects() || [];
+        if (selected.length > 0) {
+          e.preventDefault();
+          selected.forEach((obj: any) => {
+            if (e.shiftKey) {
+              engineRef.current?.sendToBack(obj.id);
+            } else {
+              engineRef.current?.sendBackward(obj.id);
+            }
+          });
+        }
       }
     };
 
@@ -1222,6 +1275,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             onTriggerReward={role === 'teacher' ? handleTriggerReward : undefined}
             isFollowTeacherEnabled={isFollowTeacherEnabled}
             onToggleFollowTeacher={setIsFollowTeacherEnabled}
+            onViewportChange={handleViewportChange}
             remoteViewport={remoteViewport}
             className="w-full h-full"
           />
