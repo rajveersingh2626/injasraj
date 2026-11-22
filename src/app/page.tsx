@@ -89,7 +89,7 @@ const INITIAL_LESSONS: Lesson[] = [
 
 export default function TeacherDashboardPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'active_links' | 'availability' | 'lessons' | 'past_classes'>('active_links');
+  const [activeTab, setActiveTab] = useState<'availability' | 'active_links' | 'lessons' | 'past_classes'>('availability');
   const [availabilities, setAvailabilities] = useState<TeacherAvailability[]>(INITIAL_AVAILABILITIES);
   const [lessons, setLessons] = useState<Lesson[]>(INITIAL_LESSONS);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
@@ -316,6 +316,35 @@ export default function TeacherDashboardPage() {
         </div>
       </header>
 
+      {/* Generated Instant Room Alert Banner */}
+      {generatedRoomId && (
+        <GlassCard className="p-4 border-indigo-500/40 bg-indigo-950/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center space-x-3">
+            <Radio className="w-5 h-5 text-indigo-400 animate-pulse" />
+            <div>
+              <p className="text-sm font-semibold text-zinc-100">
+                Instant Room Ready:{' '}
+                <span className="text-indigo-300 font-mono">{generatedRoomId}</span>
+              </p>
+              <p className="text-xs text-zinc-400">
+                Share this room ID or link with your student to start right away.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <GlassButton
+              variant="primary"
+              size="sm"
+              onClick={() => handleJoinInstantRoom(generatedRoomId)}
+              className="flex items-center space-x-1"
+            >
+              <Video className="w-3.5 h-3.5" />
+              <span>Enter Room</span>
+            </GlassButton>
+          </div>
+        </GlassCard>
+      )}
+
       {/* Shareable Booking Link Card */}
       <GlassCard className="p-5">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -525,19 +554,15 @@ export default function TeacherDashboardPage() {
 
                     <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between">
                       <span className="text-xs text-zinc-400">1:1 Video Session</span>
-                      <button
-                        type="button"
+                      <GlassButton
+                        variant="primary"
+                        size="sm"
                         onClick={() => handleJoinInstantRoom(lesson.room_id)}
+                        className="flex items-center space-x-1.5"
                       >
-                        <GlassButton
-                          variant="primary"
-                          size="sm"
-                          className="flex items-center space-x-1.5"
-                        >
-                          <Video className="w-3.5 h-3.5" />
-                          <span>Join Room</span>
-                        </GlassButton>
-                      </button>
+                        <Video className="w-3.5 h-3.5" />
+                        <span>Join Room</span>
+                      </GlassButton>
                     </div>
                   </GlassCard>
                 );
