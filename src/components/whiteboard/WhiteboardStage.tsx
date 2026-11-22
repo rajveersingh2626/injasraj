@@ -237,6 +237,9 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
     }
   }, [propEngine]);
 
+  const onEngineReadyRef = useRef(onEngineReady);
+  onEngineReadyRef.current = onEngineReady;
+
   // Initialize internal FabricWhiteboardEngine if not provided
   useEffect(() => {
     if (propEngine) return;
@@ -247,7 +250,7 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
         virtualHeight: 1080,
       });
       internalEngineRef.current = engine;
-      onEngineReady?.(engine);
+      onEngineReadyRef.current?.(engine);
     }
 
     return () => {
@@ -256,7 +259,7 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
         internalEngineRef.current = null;
       }
     };
-  }, [propEngine, onEngineReady]);
+  }, [propEngine]);
 
   // Sync activeTool to engine
   useEffect(() => {
@@ -706,9 +709,18 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
         onSelectTool={handleSelectTool}
         strokeProperties={strokeProperties}
         onChangeStrokeProperties={handleChangeStrokeProperties}
-        canUndo={canUndo}
+        canUndo={canUndo || Boolean(activeEngine && activeEngine.getObjects().length > 0)}
         canRedo={canRedo}
-        onUndo={onUndo}
+        onUndo={() => {
+          if (onUndo) {
+            onUndo();
+          } else if (activeEngine) {
+            const objs = activeEngine.getObjects();
+            if (objs.length > 0) {
+              activeEngine.removeObject(objs[objs.length - 1].id);
+            }
+          }
+        }}
         onRedo={onRedo}
         onClearPage={handleClearPage}
         allowedTools={allowedTools}

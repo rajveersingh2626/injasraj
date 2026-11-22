@@ -1196,6 +1196,12 @@ export class FabricWhiteboardEngine {
 
   private attachDomEvents(canvas: HTMLCanvasElement): void {
     const handlePointerDown = (e: MouseEvent | PointerEvent) => {
+      try {
+        if ('pointerId' in e && typeof canvas.setPointerCapture === 'function') {
+          canvas.setPointerCapture(e.pointerId);
+        }
+      } catch {}
+
       const pt = this.getEventVirtualPoint(e, canvas);
       if (!pt) return;
 
@@ -1331,6 +1337,13 @@ export class FabricWhiteboardEngine {
     canvas.addEventListener('pointermove', handlePointerMove as EventListener);
     canvas.addEventListener('pointerup', handlePointerUp as EventListener);
     canvas.addEventListener('pointerleave', handlePointerUp as EventListener);
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pointerup', handlePointerUp as EventListener);
+      this.domCleanupFns.push(() => {
+        window.removeEventListener('pointerup', handlePointerUp as EventListener);
+      });
+    }
 
     this.domCleanupFns.push(() => {
       canvas.removeEventListener('pointerdown', handlePointerDown as EventListener);

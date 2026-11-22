@@ -21,6 +21,7 @@ import {
 import {
   WhiteboardPermissions,
   WhiteboardPage,
+  WhiteboardToolType,
   defaultWhiteboardPermissions,
   createDefaultWhiteboardPage,
 } from '../../types/whiteboard';
@@ -170,6 +171,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
 
   // Background Canvas Grid Pattern State
   const [currentGrid, setCurrentGrid] = useState<GridPatternType>('blank');
+  const [activeTool, setActiveTool] = useState<WhiteboardToolType>('pen');
 
   // Classroom Timer HUD State
   const [isTimerOpen, setIsTimerOpen] = useState<boolean>(false);
@@ -423,7 +425,22 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
 
   // User-scoped Undo and Redo Execution Handlers
   const handleUndo = useCallback(() => {
-    if (!undoRedoStackRef.current.canUndo(userId)) return;
+    if (!undoRedoStackRef.current.canUndo(userId)) {
+      if (engineRef.current) {
+        const objs = engineRef.current.getObjects();
+        if (objs.length > 0) {
+          const lastObj = objs[objs.length - 1];
+          engineRef.current.removeObject(lastObj.id);
+          const activeId = pageManagerRef.current.getActivePageId();
+          pageManagerRef.current.updatePageCanvas(activeId, engineRef.current.exportJson());
+          whiteboardAdapter?.broadcastDelete(activeId, lastObj.id).catch(() => {});
+          schedulePersist();
+          setCanUndo(objs.length - 1 > 0);
+          return;
+        }
+      }
+      return;
+    }
     const cmd = undoRedoStackRef.current.undo(userId);
     if (!cmd || !engineRef.current) return;
 
@@ -450,7 +467,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       isExecutingUndoRedoRef.current = false;
     }
 
-    setCanUndo(undoRedoStackRef.current.canUndo(userId));
+    setCanUndo(undoRedoStackRef.current.canUndo(userId) || (engineRef.current ? engineRef.current.getObjects().length > 0 : false));
     setCanRedo(undoRedoStackRef.current.canRedo(userId));
   }, [userId, whiteboardAdapter, schedulePersist]);
 
@@ -482,7 +499,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       isExecutingUndoRedoRef.current = false;
     }
 
-    setCanUndo(undoRedoStackRef.current.canUndo(userId));
+    setCanUndo(undoRedoStackRef.current.canUndo(userId) || (engineRef.current ? engineRef.current.getObjects().length > 0 : false));
     setCanRedo(undoRedoStackRef.current.canRedo(userId));
   }, [userId, whiteboardAdapter, schedulePersist]);
 
@@ -518,7 +535,26 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         /Mac|iPod|iPhone|iPad/.test(navigator.platform);
       const modKey = isMac ? e.metaKey : e.ctrlKey;
 
-      if (!modKey) return;
+      if (!modKey) {
+        if (e.key === 'v' || e.key === 'V') {
+          setActiveTool('select');
+        } else if (e.key === 'h' || e.key === 'H') {
+          setActiveTool('pan');
+        } else if (e.key === 'p' || e.key === 'P') {
+          setActiveTool('pen');
+        } else if (e.key === 'b' || e.key === 'B') {
+          setActiveTool('pencil');
+        } else if (e.key === 'e' || e.key === 'E') {
+          setActiveTool('eraser');
+        } else if (e.key === 't' || e.key === 'T') {
+          setActiveTool('text');
+        } else if (e.key === 's' || e.key === 'S') {
+          setActiveTool('sticky');
+        } else if (e.key === 'l' || e.key === 'L') {
+          setActiveTool('laser');
+        }
+        return;
+      }
 
       if (e.key === 'z' || e.key === 'Z') {
         if (e.shiftKey) {
@@ -678,12 +714,16 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   // Guarded Page Clear Handler (Preserves Locked Worksheet Background)
   const handleClearPage = useCallback(() => {
     if (!engineRef.current) return;
+    const currentObjs = engineRef.current.getObjects();
+    if (currentObjs.length > 0) {
+      currentObjs.forEach((obj: any) => {
+        undoRedoStackRef.current.recordDelete(obj.id, obj, userId);
+      });
+      setCanUndo(true);
+    }
     engineRef.current.clearCurrentPage(true);
     const activeId = pageManagerRef.current.getActivePageId();
     pageManagerRef.current.updatePageCanvas(activeId, engineRef.current.exportJson());
-    undoRedoStackRef.current.clearUserHistory(userId);
-    setCanUndo(false);
-    setCanRedo(false);
     whiteboardAdapter?.broadcastDelete(activeId, '__all__').catch(() => {});
     schedulePersist();
   }, [userId, whiteboardAdapter, schedulePersist]);
@@ -807,13 +847,19 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       pageManagerRef.current.setActivePage(target.id);
       setCurrentPageIndex(pageNum);
       if (engineRef.current) {
-        if (target.canvasJson) {
+        if (target.canvasJson && target.canvasJson.objects && target.canvasJson.objects.length > 0) {
           engineRef.current.loadJson(target.canvasJson);
+        } else {
+          engineRef.current.clearCurrentPage(true);
         }
         if (target.thumbnailUrl) {
           engineRef.current.setBackgroundImage(target.thumbnailUrl).catch(() => {});
+        } else {
+          engineRef.current.clearBackgroundImage();
         }
       }
+      setCanUndo(undoRedoStackRef.current.canUndo(userId) || (engineRef.current ? engineRef.current.getObjects().length > 0 : false));
+      setCanRedo(undoRedoStackRef.current.canRedo(userId));
       whiteboardAdapter?.broadcastPageSwitch(target.id).catch(() => {});
       schedulePersist();
       propOnPageChange?.(pageNum, target.id);
@@ -856,19 +902,29 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   };
 
   const handleSelectPage = (pageId: string) => {
+    if (engineRef.current) {
+      const curId = pageManagerRef.current.getActivePageId();
+      pageManagerRef.current.updatePageCanvas(curId, engineRef.current.exportJson());
+    }
     pageManagerRef.current.setActivePage(pageId);
     const idx = pageManagerRef.current.getActivePageIndex();
     if (idx >= 0) {
       setCurrentPageIndex(idx + 1);
       const target = pageManagerRef.current.getActivePage();
       if (engineRef.current && target) {
-        if (target.canvasJson) {
+        if (target.canvasJson && target.canvasJson.objects && target.canvasJson.objects.length > 0) {
           engineRef.current.loadJson(target.canvasJson);
+        } else {
+          engineRef.current.clearCurrentPage(true);
         }
         if (target.thumbnailUrl) {
           engineRef.current.setBackgroundImage(target.thumbnailUrl).catch(() => {});
+        } else {
+          engineRef.current.clearBackgroundImage();
         }
       }
+      setCanUndo(undoRedoStackRef.current.canUndo(userId) || (engineRef.current ? engineRef.current.getObjects().length > 0 : false));
+      setCanRedo(undoRedoStackRef.current.canRedo(userId));
       whiteboardAdapter?.broadcastPageSwitch(pageId).catch(() => {});
       schedulePersist();
       propOnPageChange?.(idx + 1, pageId);
@@ -910,13 +966,38 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   const handleLoadWorksheet = async (fileOrUrl: File | string) => {
     try {
       let backgroundUrl: string;
+      let totalPdfPages = 1;
+      const pdfPageDataUrls: string[] = [];
+
       if (typeof fileOrUrl === 'string') {
         backgroundUrl = fileOrUrl;
+        pdfPageDataUrls.push(fileOrUrl);
       } else {
         if (fileOrUrl.type === 'application/pdf' || fileOrUrl.name?.endsWith('.pdf')) {
-          const buffer = await fileOrUrl.arrayBuffer();
-          const renderResult = await renderPdfPageToDataUrl(buffer, 1);
-          backgroundUrl = renderResult.dataUrl;
+          let buffer: ArrayBuffer;
+          if (typeof fileOrUrl.arrayBuffer === 'function') {
+            buffer = await fileOrUrl.arrayBuffer();
+          } else {
+            buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as ArrayBuffer);
+              reader.onerror = (e) => reject(e);
+              reader.readAsArrayBuffer(fileOrUrl);
+            });
+          }
+          const firstPageResult = await renderPdfPageToDataUrl(buffer, 1);
+          backgroundUrl = firstPageResult.dataUrl;
+          totalPdfPages = firstPageResult.totalPages || 1;
+          pdfPageDataUrls.push(firstPageResult.dataUrl);
+
+          for (let p = 2; p <= totalPdfPages; p++) {
+            try {
+              const nextRes = await renderPdfPageToDataUrl(buffer, p);
+              pdfPageDataUrls.push(nextRes.dataUrl);
+            } catch (err) {
+              console.warn(`Error rendering PDF page ${p}:`, err);
+            }
+          }
         } else if (
           fileOrUrl.type?.startsWith('image/') ||
           /\.(png|jpe?g|webp|svg)$/i.test(fileOrUrl.name || '')
@@ -927,6 +1008,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             reader.onerror = (e) => reject(e);
             reader.readAsDataURL(fileOrUrl);
           });
+          pdfPageDataUrls.push(backgroundUrl);
         } else {
           backgroundUrl = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
@@ -940,8 +1022,16 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             };
             reader.readAsDataURL(fileOrUrl);
           });
+          pdfPageDataUrls.push(backgroundUrl);
         }
       }
+
+      const docTitle =
+        typeof fileOrUrl === 'string'
+          ? 'Worksheet'
+          : fileOrUrl.name
+          ? fileOrUrl.name.replace(/\.[^/.]+$/, '')
+          : 'Lesson Document';
 
       const activeId = pageManagerRef.current.getActivePageId();
       pageManagerRef.current.updatePageBackground(
@@ -950,6 +1040,30 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         1,
         backgroundUrl
       );
+      pageManagerRef.current.renamePage(activeId, `${docTitle} (Page 1)`);
+
+      for (let p = 2; p <= totalPdfPages; p++) {
+        const pageBg = pdfPageDataUrls[p - 1];
+        const existing = pageManagerRef.current.getPageByIndex(p - 1);
+        if (existing) {
+          pageManagerRef.current.updatePageBackground(
+            existing.id,
+            typeof fileOrUrl === 'string' ? fileOrUrl : undefined,
+            p,
+            pageBg
+          );
+          pageManagerRef.current.renamePage(existing.id, `${docTitle} (Page ${p})`);
+        } else {
+          const newP = pageManagerRef.current.addPage(`${docTitle} (Page ${p})`);
+          pageManagerRef.current.updatePageBackground(
+            newP.id,
+            typeof fileOrUrl === 'string' ? fileOrUrl : undefined,
+            p,
+            pageBg
+          );
+        }
+      }
+
       setPages(pageManagerRef.current.getAllPages());
 
       if (engineRef.current) {
@@ -1259,6 +1373,8 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             role={role}
             userId={userId}
             userName={localName}
+            activeTool={activeTool}
+            onSelectTool={setActiveTool}
             currentPage={currentPageIndex}
             totalPages={pages.length}
             onPageChange={handlePageChange}
@@ -1267,7 +1383,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             laserEngine={laserEngineRef.current}
             onLaserMove={handleLaserMove}
             onEngineReady={handleEngineReady}
-            canUndo={canUndo}
+            canUndo={canUndo || Boolean(engineRef.current && engineRef.current.getObjects().length > 0)}
             canRedo={canRedo}
             onUndo={handleUndo}
             onRedo={handleRedo}
@@ -1277,7 +1393,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             onToggleFollowTeacher={setIsFollowTeacherEnabled}
             onViewportChange={handleViewportChange}
             remoteViewport={remoteViewport}
-            className="w-full h-full"
+            className="w-full flex-1 min-h-0"
           />
         </main>
 

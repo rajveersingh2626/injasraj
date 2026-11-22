@@ -195,7 +195,7 @@ export const StudioSidePanel: React.FC<StudioSidePanelProps> = ({
             ? 'none'
             : '-8px 0 32px -4px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
         }}
-        className={`fixed top-0 right-0 z-40 h-full w-[320px] max-w-full flex flex-col bg-[#121218]/95 backdrop-blur-[20px] border-l border-white/[0.08] text-zinc-100 transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] ${
+        className={`fixed top-14 right-0 z-30 h-[calc(100dvh-3.5rem)] w-[320px] max-w-full flex flex-col bg-[#121218]/95 backdrop-blur-[20px] border-l border-white/[0.08] text-zinc-100 transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] ${
           effectiveCollapsed
             ? 'translate-x-full pointer-events-none'
             : 'translate-x-0'
