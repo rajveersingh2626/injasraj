@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { Upload, FileText, CheckCircle2, BookOpen, Loader2, History } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import { Upload, FileText, CheckCircle2, BookOpen, Loader2, History, Trash2 } from 'lucide-react';
 import { GlassCard } from '../../ui/GlassCard';
 import { GlassButton } from '../../ui/GlassButton';
 import { PastClassRecord } from '@/lib/classroom/past-classes';
@@ -311,13 +311,23 @@ export const DEFAULT_WORKSHEETS: WorksheetMaterial[] = [
 
 export const MaterialsTab: React.FC<MaterialsTabProps> = ({
   onLoadWorksheet,
-  worksheets = DEFAULT_WORKSHEETS,
+  worksheets,
   isLoading = false,
   pastClasses = [],
   onRestoreWhiteboard,
   isTeacher = true,
   className = '',
 }) => {
+  const [activeWorksheets, setActiveWorksheets] = useState<WorksheetMaterial[]>(
+    () => worksheets ?? DEFAULT_WORKSHEETS
+  );
+
+  useEffect(() => {
+    if (worksheets) {
+      setActiveWorksheets(worksheets);
+    }
+  }, [worksheets]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -348,16 +358,16 @@ export const MaterialsTab: React.FC<MaterialsTabProps> = ({
       <section
         data-testid="pdf-upload-section"
         aria-label="Upload PDF Worksheet"
-        className="flex flex-col gap-2.5 pb-4 border-b border-white/[0.08]"
+        className="flex flex-col gap-2.5 pb-4 border-b border-stone-800"
       >
-        <div className="flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase text-indigo-400">
-          <Upload className="w-3.5 h-3.5 text-indigo-400" />
+        <div className="flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase text-amber-400">
+          <Upload className="w-3.5 h-3.5 text-amber-400" />
           <span>Upload Lesson Material</span>
         </div>
 
         <GlassCard
           variant="subtle"
-          className="flex flex-col items-center justify-center p-4 border border-dashed border-white/[0.16] rounded-xl text-center gap-3 bg-white/[0.02]"
+          className="flex flex-col items-center justify-center p-4 border border-dashed border-stone-700 rounded-xl text-center gap-3 bg-stone-900/60"
         >
           {/* Hidden HTML File Input for PDF */}
           <input
@@ -370,18 +380,18 @@ export const MaterialsTab: React.FC<MaterialsTabProps> = ({
             className="hidden"
           />
 
-          <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+          <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-400">
             <FileText className="w-5 h-5" />
           </div>
 
           <div className="flex flex-col gap-0.5">
-            <span className="text-xs font-medium text-zinc-200">
+            <span className="text-xs font-medium text-stone-200">
               {selectedFile ? selectedFile.name : 'Upload PDF Worksheet'}
             </span>
-            <span className="text-[11px] text-zinc-500">
+            <span className="text-[11px] text-stone-400">
               {selectedFile
                 ? `${(selectedFile.size / 1024).toFixed(1)} KB`
-                : 'Supports multi-page vector PDF background'}
+                : 'Supports multi-page vector PDF or WebP/PNG images'}
             </span>
           </div>
 
@@ -393,7 +403,7 @@ export const MaterialsTab: React.FC<MaterialsTabProps> = ({
               data-testid="upload-pdf-trigger-btn"
               onClick={handleUploadClick}
               disabled={isLoading}
-              className="text-xs"
+              className="text-xs border-stone-700 bg-stone-800 text-stone-200 hover:bg-stone-700"
             >
               <Upload className="w-3.5 h-3.5 mr-1" />
               {selectedFile ? 'Change PDF' : 'Choose PDF File'}
@@ -407,7 +417,7 @@ export const MaterialsTab: React.FC<MaterialsTabProps> = ({
                 data-testid="load-pdf-button"
                 onClick={handleLoadSelectedFile}
                 disabled={isLoading}
-                className="text-xs"
+                className="text-xs bg-amber-500 text-stone-950 font-semibold hover:bg-amber-400"
               >
                 {isLoading ? (
                   <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
@@ -427,70 +437,94 @@ export const MaterialsTab: React.FC<MaterialsTabProps> = ({
         aria-label="Worksheet Library"
         className="flex flex-col gap-3 flex-1"
       >
-        <div className="flex items-center justify-between text-xs font-semibold text-zinc-400 tracking-wider uppercase">
+        <div className="flex items-center justify-between text-xs font-semibold text-stone-400 tracking-wider uppercase">
           <div className="flex items-center gap-1.5">
             <BookOpen className="w-3.5 h-3.5" />
-            <span>Sample Worksheets ({worksheets.length})</span>
+            <span>Sample Worksheets ({activeWorksheets.length})</span>
           </div>
           {isLoading && (
-            <div data-testid="materials-loading" className="flex items-center gap-1 text-indigo-400 text-[10px]">
+            <div data-testid="materials-loading" className="flex items-center gap-1 text-amber-400 text-[10px]">
               <Loader2 className="w-3 h-3 animate-spin" />
               <span>Loading...</span>
             </div>
           )}
         </div>
 
-        <div className="flex flex-col gap-2.5" data-testid="worksheets-list">
-          {worksheets.map((item) => (
-            <GlassCard
-              key={item.id}
-              variant="default"
-              data-testid={`worksheet-card-${item.id}`}
-              className="flex flex-col p-3 rounded-xl gap-2 border border-white/[0.08]"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex flex-col min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    {item.category && (
-                      <span className="text-[9px] px-1.5 py-0.2 rounded-full font-semibold uppercase tracking-wider bg-indigo-500/15 text-indigo-300 border border-indigo-500/25">
-                        {item.category}
-                      </span>
-                    )}
-                    {item.pageCount && (
-                      <span className="text-[10px] text-zinc-500">
-                        {item.pageCount} pages
-                      </span>
+        {activeWorksheets.length === 0 ? (
+          <div
+            data-testid="empty-worksheets-state"
+            className="p-4 rounded-xl border border-stone-800 bg-stone-900/40 text-center"
+          >
+            <p className="text-xs text-stone-400">
+              No extra worksheets uploaded yet. Use the upload box above to load PDFs or images directly onto your whiteboard.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2.5" data-testid="worksheets-list">
+            {activeWorksheets.map((item) => (
+              <GlassCard
+                key={item.id}
+                variant="default"
+                data-testid={`worksheet-card-${item.id}`}
+                className="flex flex-col p-3 rounded-xl gap-2 border border-stone-800 bg-stone-900/90 text-stone-100"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      {item.category && (
+                        <span className="text-[9px] px-1.5 py-0.2 rounded-full font-semibold uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/25">
+                          {item.category}
+                        </span>
+                      )}
+                      {item.pageCount && (
+                        <span className="text-[10px] text-stone-400">
+                          {item.pageCount} pages
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="text-xs font-semibold text-stone-100 mt-1 truncate">
+                      {item.title}
+                    </h4>
+                    {item.description && (
+                      <p className="text-[11px] text-stone-400 mt-0.5 line-clamp-2">
+                        {item.description}
+                      </p>
                     )}
                   </div>
-                  <h4 className="text-xs font-semibold text-zinc-100 mt-1 truncate">
-                    {item.title}
-                  </h4>
-                  {item.description && (
-                    <p className="text-[11px] text-zinc-400 mt-0.5 line-clamp-2">
-                      {item.description}
-                    </p>
-                  )}
+                  <button
+                    type="button"
+                    data-testid={`delete-worksheet-${item.id}`}
+                    aria-label={`Delete worksheet ${item.title}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveWorksheets((prev) => prev.filter((w) => w.id !== item.id));
+                    }}
+                    className="p-1 rounded text-stone-400 hover:text-rose-400 hover:bg-stone-800 transition-colors cursor-pointer"
+                    title="Delete this sample worksheet"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-              </div>
 
-              <div className="flex items-center justify-end pt-1">
-                <GlassButton
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  data-testid={`load-worksheet-${item.id}`}
-                  data-load-worksheet-id={item.id}
-                  onClick={() => onLoadWorksheet(item.url)}
-                  disabled={isLoading}
-                  className="w-full text-xs py-1.5"
-                >
-                  <FileText className="w-3.5 h-3.5 mr-1" />
-                  Load into Whiteboard
-                </GlassButton>
-              </div>
-            </GlassCard>
-          ))}
-        </div>
+                <div className="flex items-center justify-end pt-1">
+                  <GlassButton
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    data-testid={`load-worksheet-${item.id}`}
+                    data-load-worksheet-id={item.id}
+                    onClick={() => onLoadWorksheet(item.url)}
+                    disabled={isLoading}
+                    className="w-full text-xs py-1.5 bg-amber-500 text-stone-950 hover:bg-amber-400 font-semibold"
+                  >
+                    <FileText className="w-3.5 h-3.5 mr-1" />
+                    Load into Whiteboard
+                  </GlassButton>
+                </div>
+              </GlassCard>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Past Whiteboards History */}
@@ -498,7 +532,7 @@ export const MaterialsTab: React.FC<MaterialsTabProps> = ({
         <section
           data-testid="past-whiteboards-section"
           aria-label="Past Whiteboards History"
-          className="flex flex-col gap-2.5 pt-3 border-t border-white/[0.08]"
+          className="flex flex-col gap-2.5 pt-3 border-t border-stone-800"
         >
           <div className="flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase text-amber-400">
             <History className="w-3.5 h-3.5 text-amber-400" />
@@ -511,14 +545,14 @@ export const MaterialsTab: React.FC<MaterialsTabProps> = ({
                 key={item.id}
                 variant="default"
                 data-testid={`past-whiteboard-card-${item.roomId}`}
-                className="flex flex-col p-3 rounded-xl gap-2 border border-white/[0.08]"
+                className="flex flex-col p-3 rounded-xl gap-2 border border-stone-800 bg-stone-900/90 text-stone-100"
               >
                 <div className="flex items-start justify-between gap-1">
                   <div className="flex flex-col min-w-0">
-                    <span className="text-[10px] text-zinc-500 font-mono">
+                    <span className="text-[10px] text-stone-400 font-mono">
                       {item.roomId}
                     </span>
-                    <h4 className="text-xs font-semibold text-zinc-100 truncate">
+                    <h4 className="text-xs font-semibold text-stone-100 truncate">
                       {item.title}
                     </h4>
                     <span className="text-[10px] text-amber-400/80">
@@ -534,7 +568,7 @@ export const MaterialsTab: React.FC<MaterialsTabProps> = ({
                     size="sm"
                     data-testid={`restore-past-wb-${item.roomId}`}
                     onClick={() => onRestoreWhiteboard?.(item)}
-                    className="w-full text-xs py-1"
+                    className="w-full text-xs py-1 bg-amber-500 text-stone-950 hover:bg-amber-400 font-semibold"
                   >
                     <History className="w-3.5 h-3.5 mr-1" />
                     Restore Whiteboard

@@ -170,6 +170,84 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
   const [internalZoom, setInternalZoom] = useState<number>(1.0);
   const zoom = isControlledZoom ? controlledZoom : internalZoom;
 
+  // Viewport Pan Offset & Gestures
+  const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const isPanningRef = useRef<boolean>(false);
+  const panStartRef = useRef<{ x: number; y: number; initialPanX: number; initialPanY: number }>({
+    x: 0,
+    y: 0,
+    initialPanX: 0,
+    initialPanY: 0,
+  });
+  const [isSpacePressed, setIsSpacePressed] = useState<boolean>(false);
+  const [isShiftPressed, setIsShiftPressed] = useState<boolean>(false);
+
+  // Global Keyboard listener for Spacebar & Shift Panning
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement)?.isContentEditable
+      ) {
+        return;
+      }
+      if (e.code === 'Space' && !e.repeat) {
+        setIsSpacePressed(true);
+      }
+      if (e.key === 'Shift') {
+        setIsShiftPressed(true);
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsSpacePressed(false);
+      }
+      if (e.key === 'Shift') {
+        setIsShiftPressed(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  // Native Trackpad Pinch-to-Zoom & Two-Finger Scroll Pan Listener
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+
+      if (e.ctrlKey || e.metaKey) {
+        // Trackpad pinch-to-zoom OR Ctrl + Mouse Wheel
+        const factor = Math.exp(-e.deltaY * 0.005);
+        const nextZoom = clampZoom(+(zoom * factor).toFixed(2), minZoom, maxZoom);
+        if (!isControlledZoom) {
+          setInternalZoom(nextZoom);
+        }
+        onViewportChange?.({ zoom: nextZoom, panX: panOffset.x, panY: panOffset.y });
+      } else {
+        // Trackpad two-finger scroll OR mouse wheel pan
+        setPanOffset((prev) => {
+          const nextPanX = prev.x - e.deltaX;
+          const nextPanY = prev.y - e.deltaY;
+          onViewportChange?.({ zoom, panX: nextPanX, panY: nextPanY });
+          return { x: nextPanX, y: nextPanY };
+        });
+      }
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+    };
+  }, [zoom, panOffset, minZoom, maxZoom, isControlledZoom, onViewportChange]);
+
   // LaTeX Math Equation Modal State
   const [isEquationModalOpen, setIsEquationModalOpen] = useState(false);
   const handleInsertEquation = (latex: string, svgDataUrl: string) => {
@@ -309,34 +387,41 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
   };
 
   const handleResetZoom = () => {
+    setPanOffset({ x: 0, y: 0 });
     if (onResetZoom) {
       onResetZoom();
     } else {
       setInternalZoom(1.0);
     }
+    onViewportChange?.({ zoom: 1.0, panX: 0, panY: 0 });
   };
 
   const handleFitToScreen = () => {
+    setPanOffset({ x: 0, y: 0 });
     if (onFitToScreen) {
       onFitToScreen();
     } else {
       setInternalZoom(1.0);
     }
+    onViewportChange?.({ zoom: 1.0, panX: 0, panY: 0 });
   };
 
   // Broadcast teacher viewport changes to students
   useEffect(() => {
     if (isTeacher && onViewportChange) {
-      onViewportChange({ zoom, panX: 0, panY: 0 });
+      onViewportChange({ zoom, panX: panOffset.x, panY: panOffset.y });
     }
-  }, [isTeacher, zoom, onViewportChange]);
+  }, [isTeacher, zoom, panOffset, onViewportChange]);
 
   // Follow-Teacher Viewport Synchronization effect
   useEffect(() => {
-    if (!isTeacher && isFollowTeacherEnabled && remoteViewport?.zoom) {
-      setInternalZoom(remoteViewport.zoom);
+    if (!isTeacher && isFollowTeacherEnabled && remoteViewport) {
+      if (remoteViewport.zoom) setInternalZoom(remoteViewport.zoom);
+      if (remoteViewport.panX !== undefined && remoteViewport.panY !== undefined) {
+        setPanOffset({ x: remoteViewport.panX, y: remoteViewport.panY });
+      }
     }
-  }, [isTeacher, isFollowTeacherEnabled, remoteViewport?.zoom]);
+  }, [isTeacher, isFollowTeacherEnabled, remoteViewport]);
 
   // Page clear handler
   const handleClearPage = () => {
@@ -449,8 +534,33 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
     };
   };
 
+  // Dynamic check for panning gesture or active pan tool
+  const isPanActive = useCallback(
+    (e: any) => {
+      return (
+        activeTool === 'pan' ||
+        isSpacePressed ||
+        isShiftPressed ||
+        e.button === 1 ||
+        (typeof e.buttons === 'number' && (e.buttons & 4) === 4)
+      );
+    },
+    [activeTool, isSpacePressed, isShiftPressed]
+  );
+
   // Pointer & Touch handlers on canvas
   const handlePointerDown = (e: any) => {
+    if (isPanActive(e)) {
+      isPanningRef.current = true;
+      const { clientX, clientY } = getCoordinatesFromEvent(e);
+      panStartRef.current = {
+        x: clientX,
+        y: clientY,
+        initialPanX: panOffset.x,
+        initialPanY: panOffset.y,
+      };
+      return;
+    }
     if (activeTool === 'laser') {
       const { clientX, clientY } = getCoordinatesFromEvent(e);
       trackLaserPoint(clientX, clientY);
@@ -458,9 +568,25 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
   };
 
   const handlePointerMove = (e: any) => {
+    if (isPanningRef.current) {
+      const { clientX, clientY } = getCoordinatesFromEvent(e);
+      const dx = clientX - panStartRef.current.x;
+      const dy = clientY - panStartRef.current.y;
+      const nextPanX = panStartRef.current.initialPanX + dx;
+      const nextPanY = panStartRef.current.initialPanY + dy;
+      setPanOffset({ x: nextPanX, y: nextPanY });
+      onViewportChange?.({ zoom, panX: nextPanX, panY: nextPanY });
+      return;
+    }
     if (activeTool === 'laser') {
       const { clientX, clientY } = getCoordinatesFromEvent(e);
       trackLaserPoint(clientX, clientY);
+    }
+  };
+
+  const handlePointerUp = () => {
+    if (isPanningRef.current) {
+      isPanningRef.current = false;
     }
   };
 
@@ -581,8 +707,14 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
 
   const bannerBadge = getBannerBadge();
 
-  // Dynamic canvas cursor mapping based on active tool
+  // Dynamic canvas cursor mapping based on active tool and gesture states
   const getToolCursorClass = (tool: WhiteboardToolType) => {
+    if (isPanningRef.current) {
+      return 'cursor-grabbing';
+    }
+    if (tool === 'pan' || isSpacePressed || isShiftPressed) {
+      return 'cursor-grab';
+    }
     switch (tool) {
       case 'select':
         return 'cursor-default';
@@ -613,13 +745,15 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
     <div
       ref={containerRef}
       data-testid="whiteboard-stage"
-      className={`relative w-full h-full flex items-center justify-center overflow-hidden select-none bg-[#090a0f] pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] ${className}`}
+      className={`relative w-full h-full flex items-center justify-center overflow-hidden select-none bg-[#121110] bg-[radial-gradient(#292524_1px,transparent_1px)] [background-size:24px_24px] pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] ${className}`}
       style={style}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerUp}
     >
-      {/* 16:9 Canonical Canvas Stage Wrapper */}
+      {/* 16:9 Canonical Canvas Stage Wrapper with Infinite Pan and Zoom */}
       <div
         data-testid="canvas-stage-wrapper"
-        className="relative flex items-center justify-center transition-transform duration-150 ease-out shadow-2xl"
+        className="relative flex items-center justify-center transition-transform duration-75 ease-out shadow-2xl"
         style={{
           aspectRatio: '16 / 9',
           width:
@@ -632,7 +766,10 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
               : 'auto',
           maxWidth: '100%',
           maxHeight: '100%',
-          transform: `scale(${zoom})`,
+          transform:
+            panOffset.x || panOffset.y
+              ? `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`
+              : `scale(${zoom})`,
           transformOrigin: 'center center',
         }}
       >
@@ -647,8 +784,10 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
           )}`}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
           onMouseDown={handlePointerDown}
           onMouseMove={handlePointerMove}
+          onMouseUp={handlePointerUp}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}

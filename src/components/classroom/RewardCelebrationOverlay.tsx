@@ -8,6 +8,8 @@ export interface RewardEvent {
   type: RewardType;
   teacherName: string;
   studentName?: string;
+  targetStudentId?: string;
+  starsCount?: number;
   message?: string;
   timestamp: number;
 }

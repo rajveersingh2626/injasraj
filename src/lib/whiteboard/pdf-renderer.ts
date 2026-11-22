@@ -77,13 +77,21 @@ function toUint8Array(buffer: ArrayBuffer | Uint8Array): Uint8Array {
  */
 async function getPdfJs(): Promise<any | null> {
   if (typeof window !== 'undefined' && (window as any).pdfjsLib) {
-    return (window as any).pdfjsLib;
+    const lib = (window as any).pdfjsLib;
+    if (lib.GlobalWorkerOptions && !lib.GlobalWorkerOptions.workerSrc) {
+      lib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${lib.version || '4.0.379'}/build/pdf.worker.min.mjs`;
+    }
+    return lib;
   }
   try {
     const pkg = 'pdfjs-dist';
     // Dynamic variable import prevents bundler compile-time failure when optional package is not installed
     const pdfjs = await (Function('m', 'return import(m)')(pkg) as Promise<any>);
-    return pdfjs.default || pdfjs;
+    const resolved = pdfjs.default || pdfjs;
+    if (typeof window !== 'undefined' && resolved?.GlobalWorkerOptions && !resolved.GlobalWorkerOptions.workerSrc) {
+      resolved.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${resolved.version || '4.0.379'}/build/pdf.worker.min.mjs`;
+    }
+    return resolved;
   } catch {
     return null;
   }
@@ -268,7 +276,15 @@ function tryRenderWithCanvas(
     ctx.font = '14px sans-serif';
     ctx.fillText(`Page ${pageNumber} of ${totalPages}`, Math.max(40, width - 140), 60);
 
-    const dataUrl = canvas.toDataURL('image/png');
+    let dataUrl: string | null = null;
+    try {
+      dataUrl = canvas.toDataURL('image/webp', 0.92);
+      if (!dataUrl || !dataUrl.startsWith('data:image/webp')) {
+        dataUrl = canvas.toDataURL('image/png');
+      }
+    } catch {
+      dataUrl = canvas.toDataURL('image/png');
+    }
     if (dataUrl && dataUrl.startsWith('data:image/')) {
       return dataUrl;
     }
@@ -366,7 +382,15 @@ export async function renderPdfPageToDataUrl(
             const ctx = canvas.getContext('2d');
             if (ctx) {
               await page.render({ canvasContext: ctx, viewport }).promise;
-              const url = canvas.toDataURL('image/png');
+              let url: string | null = null;
+              try {
+                url = canvas.toDataURL('image/webp', 0.92);
+                if (!url || !url.startsWith('data:image/webp')) {
+                  url = canvas.toDataURL('image/png');
+                }
+              } catch {
+                url = canvas.toDataURL('image/png');
+              }
               if (url && url.startsWith('data:image/')) {
                 dataUrl = url;
               }

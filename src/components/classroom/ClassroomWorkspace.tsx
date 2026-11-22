@@ -10,6 +10,12 @@ import {
   Square,
   Clock,
   Video as VideoIcon,
+  Home,
+  Share2,
+  Check,
+  Edit2,
+  Users,
+  Star,
 } from 'lucide-react';
 import {
   IMediaSession,
@@ -131,8 +137,21 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   // Mode State: 'classroom' (balanced grid) vs 'whiteboard' (maximized canvas)
   const [mode, setMode] = useState<WorkspaceMode>(initialMode);
 
-  // Participant Names & Badges
-  const localName = userName || (role === 'teacher' ? 'Teacher' : 'Student');
+  // Participant Names, Badges, & Star State
+  const [customTeacherName, setCustomTeacherName] = useState<string>(
+    userName || (role === 'teacher' ? 'Teacher' : 'Student')
+  );
+  const [isEditingTeacherName, setIsEditingTeacherName] = useState<boolean>(false);
+  const [isLinkCopied, setIsLinkCopied] = useState<boolean>(false);
+  const [studentStars, setStudentStars] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (userName) {
+      setCustomTeacherName(userName);
+    }
+  }, [userName]);
+
+  const localName = customTeacherName || userName || (role === 'teacher' ? 'Teacher' : 'Student');
   const remoteName = role === 'teacher' ? 'Student' : 'Teacher';
   const localRoleBadge = role === 'teacher' ? 'Teacher' : 'Student';
   const remoteRoleBadge = role === 'teacher' ? 'Student' : 'Teacher';
@@ -245,21 +264,119 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     }
   };
 
-  // Student Reward Celebration Overlay State
+  // Media Controls (Direct on Video & Remote Teacher Control)
+  const handleToggleMic = useCallback(() => {
+    if (localStream) {
+      localStream.getAudioTracks().forEach((track) => {
+        track.enabled = !track.enabled;
+      });
+    }
+    if (mediaSession && typeof mediaSession.toggleMic === 'function') {
+      const result = mediaSession.toggleMic();
+      if (typeof result === 'boolean') {
+        setIsMicMuted(!result);
+      } else {
+        setIsMicMuted((prev) => !prev);
+      }
+    } else {
+      setIsMicMuted((prev) => !prev);
+    }
+  }, [localStream, mediaSession]);
+
+  const handleToggleCamera = useCallback(() => {
+    if (localStream) {
+      localStream.getVideoTracks().forEach((track) => {
+        track.enabled = !track.enabled;
+      });
+    }
+    if (mediaSession && typeof mediaSession.toggleCamera === 'function') {
+      const result = mediaSession.toggleCamera();
+      if (typeof result === 'boolean') {
+        setIsCameraOff(!result);
+      } else {
+        setIsCameraOff((prev) => !prev);
+      }
+    } else {
+      setIsCameraOff((prev) => !prev);
+    }
+  }, [localStream, mediaSession]);
+
+  // Remote media controls for teachers
+  const handleRemoteToggleMic = useCallback((targetUserId: string) => {
+    whiteboardAdapter?.broadcastCustomEvent?.('remote-media-control', {
+      targetUserId,
+      type: 'toggle-mic',
+    });
+  }, [whiteboardAdapter]);
+
+  const handleRemoteToggleCamera = useCallback((targetUserId: string) => {
+    whiteboardAdapter?.broadcastCustomEvent?.('remote-media-control', {
+      targetUserId,
+      type: 'toggle-camera',
+    });
+  }, [whiteboardAdapter]);
+
+  // Copy Student Invite Link
+  const handleCopyRoomLink = useCallback(() => {
+    const url =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}/classroom?room=${encodeURIComponent(roomId)}&role=student`
+        : `room=${roomId}`;
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(url).catch(() => {});
+    }
+    setIsLinkCopied(true);
+    setTimeout(() => setIsLinkCopied(false), 2500);
+  }, [roomId]);
+
+  // Student Reward Celebration Overlay State & Handlers
   const [activeReward, setActiveReward] = useState<RewardEvent | null>(null);
 
-  const handleTriggerReward = (type: RewardType = 'star') => {
+  const handleAwardStar = useCallback((targetStudentId: string, targetStudentName: string) => {
+    const nextCount = (studentStars[targetStudentId] || 0) + 1;
+    setStudentStars((prev) => ({
+      ...prev,
+      [targetStudentId]: nextCount,
+    }));
+    setStarsAwarded((prev) => prev + 1);
+
     const reward: RewardEvent = {
       id: `reward-${Date.now()}`,
-      type,
+      type: 'star',
+      targetStudentId,
+      starsCount: nextCount,
       teacherName: localName || 'Teacher',
-      message: type === 'star' ? 'Star Awarded! Outstanding!' : 'Great Work!',
+      message: `Star Awarded to ${targetStudentName}! Outstanding!`,
       timestamp: Date.now(),
     };
-    setActiveReward(reward);
-    setStarsAwarded((prev) => prev + 1);
+
+    // Only the recipient student sees the celebration overlay
+    if (userId === targetStudentId) {
+      setActiveReward(reward);
+    }
+
     whiteboardAdapter?.broadcastCustomEvent?.('student-reward', reward);
-  };
+  }, [studentStars, localName, userId, whiteboardAdapter]);
+
+  const handleTriggerReward = useCallback((type: RewardType = 'star') => {
+    const targetPeer = remotePeers.find((p) => p.role !== 'teacher') || remotePeers[0];
+    if (targetPeer) {
+      handleAwardStar(targetPeer.id, targetPeer.name);
+    } else {
+      const reward: RewardEvent = {
+        id: `reward-${Date.now()}`,
+        type,
+        teacherName: localName || 'Teacher',
+        message: type === 'star' ? 'Star Awarded! Outstanding!' : 'Great Work!',
+        timestamp: Date.now(),
+      };
+      if (role === 'student') {
+        setActiveReward(reward);
+      }
+      setStarsAwarded((prev) => prev + 1);
+      whiteboardAdapter?.broadcastCustomEvent?.('student-reward', reward);
+    }
+  }, [remotePeers, handleAwardStar, localName, role, whiteboardAdapter]);
 
   // Follow-Teacher Viewport Synchronization State
   const [isFollowTeacherEnabled, setIsFollowTeacherEnabled] = useState<boolean>(false);
@@ -437,8 +554,28 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     if (!whiteboardAdapter || typeof (whiteboardAdapter as any).onCustomEvent !== 'function') return;
     const unsubscribe = (whiteboardAdapter as any).onCustomEvent((eventName: string, payload: any) => {
       if (eventName === 'student-reward') {
-        setActiveReward(payload);
+        if (payload?.targetStudentId) {
+          setStudentStars((prev) => ({
+            ...prev,
+            [payload.targetStudentId]: payload.starsCount ?? ((prev[payload.targetStudentId] || 0) + 1),
+          }));
+          if (payload.targetStudentId === userId) {
+            setActiveReward(payload);
+          }
+        } else {
+          if (role === 'student') {
+            setActiveReward(payload);
+          }
+        }
         setStarsAwarded((prev) => prev + 1);
+      } else if (eventName === 'remote-media-control') {
+        if (payload?.targetUserId === userId) {
+          if (payload.type === 'toggle-mic') {
+            handleToggleMic();
+          } else if (payload.type === 'toggle-camera') {
+            handleToggleCamera();
+          }
+        }
       } else if (eventName === 'timer-state') {
         setRemoteTimerState(payload);
       } else if (eventName === 'viewport-change') {
@@ -919,33 +1056,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     setIsSidePanelCollapsed((prev) => !prev);
   };
 
-  // Media Controls
-  const handleToggleMic = () => {
-    if (mediaSession && typeof mediaSession.toggleMic === 'function') {
-      const result = mediaSession.toggleMic();
-      if (typeof result === 'boolean') {
-        setIsMicMuted(!result);
-      } else {
-        setIsMicMuted((prev) => !prev);
-      }
-    } else {
-      setIsMicMuted((prev) => !prev);
-    }
-  };
-
-  const handleToggleCamera = () => {
-    if (mediaSession && typeof mediaSession.toggleCamera === 'function') {
-      const result = mediaSession.toggleCamera();
-      if (typeof result === 'boolean') {
-        setIsCameraOff(!result);
-      } else {
-        setIsCameraOff((prev) => !prev);
-      }
-    } else {
-      setIsCameraOff((prev) => !prev);
-    }
-  };
-
+  // Screen Share Control
   const handleToggleScreenShare = () => {
     if (mediaSession) {
       if (typeof (mediaSession as any).toggleScreenShare === 'function') {
@@ -988,24 +1099,57 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   };
 
   const handleAddPage = () => {
+    // 1. Save current active page canvas before creating new page
+    if (engineRef.current) {
+      const curId = pageManagerRef.current.getActivePageId();
+      pageManagerRef.current.updatePageCanvas(curId, engineRef.current.exportJson());
+    }
+    // 2. Add page in manager and switch active state
     const newPage = pageManagerRef.current.addPage();
     setPages(pageManagerRef.current.getAllPages());
     const nextIdx = pageManagerRef.current.getPageCount();
     setCurrentPageIndex(nextIdx);
+    // 3. Clear engine cleanly for the fresh page
+    if (engineRef.current) {
+      engineRef.current.clearCurrentPage(true);
+      engineRef.current.clearBackgroundImage();
+    }
+    setCanUndo(false);
+    setCanRedo(false);
     whiteboardAdapter
       ?.broadcastPageAdd(newPage.id, newPage.pageNumber, newPage.title)
       .catch(() => {});
     schedulePersist();
     propOnPagesChange?.(pageManagerRef.current.getAllPages());
+    propOnPageChange?.(nextIdx, newPage.id);
   };
 
   const handleDeletePage = (pageId: string) => {
     pageManagerRef.current.deletePage(pageId);
     setPages(pageManagerRef.current.getAllPages());
-    setCurrentPageIndex(pageManagerRef.current.getActivePageIndex() + 1);
+    const newActive = pageManagerRef.current.getActivePage();
+    const newIdx = pageManagerRef.current.getActivePageIndex();
+    setCurrentPageIndex(newIdx + 1);
+    if (engineRef.current && newActive) {
+      if (newActive.canvasJson && newActive.canvasJson.objects && newActive.canvasJson.objects.length > 0) {
+        engineRef.current.loadJson(newActive.canvasJson);
+      } else {
+        engineRef.current.clearCurrentPage(true);
+      }
+      if (newActive.thumbnailUrl) {
+        engineRef.current.setBackgroundImage(newActive.thumbnailUrl).catch(() => {});
+      } else {
+        engineRef.current.clearBackgroundImage();
+      }
+    }
+    setCanUndo(undoRedoStackRef.current.canUndo(userId) || (engineRef.current ? engineRef.current.getObjects().length > 0 : false));
+    setCanRedo(undoRedoStackRef.current.canRedo(userId));
     whiteboardAdapter?.broadcastPageDelete(pageId).catch(() => {});
     schedulePersist();
     propOnPagesChange?.(pageManagerRef.current.getAllPages());
+    if (newActive) {
+      propOnPageChange?.(newIdx + 1, newActive.id);
+    }
   };
 
   const handleClonePage = (pageId: string) => {
@@ -1287,12 +1431,23 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         data-testid="workspace-header"
         className="relative z-30 h-14 px-4 flex items-center justify-between border-b border-zinc-200/90 bg-white/90 backdrop-blur-md text-zinc-900 select-none shrink-0 shadow-sm"
       >
-        {/* Left: Branding & Room Badge */}
-        <div className="flex items-center gap-3">
+        {/* Left: Home Button, Branding, Room Badge, & Teacher Name */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            type="button"
+            data-testid="home-btn"
+            onClick={() => (onLeave ? onLeave() : (window.location.href = '/'))}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-700 hover:text-zinc-950 bg-zinc-100 hover:bg-zinc-200/80 border border-zinc-200 transition-all active:scale-95 cursor-pointer shadow-sm"
+            title="Return to Homepage"
+          >
+            <Home className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Home</span>
+          </button>
+
           <div className="flex items-center gap-2 font-semibold text-sm tracking-tight text-zinc-900">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-medium">Classroom</span>
-            <span className="text-zinc-400 text-xs">/</span>
+            <span className="font-medium hidden sm:inline">Classroom</span>
+            <span className="text-zinc-400 text-xs hidden sm:inline">/</span>
             <span
               data-testid="room-id-badge"
               className="text-xs px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-700 font-mono border border-zinc-200/80"
@@ -1300,38 +1455,121 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
               {roomId}
             </span>
           </div>
+
+          {/* Editable Teacher Display Name (Teacher Only) */}
+          {role === 'teacher' && (
+            <div className="flex items-center">
+              {isEditingTeacherName ? (
+                <input
+                  type="text"
+                  data-testid="edit-teacher-name-input"
+                  value={customTeacherName}
+                  autoFocus
+                  onChange={(e) => setCustomTeacherName(e.target.value)}
+                  onBlur={() => {
+                    setIsEditingTeacherName(false);
+                    whiteboardAdapter?.broadcastCustomEvent?.('participant-presence', {
+                      id: userId,
+                      name: customTeacherName,
+                      role,
+                      action: 'update',
+                    });
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      setIsEditingTeacherName(false);
+                      whiteboardAdapter?.broadcastCustomEvent?.('participant-presence', {
+                        id: userId,
+                        name: customTeacherName,
+                        role,
+                        action: 'update',
+                      });
+                    }
+                  }}
+                  className="px-2 py-0.5 text-xs font-semibold rounded border border-amber-400 bg-white text-zinc-900 focus:outline-none focus:ring-1 focus:ring-amber-500 w-28"
+                />
+              ) : (
+                <button
+                  type="button"
+                  data-testid="teacher-name-btn"
+                  onClick={() => setIsEditingTeacherName(true)}
+                  className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all hover:bg-amber-50 text-zinc-800 hover:text-amber-900 cursor-pointer border border-transparent hover:border-amber-200"
+                  title="Click to edit your display name"
+                >
+                  <span className="font-semibold">Teacher: {localName}</span>
+                  <Edit2 className="w-3 h-3 text-zinc-400" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Center: Dual Mode Switcher Button */}
-        <div
-          data-testid="mode-switcher-container"
-          className="flex items-center p-1 rounded-xl bg-zinc-100 border border-zinc-200 shadow-inner"
-        >
+        {/* Center: Dual Mode Switcher Button & Participant Counter */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div
+            data-testid="mode-switcher-container"
+            className="flex items-center p-1 rounded-xl bg-zinc-100 border border-zinc-200 shadow-inner"
+          >
+            <button
+              type="button"
+              data-testid="mode-toggle-btn"
+              aria-label={`Toggle to ${
+                mode === 'classroom' ? 'Whiteboard' : 'Classroom'
+              } Mode`}
+              onClick={handleToggleMode}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-800 transition-all duration-200 cursor-pointer hover:bg-white active:scale-95 shadow-sm"
+            >
+              {mode === 'classroom' ? (
+                <>
+                  <LayoutGrid className="w-3.5 h-3.5 text-indigo-600" />
+                  <span className="hidden sm:inline">Classroom Mode</span>
+                </>
+              ) : (
+                <>
+                  <Presentation className="w-3.5 h-3.5 text-indigo-600" />
+                  <span className="hidden sm:inline">Whiteboard Mode</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Participant Counter Badge (Never 0) */}
+          <div
+            data-testid="participant-count-badge"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-zinc-100 border border-zinc-200 text-xs font-medium text-zinc-700 shadow-inner"
+            title={`${remotePeers.length + 1} participant(s) in room`}
+          >
+            <Users className="w-3.5 h-3.5 text-zinc-500" />
+            <span className="font-semibold text-zinc-900">{remotePeers.length + 1}</span>
+            <span className="hidden md:inline text-zinc-500 text-[11px]">
+              {remotePeers.length + 1 === 1 ? 'Participant' : 'Participants'}
+            </span>
+          </div>
+        </div>
+
+        {/* Right: Copy Invite Link, Session Lifecycle, Timer & Studio Side Panel Trigger */}
+        <div className="flex items-center gap-2">
+          {/* Copy Student Invite Link Button */}
           <button
             type="button"
-            data-testid="mode-toggle-btn"
-            aria-label={`Toggle to ${
-              mode === 'classroom' ? 'Whiteboard' : 'Classroom'
-            } Mode`}
-            onClick={handleToggleMode}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-800 transition-all duration-200 cursor-pointer hover:bg-white active:scale-95 shadow-sm"
+            data-testid="copy-room-link-btn"
+            aria-label="Copy student invite link"
+            onClick={handleCopyRoomLink}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-zinc-200 bg-zinc-100 hover:bg-zinc-200/80 text-zinc-800 transition-all active:scale-95 cursor-pointer shadow-sm"
           >
-            {mode === 'classroom' ? (
+            {isLinkCopied ? (
               <>
-                <LayoutGrid className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Classroom Mode</span>
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-emerald-700 font-semibold">Link Copied!</span>
               </>
             ) : (
               <>
-                <Presentation className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Whiteboard Mode</span>
+                <Share2 className="w-3.5 h-3.5 text-zinc-600" />
+                <span className="hidden sm:inline">Copy Invite Link</span>
               </>
             )}
           </button>
-        </div>
 
-        {/* Right: Session Lifecycle, Timer & Studio Side Panel Trigger */}
-        <div className="flex items-center gap-2">
           {role === 'teacher' ? (
             sessionStatus === 'waiting' ? (
               <button
@@ -1448,6 +1686,9 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
               isLocal={true}
               isCameraOff={isCameraOff}
               isAudioMuted={isMicMuted}
+              starsCount={studentStars[userId] || 0}
+              onToggleMic={handleToggleMic}
+              onToggleCamera={handleToggleCamera}
             />
           </div>
 
@@ -1467,6 +1708,12 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
               isLocal={false}
               isCameraOff={isRemoteCameraOff}
               isAudioMuted={isRemoteAudioMuted}
+              starsCount={studentStars[remotePeers[0]?.id] || 0}
+              canAwardStar={role === 'teacher' && remotePeers[0]?.role !== 'teacher'}
+              onAwardStar={() => handleAwardStar(remotePeers[0]?.id, remotePeers[0]?.name || remoteName)}
+              canControlRemoteMedia={role === 'teacher' && remotePeers[0]?.role !== 'teacher'}
+              onRemoteToggleMic={() => handleRemoteToggleMic(remotePeers[0]?.id)}
+              onRemoteToggleCamera={() => handleRemoteToggleCamera(remotePeers[0]?.id)}
             />
           </div>
 
@@ -1488,6 +1735,12 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
                 isLocal={false}
                 isCameraOff={true}
                 isAudioMuted={false}
+                starsCount={studentStars[peer.id] || 0}
+                canAwardStar={role === 'teacher' && peer.role !== 'teacher'}
+                onAwardStar={() => handleAwardStar(peer.id, peer.name)}
+                canControlRemoteMedia={role === 'teacher' && peer.role !== 'teacher'}
+                onRemoteToggleMic={() => handleRemoteToggleMic(peer.id)}
+                onRemoteToggleCamera={() => handleRemoteToggleCamera(peer.id)}
               />
             </div>
           ))}

@@ -1205,6 +1205,10 @@ export class FabricWhiteboardEngine {
       const pt = this.getEventVirtualPoint(e, canvas);
       if (!pt) return;
 
+      if (this.activeTool === 'pan') {
+        return;
+      }
+
       if (this.activeTool === 'laser') {
         this.emitLaser(pt.x, pt.y);
         return;
@@ -1263,6 +1267,10 @@ export class FabricWhiteboardEngine {
     const handlePointerMove = (e: MouseEvent | PointerEvent) => {
       const pt = this.getEventVirtualPoint(e, canvas);
       if (!pt) return;
+
+      if (this.activeTool === 'pan') {
+        return;
+      }
 
       if (this.activeTool === 'laser') {
         this.emitLaser(pt.x, pt.y);
