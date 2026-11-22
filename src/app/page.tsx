@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -14,14 +14,41 @@ import {
   Users,
   Radio,
   BookOpen,
+  Link2,
+  History,
+  Lock,
+  LogOut,
+  ShieldCheck,
 } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassButton } from '@/components/ui/GlassButton';
 import { TeacherAvailabilityForm } from '@/components/booking/TeacherAvailabilityForm';
+import { ActiveRoomsManager } from '@/components/dashboard/ActiveRoomsManager';
+import { PastClassesManager } from '@/components/dashboard/PastClassesManager';
+import { TeacherLoginModal } from '@/components/auth/TeacherLoginModal';
 import { TeacherAvailability, Lesson } from '@/types/database';
 import { formatLessonDateTime, TEACHER_TIMEZONE } from '@/utils/timezone';
 import { createBrowserClient } from '@/lib/supabase/client';
+import {
+  getTeacherSession,
+  logoutTeacher,
+  TeacherSession,
+} from '@/lib/auth/teacher-auth';
+import {
+  createManagedRoom,
+  getActiveRooms,
+  deleteManagedRoom,
+  recordRoomJoin,
+  checkAndExpireRooms,
+  ManagedRoom,
+} from '@/lib/classroom/room-manager';
+import {
+  getPastClasses,
+  deletePastClass,
+  archiveClassToHistory,
+  PastClassRecord,
+} from '@/lib/classroom/past-classes';
 
 const DEFAULT_TEACHER_ID = 'teacher-1';
 const DEFAULT_TEACHER_NAME = 'Injasraj';
@@ -62,12 +89,20 @@ const INITIAL_LESSONS: Lesson[] = [
 
 export default function TeacherDashboardPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'availability' | 'lessons'>('availability');
+  const [activeTab, setActiveTab] = useState<'active_links' | 'availability' | 'lessons' | 'past_classes'>('active_links');
   const [availabilities, setAvailabilities] = useState<TeacherAvailability[]>(INITIAL_AVAILABILITIES);
   const [lessons, setLessons] = useState<Lesson[]>(INITIAL_LESSONS);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
 
-  // Instant room state
+  // Authentication State
+  const [teacherSession, setTeacherSession] = useState<TeacherSession | null>(null);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
+  // Active Rooms & Past Classes State
+  const [activeRooms, setActiveRooms] = useState<ManagedRoom[]>([]);
+  const [pastClasses, setPastClasses] = useState<PastClassRecord[]>([]);
+
+  // Instant room creation input
   const [customRoomId, setCustomRoomId] = useState<string>('');
   const [generatedRoomId, setGeneratedRoomId] = useState<string>('');
 
@@ -75,11 +110,31 @@ export default function TeacherDashboardPage() {
   const [origin, setOrigin] = useState<string>('');
   const [isCopied, setIsCopied] = useState<boolean>(false);
 
+  const refreshRoomsAndHistory = useCallback(() => {
+    const { active, expired } = checkAndExpireRooms();
+    // Auto-archive any expired instant rooms to past classes
+    if (expired.length > 0) {
+      expired.forEach((exp) => {
+        archiveClassToHistory(exp.roomId, exp.title, 900);
+      });
+    }
+    setActiveRooms(active);
+    setPastClasses(getPastClasses());
+  }, []);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setOrigin(window.location.origin);
+      setTeacherSession(getTeacherSession());
+      refreshRoomsAndHistory();
     }
-  }, []);
+
+    const interval = setInterval(() => {
+      refreshRoomsAndHistory();
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [refreshRoomsAndHistory]);
 
   const bookingPath = `/book/${DEFAULT_TEACHER_ID}`;
   const fullBookingUrl = origin ? `${origin}${bookingPath}` : bookingPath;
@@ -92,7 +147,6 @@ export default function TeacherDashboardPage() {
       setSaveSuccessMsg(null);
     }, 4000);
 
-    // Attempt to persist to Supabase if table is configured
     try {
       const supabase = createBrowserClient();
       if (supabase && typeof supabase.from === 'function') {
@@ -100,22 +154,56 @@ export default function TeacherDashboardPage() {
           .from('teacher_availability')
           .upsert(updated, { onConflict: 'teacher_id,day_of_week' });
       }
-    } catch {
-      // Graceful fallback for mock/local setups
-    }
+    } catch {}
   };
 
-  // Generate instant room
+  // Generate instant room and add to active manager
   const handleGenerateInstantRoom = () => {
     const randomCode = Math.random().toString(36).substring(2, 8);
     const roomId = customRoomId.trim() || `room-${Date.now().toString(36)}-${randomCode}`;
     setGeneratedRoomId(roomId);
+
+    createManagedRoom(roomId, 'instant', `Instant 1:1 Session (${roomId})`);
+    refreshRoomsAndHistory();
   };
 
-  // Launch instant room
-  const handleJoinInstantRoom = () => {
-    const roomId = generatedRoomId || customRoomId.trim() || `room-${Date.now().toString(36)}`;
-    router.push(`/classroom/${roomId}?role=teacher&name=${encodeURIComponent(DEFAULT_TEACHER_NAME)}`);
+  // Launch instant room as teacher
+  const handleJoinInstantRoom = (targetRoomId?: string) => {
+    const roomId =
+      targetRoomId || generatedRoomId || customRoomId.trim() || `room-${Date.now().toString(36)}`;
+    
+    // Ensure room is tracked and start 15m timer
+    createManagedRoom(roomId, 'instant', `Instant 1:1 Session (${roomId})`);
+    recordRoomJoin(roomId);
+    refreshRoomsAndHistory();
+
+    const teacherName = teacherSession?.teacherName || DEFAULT_TEACHER_NAME;
+    router.push(`/classroom/${roomId}?role=teacher&name=${encodeURIComponent(teacherName)}`);
+  };
+
+  // Delete active room
+  const handleDeleteActiveRoom = (roomId: string) => {
+    deleteManagedRoom(roomId);
+    refreshRoomsAndHistory();
+  };
+
+  // Launch past class with restored whiteboard
+  const handleLaunchWithPastWhiteboard = (pastClass: PastClassRecord) => {
+    // Re-create as managed room and route with restoreRoomId parameter
+    createManagedRoom(pastClass.roomId, 'instant', `Resumed: ${pastClass.title}`);
+    recordRoomJoin(pastClass.roomId);
+    refreshRoomsAndHistory();
+
+    const teacherName = teacherSession?.teacherName || DEFAULT_TEACHER_NAME;
+    router.push(
+      `/classroom/${pastClass.roomId}?role=teacher&name=${encodeURIComponent(teacherName)}&restoreRoomId=${encodeURIComponent(pastClass.roomId)}`
+    );
+  };
+
+  // Delete past class record
+  const handleDeletePastClass = (id: string) => {
+    deletePastClass(id);
+    setPastClasses(getPastClasses());
   };
 
   // Copy booking link to clipboard
@@ -130,6 +218,11 @@ export default function TeacherDashboardPage() {
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2500);
     }
+  };
+
+  const handleTeacherLogout = () => {
+    logoutTeacher();
+    setTeacherSession(null);
   };
 
   return (
@@ -158,67 +251,70 @@ export default function TeacherDashboardPage() {
           </div>
         </div>
 
-        {/* Instant 1:1 Room Quick Bar */}
-        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
-          <div className="relative flex-1 sm:w-60">
-            <input
-              type="text"
-              placeholder="Custom room ID (optional)"
-              value={customRoomId}
-              onChange={(e) => setCustomRoomId(e.target.value)}
-              className="w-full bg-zinc-900/90 border border-zinc-800/90 rounded-lg px-3 py-2 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/70"
-            />
+        {/* Right side: Teacher Auth Status & Instant Class Quickbar */}
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
+          {/* Teacher Login / Status Badge */}
+          {teacherSession ? (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-stone-900 border border-stone-800">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span className="text-xs font-medium text-stone-200">
+                {teacherSession.teacherName} (Teacher)
+              </span>
+              <button
+                type="button"
+                onClick={handleTeacherLogout}
+                data-testid="teacher-logout-btn"
+                title="Log out"
+                className="text-stone-400 hover:text-stone-200 p-1 rounded transition-colors"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsLoginModalOpen(true)}
+              data-testid="teacher-login-modal-trigger"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 transition-all cursor-pointer active:scale-95"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Teacher Login</span>
+            </button>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+            <div className="relative flex-1 sm:w-52">
+              <input
+                type="text"
+                placeholder="Custom room ID (optional)"
+                value={customRoomId}
+                onChange={(e) => setCustomRoomId(e.target.value)}
+                className="w-full bg-zinc-900/90 border border-zinc-800/90 rounded-lg px-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/70"
+              />
+            </div>
+
+            <GlassButton
+              variant="default"
+              onClick={handleGenerateInstantRoom}
+              data-testid="instant-room-btn"
+              className="flex items-center space-x-1.5 text-xs py-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Create Link</span>
+            </GlassButton>
+
+            <GlassButton
+              variant="primary"
+              onClick={() => handleJoinInstantRoom()}
+              data-testid="launch-room-btn"
+              className="flex items-center space-x-1.5 text-xs py-1.5"
+            >
+              <Video className="w-3.5 h-3.5" />
+              <span>Start Instant Class</span>
+            </GlassButton>
           </div>
-
-          <GlassButton
-            variant="default"
-            onClick={handleGenerateInstantRoom}
-            data-testid="instant-room-btn"
-            className="flex items-center space-x-1.5"
-          >
-            <Sparkles className="w-4 h-4 text-indigo-400" />
-            <span>Generate Room</span>
-          </GlassButton>
-
-          <GlassButton
-            variant="primary"
-            onClick={handleJoinInstantRoom}
-            data-testid="launch-room-btn"
-            className="flex items-center space-x-1.5"
-          >
-            <Video className="w-4 h-4" />
-            <span>Start Instant Class</span>
-          </GlassButton>
         </div>
       </header>
-
-      {/* Generated Instant Room Alert Banner */}
-      {generatedRoomId && (
-        <GlassCard className="p-4 border-indigo-500/40 bg-indigo-950/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center space-x-3">
-            <Radio className="w-5 h-5 text-indigo-400 animate-pulse" />
-            <div>
-              <p className="text-sm font-semibold text-zinc-100">
-                Instant Room Ready:{' '}
-                <span className="text-indigo-300 font-mono">{generatedRoomId}</span>
-              </p>
-              <p className="text-xs text-zinc-400">
-                Share this room ID or link with your student to start right away.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Link
-              href={`/classroom/${generatedRoomId}?role=teacher&name=${encodeURIComponent(DEFAULT_TEACHER_NAME)}`}
-            >
-              <GlassButton variant="primary" size="sm" className="flex items-center space-x-1">
-                <Video className="w-3.5 h-3.5" />
-                <span>Enter Room</span>
-              </GlassButton>
-            </Link>
-          </div>
-        </GlassCard>
-      )}
 
       {/* Shareable Booking Link Card */}
       <GlassCard className="p-5">
@@ -276,22 +372,40 @@ export default function TeacherDashboardPage() {
       </GlassCard>
 
       {/* Navigation Tabs */}
-      <div className="flex items-center space-x-2 border-b border-zinc-800/80 pb-2">
+      <div className="flex items-center space-x-2 border-b border-zinc-800/80 pb-2 overflow-x-auto no-scrollbar">
         <button
-          onClick={() => setActiveTab('availability')}
-          className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-            activeTab === 'availability'
+          onClick={() => setActiveTab('active_links')}
+          className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+            activeTab === 'active_links'
               ? 'bg-zinc-800/90 text-white shadow-sm'
               : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
           }`}
         >
-          <Clock className="w-4 h-4" />
-          <span>Weekly Availability</span>
+          <Link2 className="w-4 h-4 text-emerald-400" />
+          <span>Active Class Links</span>
+          <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-emerald-500/20 text-emerald-300 font-mono">
+            {activeRooms.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('past_classes')}
+          className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+            activeTab === 'past_classes'
+              ? 'bg-zinc-800/90 text-white shadow-sm'
+              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
+          }`}
+        >
+          <History className="w-4 h-4 text-amber-400" />
+          <span>Past Classes</span>
+          <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-zinc-700/60 text-zinc-300 font-mono">
+            {pastClasses.length}
+          </span>
         </button>
 
         <button
           onClick={() => setActiveTab('lessons')}
-          className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+          className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
             activeTab === 'lessons'
               ? 'bg-zinc-800/90 text-white shadow-sm'
               : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
@@ -299,9 +413,21 @@ export default function TeacherDashboardPage() {
         >
           <Calendar className="w-4 h-4" />
           <span>Upcoming Lessons</span>
-          <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-zinc-700/60 text-zinc-300">
+          <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-zinc-700/60 text-zinc-300 font-mono">
             {lessons.length}
           </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('availability')}
+          className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+            activeTab === 'availability'
+              ? 'bg-zinc-800/90 text-white shadow-sm'
+              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
+          }`}
+        >
+          <Clock className="w-4 h-4" />
+          <span>Weekly Availability</span>
         </button>
       </div>
 
@@ -313,7 +439,29 @@ export default function TeacherDashboardPage() {
         </div>
       )}
 
-      {/* Tab 1: Weekly Availability Form */}
+      {/* Tab: Active Class Links & Room Manager */}
+      {activeTab === 'active_links' && (
+        <section aria-label="Active Class Links Manager">
+          <ActiveRoomsManager
+            rooms={activeRooms}
+            onDeleteRoom={handleDeleteActiveRoom}
+            onJoinAsTeacher={handleJoinInstantRoom}
+          />
+        </section>
+      )}
+
+      {/* Tab: Past Classes & Whiteboard History */}
+      {activeTab === 'past_classes' && (
+        <section aria-label="Past Classes & Whiteboard Archives">
+          <PastClassesManager
+            pastClasses={pastClasses}
+            onDeletePastClass={handleDeletePastClass}
+            onLaunchWithWhiteboard={handleLaunchWithPastWhiteboard}
+          />
+        </section>
+      )}
+
+      {/* Tab: Weekly Availability Form */}
       {activeTab === 'availability' && (
         <section aria-label="Teacher Availability Management" className="space-y-4">
           <TeacherAvailabilityForm
@@ -324,7 +472,7 @@ export default function TeacherDashboardPage() {
         </section>
       )}
 
-      {/* Tab 2: Upcoming Lessons List */}
+      {/* Tab: Upcoming Lessons List */}
       {activeTab === 'lessons' && (
         <section
           data-testid="upcoming-lessons-list"
@@ -377,8 +525,9 @@ export default function TeacherDashboardPage() {
 
                     <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between">
                       <span className="text-xs text-zinc-400">1:1 Video Session</span>
-                      <Link
-                        href={`/classroom/${lesson.room_id}?role=teacher&name=${encodeURIComponent(DEFAULT_TEACHER_NAME)}`}
+                      <button
+                        type="button"
+                        onClick={() => handleJoinInstantRoom(lesson.room_id)}
                       >
                         <GlassButton
                           variant="primary"
@@ -388,7 +537,7 @@ export default function TeacherDashboardPage() {
                           <Video className="w-3.5 h-3.5" />
                           <span>Join Room</span>
                         </GlassButton>
-                      </Link>
+                      </button>
                     </div>
                   </GlassCard>
                 );
@@ -397,6 +546,15 @@ export default function TeacherDashboardPage() {
           )}
         </section>
       )}
+
+      {/* Teacher Login Modal */}
+      <TeacherLoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onLoginSuccess={(name) => {
+          setTeacherSession(getTeacherSession());
+        }}
+      />
     </main>
   );
 }
