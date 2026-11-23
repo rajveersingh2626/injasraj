@@ -67,36 +67,35 @@ export function ClassroomView({
 }: ClassroomViewProps) {
   const router = useRouter();
 
-  const [activeRole, setActiveRole] = useState<'teacher' | 'student'>(() =>
-    resolveUserClassroomRole(role)
-  );
+  const [activeRole, setActiveRole] = useState<'teacher' | 'student'>(role);
   const [resolvedStudentName, setResolvedStudentName] = useState<string>(() => {
     if (userName && userName.trim() !== '') return userName.trim();
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem(STUDENT_NAME_STORAGE_KEY);
-        if (stored && stored.trim() !== '') return stored.trim();
-      } catch {}
-    }
     return '';
   });
-  const [isNameModalOpen, setIsNameModalOpen] = useState<boolean>(() => {
-    const isStudent = resolveUserClassroomRole(role) === 'student';
-    if (!isStudent) return false;
-    if (userName && userName.trim() !== '') return false;
-    if (typeof window !== 'undefined') {
+  const [isNameModalOpen, setIsNameModalOpen] = useState<boolean>(false);
+  const [remoteParticipants, setRemoteParticipants] = useState<Participant[]>([]);
+  const [isRoomExpired, setIsRoomExpired] = useState<boolean>(false);
+
+  // Client-side hydration sync for storage-based auth and user profile
+  useEffect(() => {
+    const resolved = resolveUserClassroomRole(role);
+    setActiveRole(resolved);
+
+    if (resolved === 'student') {
       try {
         const stored = localStorage.getItem(STUDENT_NAME_STORAGE_KEY);
-        if (stored && stored.trim() !== '') return false;
-      } catch {}
+        if (stored && stored.trim() !== '') {
+          setResolvedStudentName(stored.trim());
+        } else if (!userName || userName.trim() === '') {
+          setIsNameModalOpen(true);
+        }
+      } catch {
+        if (!userName || userName.trim() === '') {
+          setIsNameModalOpen(true);
+        }
+      }
     }
-    return true;
-  });
-  const [remoteParticipants, setRemoteParticipants] = useState<Participant[]>([]);
-  const [isRoomExpired, setIsRoomExpired] = useState<boolean>(() => {
-    const existing = getRoomById(roomId);
-    return existing?.status === 'expired';
-  });
+  }, [role, userName]);
 
   // Track room join & stamp 15m instant timer on direct entry
   useEffect(() => {
@@ -105,11 +104,6 @@ export function ClassroomView({
       setIsRoomExpired(true);
     }
   }, [roomId]);
-
-  // Sync role if prop or auth changes
-  useEffect(() => {
-    setActiveRole(resolveUserClassroomRole(role));
-  }, [role]);
 
   const teacherSession = getTeacherSession();
   const localName: string =

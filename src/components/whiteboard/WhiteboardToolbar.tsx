@@ -134,6 +134,8 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
       role="toolbar"
       aria-label="Whiteboard Toolbar"
       data-testid="whiteboard-toolbar"
+      onPointerDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
       className={`absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 p-1.5 rounded-2xl border border-stone-800 bg-stone-900/95 backdrop-blur-[16px] select-none text-stone-200 shadow-2xl max-w-[calc(100vw-2rem)] overflow-visible ${className}`}
       style={{
         boxShadow:

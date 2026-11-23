@@ -1,19 +1,17 @@
-# GSD State: LearnCube-Style Document Stage & Whiteboard Rebuild
+# GSD State: QA Audit Bug Fixes & Emil Design Polish
 
 ## Current Lifecycle Phase
-**Phase 5: Ship & Complete (Fully Verified)**
+**Phase 5: Complete & Verified**
 
 ## Active Task
-- All tasks verified and complete.
+- None (All tasks verified and passing)
 
 ## Completed Tasks
-- Task 1: Audit Integration Points & Set Up Dependencies (`pdf-lib` v1.17.1).
-- Task 2: Build LearnCube Portrait Document Stage & Viewport (standard portrait 3:4 geometry, paper shadows, Fit-to-Width auto-scaling, and zoom presets).
-- Task 3: Visual Multi-Page Document Ingestion (pure visual rendering, zero text extraction, zero main-thread hangs, "Upload Document" copy).
-- Task 4: Live Collaboration & Teacher Authority (coordinate normalization, live LiveKit stroke and laser sync, Follow-Teacher viewport tracking, Global Lock and Laser Pointer Only).
-- Task 5: Canvas Tools, Studio Panel & pdf-lib Export (grid modes, multi-page operations, flattened `pdf-lib` export with download fallback, session save and restore).
-- Task 6: Full Verification & Automated Quality Gates (701 Vitest unit & E2E tests passing across 67 suites, Next.js production build passing with 0 errors).
+- [x] Task 1: Fix Popover & Flyout Menu Outside-Click Listeners (`ColorStrokePopover`, `WhiteboardToolbar`, `ControlBar`)
+- [x] Task 2: Supabase PostgREST 42501 Error Handling & Resilience (`whiteboard-persistence.ts`)
+- [x] Task 3: Student Waiting Room Overlay & Toolbar UX (`ClassroomWorkspace.tsx`)
+- [x] Task 4: Emil Design Polish (Modal physical scale, press feedback, and typography)
+- [x] Task 5: Full Verification & Automated Playwright Gates (719 Vitest tests, Next.js production build, Playwright walkthrough all exit 0)
 
-## Verification Evidence
-- `npm test -- --run`: 701 tests passed across 67 test files.
-- `npm run build`: Compiled successfully in production mode; all 9 static and dynamic routes generated cleanly without TypeScript or runtime packaging warnings.
+## Task Backlog
+- All planned tasks complete.

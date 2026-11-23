@@ -854,6 +854,10 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
       className={`relative w-full h-full flex items-center justify-center overflow-auto select-none bg-stone-100/90 pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] ${className}`}
       style={style}
       onPointerDown={(e) => {
+        const target = e.target as HTMLElement;
+        if (target?.closest?.('[role="toolbar"], button, [data-testid="zoom-controls"]')) {
+          return;
+        }
         handlePointerDown(e);
         if (e.target !== canvasRef.current && canvasRef.current && activeEngine) {
           try {
@@ -870,6 +874,10 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
         }
       }}
       onPointerMove={(e) => {
+        const target = e.target as HTMLElement;
+        if (target?.closest?.('[role="toolbar"], button, [data-testid="zoom-controls"]')) {
+          return;
+        }
         handlePointerMove(e);
         if (e.target !== canvasRef.current && canvasRef.current && activeEngine) {
           try {
@@ -885,7 +893,13 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
           } catch {}
         }
       }}
-      onPointerUp={handlePointerUp}
+      onPointerUp={(e) => {
+        const target = e.target as HTMLElement;
+        if (target?.closest?.('[role="toolbar"], button, [data-testid="zoom-controls"]')) {
+          return;
+        }
+        handlePointerUp();
+      }}
       onPointerLeave={handlePointerUp}
     >
       {/* Canonical Canvas Stage Wrapper with Infinite Pan and Zoom */}

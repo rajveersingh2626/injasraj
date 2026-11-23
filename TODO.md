@@ -21,7 +21,7 @@
   - [x] 4.3 Ensure `active:scale-[0.97]` press feedback on toolbar and dock interactive buttons.
   - [x] 4.4 Commit Task 4 atomically.
 
-- [ ] Task 5: Full Verification & Playwright Walkthrough
-  - [ ] 5.1 Run full Vitest suite (`npm test`).
-  - [ ] 5.2 Run Next.js production build (`npm run build`).
-  - [ ] 5.3 Run Playwright test script to verify popovers (shapes, color, settings), waiting room, and complete walkthrough pass with code 0.
+- [x] Task 5: Full Verification & Playwright Walkthrough
+  - [x] 5.1 Run full Vitest suite (`npm test` - 719 tests pass).
+  - [x] 5.2 Run Next.js production build (`npm run build` - exit code 0).
+  - [x] 5.3 Run Playwright test script to verify popovers (shapes, color, settings), waiting room, and complete walkthrough pass with code 0.
