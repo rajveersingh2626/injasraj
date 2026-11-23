@@ -98,4 +98,42 @@ describe('ZoomControls Component (Bottom-Left Glass Dock)', () => {
     const zoomInBtn = screen.getByTestId('zoom-in-btn');
     expect(zoomInBtn).toBeDisabled();
   });
+
+  it('triggers onFitToWidth when fit button is clicked and onFitToWidth is provided', () => {
+    const handleFitToWidth = vi.fn();
+    render(
+      <ZoomControls
+        zoom={1.0}
+        onZoomIn={vi.fn()}
+        onZoomOut={vi.fn()}
+        onFitToWidth={handleFitToWidth}
+      />
+    );
+
+    const fitBtn = screen.getByTestId('zoom-fit-btn');
+    fireEvent.click(fitBtn);
+    expect(handleFitToWidth).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens presets menu on right-click on percentage button and selects preset', () => {
+    const handleSelectPreset = vi.fn();
+    render(
+      <ZoomControls
+        zoom={1.0}
+        onZoomIn={vi.fn()}
+        onZoomOut={vi.fn()}
+        onSelectPreset={handleSelectPreset}
+      />
+    );
+
+    const pctBtn = screen.getByTestId('zoom-percentage-btn');
+    fireEvent.contextMenu(pctBtn);
+
+    const menu = screen.getByTestId('zoom-presets-menu');
+    expect(menu).toBeInTheDocument();
+
+    const preset125Btn = screen.getByText('125%');
+    fireEvent.click(preset125Btn);
+    expect(handleSelectPreset).toHaveBeenCalledWith(1.25);
+  });
 });
