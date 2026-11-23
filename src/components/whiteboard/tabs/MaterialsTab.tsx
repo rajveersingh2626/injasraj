@@ -11,6 +11,7 @@ export interface WorksheetMaterial {
   description?: string;
   category?: string;
   pageCount?: number;
+  pages?: string[];
 }
 
 export interface MaterialsTabProps {
@@ -145,26 +146,26 @@ export const MaterialsTab: React.FC<MaterialsTabProps> = ({
         </div>
       </section>
 
-      {/* Uploaded Documents List (if any provided) */}
-      {activeWorksheets.length > 0 && (
-        <section
-          data-testid="worksheet-library-section"
-          aria-label="Document Library"
-          className="flex flex-col gap-3 flex-1"
-        >
-          <div className="flex items-center justify-between text-xs font-semibold text-stone-600 tracking-wider uppercase">
-            <div className="flex items-center gap-1.5">
-              <BookOpen className="w-3.5 h-3.5 text-stone-500" />
-              <span>Uploaded Documents ({activeWorksheets.length})</span>
-            </div>
-            {isLoading && (
-              <div data-testid="materials-loading" className="flex items-center gap-1 text-amber-600 text-[10px]">
-                <Loader2 className="w-3 h-3 animate-spin" />
-                <span>Loading Document...</span>
-              </div>
-            )}
+      {/* Uploaded Documents List */}
+      <section
+        data-testid="worksheet-library-section"
+        aria-label="Document Library"
+        className="flex flex-col gap-3 flex-1"
+      >
+        <div className="flex items-center justify-between text-xs font-semibold text-stone-600 tracking-wider uppercase">
+          <div className="flex items-center gap-1.5">
+            <BookOpen className="w-3.5 h-3.5 text-stone-500" />
+            <span>Uploaded Documents ({activeWorksheets.length})</span>
           </div>
+          {isLoading && (
+            <div data-testid="materials-loading" className="flex items-center gap-1 text-amber-600 text-[10px]">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              <span>Loading Document...</span>
+            </div>
+          )}
+        </div>
 
+        {activeWorksheets.length > 0 ? (
           <div className="flex flex-col gap-2.5" data-testid="worksheets-list">
             {activeWorksheets.map((item) => (
               <div
@@ -228,8 +229,12 @@ export const MaterialsTab: React.FC<MaterialsTabProps> = ({
               </div>
             ))}
           </div>
-        </section>
-      )}
+        ) : (
+          <div className="p-4 text-center rounded-xl border border-dashed border-stone-200 bg-stone-50/50 text-stone-500 text-xs">
+            No documents uploaded yet. Choose a document above to upload and start annotating.
+          </div>
+        )}
+      </section>
 
       {/* Past Whiteboards History */}
       {isTeacher && pastClasses && pastClasses.length > 0 && (

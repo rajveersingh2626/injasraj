@@ -203,6 +203,18 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     initialSidePanelCollapsed
   );
 
+  // Uploaded Document Library State
+  const [uploadedDocuments, setUploadedDocuments] = useState<WorksheetMaterial[]>(
+    worksheets || []
+  );
+  const currentDocumentBufferRef = useRef<Uint8Array | null>(null);
+
+  useEffect(() => {
+    if (worksheets && worksheets.length > 0) {
+      setUploadedDocuments(worksheets);
+    }
+  }, [worksheets]);
+
   // Canvas Engine, Laser, & Realtime Delta Guards
   const isApplyingRemoteDeltaRef = useRef<boolean>(false);
   const engineRef = useRef<FabricWhiteboardEngine | null>(null);
@@ -1356,6 +1368,22 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       }
     }
 
+    // If newBg is an SVG placeholder and we have the raw PDF bytes, render on-demand
+    if (newBg && newBg.startsWith('data:image/svg+xml') && currentDocumentBufferRef.current) {
+      import('../../lib/whiteboard/pdf-renderer').then(({ renderPdfPageToDataUrl }) => {
+        if (currentDocumentBufferRef.current) {
+          renderPdfPageToDataUrl(currentDocumentBufferRef.current, targetPage).then((result) => {
+            if (doc.pages && doc.pages[targetPage - 1] === newBg) {
+              doc.pages[targetPage - 1] = result.dataUrl;
+              if (doc.currentPage === targetPage && engineRef.current) {
+                engineRef.current.setBackgroundImage(result.dataUrl).catch(() => {});
+              }
+            }
+          }).catch(() => {});
+        }
+      }).catch(() => {});
+    }
+
     setPages([...pageManagerRef.current.getAllPages()]);
     schedulePersist();
   };
@@ -1365,25 +1393,41 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     try {
       let backgroundUrl: string;
       let totalPdfPages = 1;
+      let docTitle =
+        typeof fileOrUrl === 'string'
+          ? 'Worksheet'
+          : fileOrUrl.name
+          ? fileOrUrl.name.replace(/\.[^/.]+$/, '')
+          : 'Lesson Document';
       const pdfPageDataUrls: string[] = [];
 
       if (typeof fileOrUrl === 'string') {
-        backgroundUrl = fileOrUrl;
-        pdfPageDataUrls.push(fileOrUrl);
+        const matched = uploadedDocuments.find((d) => d.url === fileOrUrl || d.id === fileOrUrl);
+        if (matched) {
+          docTitle = matched.title;
+          backgroundUrl = matched.url;
+          totalPdfPages = matched.pageCount || 1;
+          if (matched.pages && matched.pages.length > 0) {
+            pdfPageDataUrls.push(...matched.pages);
+          } else {
+            pdfPageDataUrls.push(matched.url);
+          }
+        } else {
+          backgroundUrl = fileOrUrl;
+          pdfPageDataUrls.push(fileOrUrl);
+        }
       } else {
+        try {
+          const arrayBuf = await fileOrUrl.arrayBuffer();
+          currentDocumentBufferRef.current = new Uint8Array(arrayBuf);
+        } catch {}
+
         const { convertDocumentToPageImages } = await import('../../lib/whiteboard/document-renderer');
         const doc = await convertDocumentToPageImages(fileOrUrl);
         totalPdfPages = doc.totalPages;
         backgroundUrl = doc.pages[0];
         pdfPageDataUrls.push(...doc.pages);
       }
-
-      const docTitle =
-        typeof fileOrUrl === 'string'
-          ? 'Worksheet'
-          : fileOrUrl.name
-          ? fileOrUrl.name.replace(/\.[^/.]+$/, '')
-          : 'Lesson Document';
 
       const activePage = pageManagerRef.current.getActivePage();
       const activeId = pageManagerRef.current.getActivePageId();
@@ -1407,6 +1451,26 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         backgroundUrl
       );
       pageManagerRef.current.renamePage(activeId, docTitle);
+
+      // Track in uploaded documents library
+      const newDocItem: WorksheetMaterial = {
+        id: `uploaded-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        title: docTitle,
+        url: backgroundUrl,
+        pageCount: totalPdfPages,
+        category: 'Uploaded',
+        description: `${totalPdfPages} page${totalPdfPages > 1 ? 's' : ''}`,
+        pages: pdfPageDataUrls,
+      };
+      setUploadedDocuments((prev) => {
+        const existing = prev.findIndex((d) => d.title === docTitle && d.pageCount === totalPdfPages);
+        if (existing >= 0) {
+          const next = [...prev];
+          next[existing] = newDocItem;
+          return next;
+        }
+        return [newDocItem, ...prev];
+      });
 
       // Image Approach: Stay on the current page tab, setting the PDF page as the active background image.
       // Sub-pages are navigated via the in-canvas PdfSubPageNavigator without creating multiple browser tabs.
@@ -1906,7 +1970,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           onDeletePage={handleDeletePage}
           onAddPage={handleAddPage}
           onLoadWorksheet={handleLoadWorksheet}
-          worksheets={worksheets}
+          worksheets={uploadedDocuments}
           pastClasses={pastClasses}
           onRestoreWhiteboard={handleRestoreWhiteboard}
           currentGrid={currentGrid}
