@@ -344,6 +344,15 @@ describe('Task 15: End-to-End Classroom Integration & Teaching Whiteboard', () =
         disconnect: vi.fn(),
       } as any;
 
+      const testWorksheets = [
+        {
+          id: 'test-worksheet-1',
+          title: 'Algebra 1 Practice',
+          url: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"></svg>',
+          category: 'Algebra',
+        },
+      ];
+
       render(
         <ClassroomWorkspace
           roomId="math-session"
@@ -352,6 +361,7 @@ describe('Task 15: End-to-End Classroom Integration & Teaching Whiteboard', () =
           whiteboardAdapter={mockWhiteboardAdapter}
           onLoadWorksheet={handleLoadWorksheet}
           initialSidePanelCollapsed={false}
+          worksheets={testWorksheets}
         />
       );
 
@@ -360,10 +370,10 @@ describe('Task 15: End-to-End Classroom Integration & Teaching Whiteboard', () =
       fireEvent.click(materialsTabBtn);
 
       expect(screen.getByTestId('materials-tab')).toBeInTheDocument();
-      expect(screen.getByText('Sample Worksheets (3)')).toBeInTheDocument();
+      expect(screen.getByText('Uploaded Documents (1)')).toBeInTheDocument();
 
-      // Click "Load into Whiteboard" for Algebra 1 worksheet
-      const loadBtn = screen.getByTestId('load-worksheet-algebra-quadratics');
+      // Click "Load into Whiteboard" for test worksheet
+      const loadBtn = screen.getByTestId('load-worksheet-test-worksheet-1');
       expect(loadBtn).toBeInTheDocument();
 
       await act(async () => {
@@ -372,7 +382,7 @@ describe('Task 15: End-to-End Classroom Integration & Teaching Whiteboard', () =
 
       // Verifies that onLoadWorksheet callback was invoked with worksheet URL
       expect(handleLoadWorksheet).toHaveBeenCalledWith(
-        DEFAULT_WORKSHEETS[0].url
+        testWorksheets[0].url
       );
 
       // Verifies that broadcastModify was dispatched to sync peers with the background URL
@@ -380,7 +390,7 @@ describe('Task 15: End-to-End Classroom Integration & Teaching Whiteboard', () =
         expect.any(String),
         '__page_background__',
         expect.objectContaining({
-          backgroundImageUrl: DEFAULT_WORKSHEETS[0].url,
+          backgroundImageUrl: testWorksheets[0].url,
         })
       );
     });

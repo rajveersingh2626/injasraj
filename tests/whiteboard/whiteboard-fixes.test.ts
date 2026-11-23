@@ -376,37 +376,8 @@ describe('Whiteboard & UI Bugfixes Verification Suite', () => {
   // 3. Document Loading & SVG Worksheet Backgrounds
   // ---------------------------------------------------------------------------
   describe('Requirement 3: Default SVG Worksheets & Background Loading', () => {
-    it('provides rich SVG data URLs for all 3 default worksheets (Algebra, Physics, Calculus)', () => {
-      expect(DEFAULT_WORKSHEETS.length).toBe(3);
-
-      const algebra = DEFAULT_WORKSHEETS.find((w) => w.id === 'algebra-quadratics');
-      const physics = DEFAULT_WORKSHEETS.find((w) => w.id === 'physics-kinematics');
-      const calculus = DEFAULT_WORKSHEETS.find((w) => w.id === 'calculus-derivatives');
-
-      expect(algebra).toBeDefined();
-      expect(physics).toBeDefined();
-      expect(calculus).toBeDefined();
-
-      // Verify SVG data URL structure
-      expect(algebra!.url).toMatch(/^data:image\/svg\+xml;utf8,/);
-      expect(physics!.url).toMatch(/^data:image\/svg\+xml;utf8,/);
-      expect(calculus!.url).toMatch(/^data:image\/svg\+xml;utf8,/);
-
-      // Verify SVG content inside data URLs
-      const decodedAlgebra = decodeURIComponent(algebra!.url);
-      expect(decodedAlgebra).toContain('Algebra 1: Quadratic Equations Practice');
-      expect(decodedAlgebra).toContain('Quadratic Formula');
-      expect(decodedAlgebra).toContain('COORDINATE GRAPH');
-      expect(decodedAlgebra).toContain('Exercise 1: Solve by Factoring');
-
-      const decodedPhysics = decodeURIComponent(physics!.url);
-      expect(decodedPhysics).toContain('Physics: Kinematics');
-      expect(decodedPhysics).toContain('VELOCITY-TIME (v-t) MOTION GRAPH');
-
-      const decodedCalculus = decodeURIComponent(calculus!.url);
-      expect(decodedCalculus).toContain('Calculus: Derivatives');
-      expect(decodedCalculus).toContain('FUNDAMENTAL DIFFERENTIATION RULES');
-      expect(decodedCalculus).toContain('TANGENT LINE');
+    it('has deleted all mock sample worksheets from default worksheets array per architectural reset', () => {
+      expect(DEFAULT_WORKSHEETS).toEqual([]);
     });
 
     it('loads SVG worksheet data URL into FabricWhiteboardEngine background', async () => {

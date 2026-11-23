@@ -381,6 +381,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   // Follow-Teacher Viewport Synchronization State
   const [isFollowTeacherEnabled, setIsFollowTeacherEnabled] = useState<boolean>(false);
   const [remoteViewport, setRemoteViewport] = useState<{ zoom: number; panX: number; panY: number } | undefined>(undefined);
+  const currentViewportRef = useRef<{ zoom: number; panX: number; panY: number }>({ zoom: 1, panX: 0, panY: 0 });
 
   // Whiteboard Pages & Navigation
   const defaultInitialPages = useMemo(
@@ -461,12 +462,12 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         currentPages,
         activeId,
         currentPerms,
-        { zoom, panX: panOffset.x, panY: panOffset.y }
+        currentViewportRef.current
       );
       persistenceManager.scheduleSave(sessionRecord);
       onSave?.(sessionRecord);
     },
-    [persistenceManager, permissions, roomId, onSave, zoom, panOffset]
+    [persistenceManager, permissions, roomId, onSave]
   );
 
   // Subscribe to real-time adapter deltas
@@ -674,15 +675,8 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
 
       // Restore zoom and pan viewport state if available
       if (deserialized.viewport) {
-        if (typeof deserialized.viewport.zoom === 'number') {
-          setZoom(deserialized.viewport.zoom);
-        }
-        if (
-          typeof deserialized.viewport.panX === 'number' &&
-          typeof deserialized.viewport.panY === 'number'
-        ) {
-          setPanOffset({ x: deserialized.viewport.panX, y: deserialized.viewport.panY });
-        }
+        currentViewportRef.current = deserialized.viewport;
+        setRemoteViewport(deserialized.viewport);
       }
 
       whiteboardAdapter?.broadcastCustomEvent?.('restore-whiteboard-session', {
@@ -799,6 +793,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   // Teacher Viewport Broadcast Handler
   const handleViewportChange = useCallback(
     (viewport: { zoom: number; panX: number; panY: number }) => {
+      currentViewportRef.current = viewport;
       if (
         role === 'teacher' &&
         whiteboardAdapter &&
