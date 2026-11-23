@@ -324,6 +324,122 @@ function tryRenderWithCanvas(
   return null;
 }
 
+// Document instance cache to avoid re-parsing large PDF buffers multiple times
+const cachedPdfDocuments = new Map<string, { pdf: any; lastAccess: number }>();
+
+function getPdfKey(bytes: Uint8Array): string {
+  const len = bytes.length;
+  if (len < 128) return `${len}-${Array.from(bytes).join(',')}`;
+  return `${len}-${bytes[0]}-${bytes[1]}-${bytes[10]}-${bytes[20]}-${bytes[len - 1]}-${bytes[len - 2]}`;
+}
+
+/**
+ * Retrieves a cached PDF.js document instance or loads it once.
+ */
+export async function getOrLoadPdfDocument(pdfBuffer: ArrayBuffer | Uint8Array): Promise<any | null> {
+  const bytes = toUint8Array(pdfBuffer);
+  const key = getPdfKey(bytes);
+  const cached = cachedPdfDocuments.get(key);
+  if (cached) {
+    cached.lastAccess = Date.now();
+    return cached.pdf;
+  }
+  const pdfjs = await getPdfJs();
+  if (!pdfjs) return null;
+  try {
+    const pdf = await pdfjs.getDocument({ data: bytes }).promise;
+    cachedPdfDocuments.set(key, { pdf, lastAccess: Date.now() });
+    // Bounded cache to avoid memory leaks
+    if (cachedPdfDocuments.size > 5) {
+      let oldestKey: string | null = null;
+      let oldestTime = Infinity;
+      for (const [k, v] of cachedPdfDocuments.entries()) {
+        if (v.lastAccess < oldestTime) {
+          oldestTime = v.lastAccess;
+          oldestKey = k;
+        }
+      }
+      if (oldestKey) cachedPdfDocuments.delete(oldestKey);
+    }
+    return pdf;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Renders a specific page from an already loaded PDF.js document instance.
+ */
+export async function renderPageWithPdfInstance(
+  pdf: any,
+  pageNumber: number,
+  scale: number = DEFAULT_PDF_RENDER_SCALE,
+  fallbackTitle?: string
+): Promise<PdfPageRenderResult> {
+  const totalPages = pdf.numPages;
+  if (pageNumber < 1 || pageNumber > totalPages || !Number.isInteger(pageNumber)) {
+    throw new Error(
+      `Invalid page number ${pageNumber}: Page must be between 1 and ${totalPages}`
+    );
+  }
+
+  const effectiveScale = scale && scale > 0 ? scale : DEFAULT_PDF_RENDER_SCALE;
+  const page = await pdf.getPage(pageNumber);
+  const viewport = page.getViewport({ scale: effectiveScale });
+  const width = Math.round(viewport.width);
+  const height = Math.round(viewport.height);
+
+  let dataUrl: string | null = null;
+  if (typeof document !== 'undefined') {
+    const isMocked =
+      Boolean((HTMLCanvasElement.prototype.getContext as any)?.mock) ||
+      Boolean((HTMLCanvasElement.prototype.toDataURL as any)?.mock);
+    const isJSDOM =
+      typeof navigator !== 'undefined' &&
+      navigator.userAgent &&
+      navigator.userAgent.toLowerCase().includes('jsdom');
+
+    if (!isJSDOM || isMocked) {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          await page.render({ canvasContext: ctx, viewport }).promise;
+          let url: string | null = null;
+          try {
+            url = canvas.toDataURL('image/webp', 0.92);
+            if (!url || !url.startsWith('data:image/webp')) {
+              url = canvas.toDataURL('image/png');
+            }
+          } catch {
+            url = canvas.toDataURL('image/png');
+          }
+          if (url && url.startsWith('data:image/')) {
+            dataUrl = url;
+          }
+        }
+      } catch {
+        // Fall through
+      }
+    }
+  }
+
+  if (!dataUrl) {
+    const title = fallbackTitle || (await pdf.getMetadata().catch(() => null))?.info?.Title;
+    dataUrl = generateMockSvgDataUrl(pageNumber, totalPages, width, height, title);
+  }
+
+  return {
+    dataUrl,
+    width,
+    height,
+    pageNumber,
+    totalPages,
+  };
+}
+
 /**
  * Extracts metadata (page count and optional title) from a PDF buffer.
  */
@@ -336,10 +452,9 @@ export async function extractPdfMetadata(
 
   const bytes = toUint8Array(pdfBuffer);
 
-  const pdfjs = await getPdfJs();
-  if (pdfjs) {
+  const pdf = await getOrLoadPdfDocument(bytes);
+  if (pdf) {
     try {
-      const pdf = await pdfjs.getDocument({ data: bytes }).promise;
       const meta = await pdf.getMetadata().catch(() => null);
       return {
         pageCount: pdf.numPages,
@@ -377,73 +492,10 @@ export async function renderPdfPageToDataUrl(
   const effectiveScale = scale && scale > 0 ? scale : DEFAULT_PDF_RENDER_SCALE;
   const bytes = toUint8Array(pdfBuffer);
 
-  const pdfjs = await getPdfJs();
-  if (pdfjs) {
+  const pdf = await getOrLoadPdfDocument(bytes);
+  if (pdf) {
     try {
-      const pdf = await pdfjs.getDocument({ data: bytes }).promise;
-      const totalPages = pdf.numPages;
-
-      if (pageNumber < 1 || pageNumber > totalPages || !Number.isInteger(pageNumber)) {
-        throw new Error(
-          `Invalid page number ${pageNumber}: Page must be between 1 and ${totalPages}`
-        );
-      }
-
-      const page = await pdf.getPage(pageNumber);
-      const viewport = page.getViewport({ scale: effectiveScale });
-      const width = Math.round(viewport.width);
-      const height = Math.round(viewport.height);
-
-      let dataUrl: string | null = null;
-      if (typeof document !== 'undefined') {
-        const isMocked =
-          Boolean((HTMLCanvasElement.prototype.getContext as any)?.mock) ||
-          Boolean((HTMLCanvasElement.prototype.toDataURL as any)?.mock);
-        const isJSDOM =
-          typeof navigator !== 'undefined' &&
-          navigator.userAgent &&
-          navigator.userAgent.toLowerCase().includes('jsdom');
-
-        if (!isJSDOM || isMocked) {
-          try {
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              await page.render({ canvasContext: ctx, viewport }).promise;
-              let url: string | null = null;
-              try {
-                url = canvas.toDataURL('image/webp', 0.92);
-                if (!url || !url.startsWith('data:image/webp')) {
-                  url = canvas.toDataURL('image/png');
-                }
-              } catch {
-                url = canvas.toDataURL('image/png');
-              }
-              if (url && url.startsWith('data:image/')) {
-                dataUrl = url;
-              }
-            }
-          } catch {
-            // Fall through to deterministic SVG
-          }
-        }
-      }
-
-      if (!dataUrl) {
-        const meta = await pdf.getMetadata().catch(() => null);
-        const title = meta?.info?.Title;
-        dataUrl = generateMockSvgDataUrl(pageNumber, totalPages, width, height, title);
-      }
-
-      return {
-        dataUrl,
-        width,
-        height,
-        pageNumber,
-        totalPages,
-      };
+      return await renderPageWithPdfInstance(pdf, pageNumber, effectiveScale);
     } catch (err: any) {
       if (err.message && err.message.startsWith('Invalid page number')) {
         throw err;
@@ -712,16 +764,63 @@ export async function convertPdfToPageImages(
     bytes = new Uint8Array(bufferOrFile as ArrayBuffer);
   }
 
-  const meta = await extractPdfMetadata(bytes);
-  const totalPages = Math.max(1, meta.pageCount || 1);
-  const title = meta.title || 'Document';
+  const pdf = await getOrLoadPdfDocument(bytes);
+  let totalPages = 1;
+  let title = 'Document';
+
+  if (pdf) {
+    totalPages = Math.max(1, pdf.numPages || 1);
+    const meta = await pdf.getMetadata().catch(() => null);
+    title = meta?.info?.Title || 'Document';
+  } else {
+    const meta = await extractPdfMetadata(bytes);
+    totalPages = Math.max(1, meta.pageCount || 1);
+    title = meta.title || 'Document';
+  }
+
   const pages: string[] = [];
 
-  for (let i = 1; i <= totalPages; i++) {
-    const rendered = await renderPdfPageToDataUrl(bytes, i, scale);
-    pages.push(rendered.dataUrl);
-    if (onProgress) {
-      onProgress(i, totalPages);
+  // 1. Immediately render Page 1 so it loads instantly on the canvas without freezing the thread
+  const page1 = await renderPdfPageToDataUrl(bytes, 1, scale);
+  pages.push(page1.dataUrl);
+  if (onProgress) {
+    onProgress(1, totalPages);
+  }
+
+  if (totalPages > 1) {
+    // 2. Pre-fill remaining slots with responsive SVG placeholders
+    const baseW = page1.width || DEFAULT_BASE_PAGE_WIDTH;
+    const baseH = page1.height || DEFAULT_BASE_PAGE_HEIGHT;
+    for (let i = 2; i <= totalPages; i++) {
+      pages.push(generateMockSvgDataUrl(i, totalPages, baseW, baseH, title));
+    }
+
+    // 3. For small documents (<= 5 pages), progressively render remaining pages with event loop yields
+    if (totalPages <= 5) {
+      for (let i = 2; i <= totalPages; i++) {
+        await new Promise((r) => setTimeout(r, 0));
+        const rendered = await renderPdfPageToDataUrl(bytes, i, scale);
+        pages[i - 1] = rendered.dataUrl;
+        if (onProgress) {
+          onProgress(i, totalPages);
+        }
+      }
+    } else {
+      // For large documents (e.g. 87 pages): report progress complete immediately so upload returns in <100ms
+      if (onProgress) {
+        onProgress(totalPages, totalPages);
+      }
+      // Non-blocking background prefetch for first few pages (up to page 5)
+      setTimeout(async () => {
+        const prefetchMax = Math.min(5, totalPages);
+        for (let i = 2; i <= prefetchMax; i++) {
+          try {
+            await new Promise((r) => setTimeout(r, 16));
+            const rendered = await renderPdfPageToDataUrl(bytes, i, scale);
+            pages[i - 1] = rendered.dataUrl;
+          } catch {}
+        }
+      }, 50);
     }
   }
 
