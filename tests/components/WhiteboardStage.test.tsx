@@ -333,4 +333,12 @@ describe('WhiteboardStage Component (LearnCube Portrait Document Stage & Floatin
     expect(stage.className).toContain('safe-area-inset-top');
     expect(stage.className).toContain('safe-area-inset-bottom');
   });
+
+  it('defaults active tool to select/cursor tool on load to prevent accidental stray marks', () => {
+    render(<WhiteboardStage />);
+    const selectBtn = screen.getByTestId('tool-select');
+    expect(selectBtn.getAttribute('data-active')).toBe('true');
+    const penBtn = screen.getByTestId('tool-pen');
+    expect(penBtn.getAttribute('data-active')).toBe('false');
+  });
 });

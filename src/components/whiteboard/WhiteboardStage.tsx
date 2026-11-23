@@ -163,9 +163,9 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
     propLaserEngine || new LaserTrailEngine(1200)
   );
 
-  // Tool state (controlled vs uncontrolled)
+  // Tool state (controlled vs uncontrolled; defaults to 'select' cursor)
   const isControlledTool = controlledTool !== undefined;
-  const [internalTool, setInternalTool] = useState<WhiteboardToolType>(controlledTool || 'pen');
+  const [internalTool, setInternalTool] = useState<WhiteboardToolType>(controlledTool || 'select');
   const activeTool = isControlledTool ? controlledTool : internalTool;
 
   // Stroke properties state (controlled vs uncontrolled)

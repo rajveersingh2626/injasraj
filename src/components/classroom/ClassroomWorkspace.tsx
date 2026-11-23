@@ -228,7 +228,8 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
 
   // Background Canvas Grid Pattern State
   const [currentGrid, setCurrentGrid] = useState<GridPatternType>('blank');
-  const [activeTool, setActiveTool] = useState<WhiteboardToolType>('pen');
+  // Default active tool: Cursor / Select (prevents accidental stray marks on load)
+  const [activeTool, setActiveTool] = useState<WhiteboardToolType>('select');
 
   // Classroom Timer HUD State
   const [isTimerOpen, setIsTimerOpen] = useState<boolean>(false);
