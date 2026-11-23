@@ -199,7 +199,7 @@ export const StudioSidePanel: React.FC<StudioSidePanelProps> = ({
             ? 'none'
             : '-8px 0 32px -4px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
         }}
-        className={`fixed top-14 right-0 z-30 h-[calc(100dvh-3.5rem)] w-[320px] max-w-full flex flex-col bg-[#181614]/98 backdrop-blur-[24px] border-l border-stone-800 text-stone-100 shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] ${
+        className={`fixed top-14 right-0 z-30 h-[calc(100dvh-3.5rem)] w-[320px] max-w-full flex flex-col bg-[#141210] border-l border-stone-800 text-stone-100 shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] ${
           effectiveCollapsed
             ? 'translate-x-full pointer-events-none'
             : 'translate-x-0'
@@ -249,7 +249,7 @@ export const StudioSidePanel: React.FC<StudioSidePanelProps> = ({
                 className={`flex flex-col items-center justify-center gap-1 py-1.5 px-1 rounded-xl text-[11px] font-medium transition-all duration-150 cursor-pointer active:scale-95 ${
                   isActive
                     ? 'bg-stone-800 text-amber-400 border border-stone-700/80 shadow-sm font-semibold'
-                    : 'text-stone-400 hover:text-stone-200 hover:bg-stone-900/50 border border-transparent'
+                    : 'text-stone-300 hover:text-stone-100 hover:bg-stone-900 border border-transparent'
                 }`}
               >
                 {tab.icon}

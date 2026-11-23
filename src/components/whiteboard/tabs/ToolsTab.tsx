@@ -103,10 +103,10 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
                 aria-pressed={isActive}
                 aria-label={`Select ${opt.label} grid`}
                 onClick={() => onChangeGrid?.(opt.type)}
-                className={`flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-xl border text-xs font-medium cursor-pointer transition-all duration-150 active:scale-95 ${
+                className={`flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-xl border text-xs font-semibold cursor-pointer transition-all duration-150 active:scale-95 ${
                   isActive
                     ? 'bg-amber-600/30 border-amber-400 text-amber-200 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
-                    : 'bg-stone-900/80 border-stone-800 text-stone-300 hover:bg-stone-800 hover:text-stone-100'
+                    : 'bg-stone-900 border-stone-700/80 text-stone-100 hover:bg-stone-800 hover:text-white'
                 }`}
               >
                 {opt.icon}
@@ -123,7 +123,7 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
         aria-label="Multi-Page Manager"
         className="flex flex-col gap-2.5 pb-4 border-b border-stone-800"
       >
-        <div className="flex items-center justify-between text-xs font-semibold tracking-wider uppercase text-stone-400">
+        <div className="flex items-center justify-between text-xs font-semibold tracking-wider uppercase text-stone-300">
           <div className="flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5" />
             <span>Pages ({activePages.length})</span>
