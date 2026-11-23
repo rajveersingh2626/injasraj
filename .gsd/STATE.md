@@ -1,19 +1,18 @@
-# GSD State: Classroom & Whiteboard Perfection Suite
+# GSD State: Whiteboard, PDF, INP, LiveKit & Studio Overhaul
 
 ## Current Lifecycle Phase
-**Phase 5: Ship (Complete & Verified)**
+**Phase 5: Ship & Handover Complete**
 
-## Active Task
-- None. All tasks completed and verified with 100% test passing (64 test suites, 687 tests).
+## Completed Slices & Atomic Commits
+1. `06fd02f` - `fix(whiteboard): make viewport an infinite seamless white canvas`
+2. `977767c` - `fix(toolbar): resolve color picker popover clipping by setting overflow-visible`
+3. `500ac16` - `fix(pdf): resolve worker version mismatch and serve local worker for high-dpi rendering`
+4. `b720cbd` - `refactor(whiteboard): modularize fabric engine into geometry and shape renderers`
+5. `5da7f80` - `perf(whiteboard): optimize pointer move handlers with RAF coalescing to eliminate INP lag`
+6. `df9cece` - `fix(livekit): resolve session connection, server URL routing, and track subscription`
+7. `9eca2b6` - `style(studio-panel): eliminate glassmorphism contrast failure with solid surface and high-contrast typography`
 
-## Completed Tasks
-- Task 1: Whiteboard Canvas Pan/Zoom Engine & Touchpad Gestures (infinite dot-grid canvas, pan offset tracking, touchpad pinch-to-zoom, two-finger scroll panning, Shift/Space/Middle-click drag panning, Grab tool pan mode, tab canvas state isolation).
-- Task 2: PDF to WebP Converter & Worker Fix (unpkg worker configuration, WebP rendering with PNG fallback).
-- Task 3: Studio Panel Theme, Contrast Fix & Worksheets (warm stone palette `#181614` with stone/amber high contrast, delete button for sample worksheets, `/ask AI` slash command with educational assistance).
-- Task 4: Video Controls On/Under Video & Student Mic/Cam Control (direct mic/cam toggles under video cards, teacher remote controls to mute student mic and toggle student camera via signaling).
-- Task 5: Targeted Star Rewards & Video Star Badge (teacher assigns recipient student, celebration explosion restricted to recipient only, persistent golden star count badge on video card visible to all room participants).
-- Task 6: Header Navigation, Teacher Name Editing, Invite Link & Participant Count (Home button, inline editable teacher display name, Copy Student Invite Link with 2.5s feedback, accurate participant counter minimum 1).
-- Task 7: Full Verification Gate (all 64 test suites and 687 tests passing with zero regressions).
-
-## Known Blockers / Assumptions
-- None.
+## Verification Status
+- Architecture assessment completed and answered.
+- 100% test pass rate across all Vitest suites.
+- Production build passing.

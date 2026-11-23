@@ -172,16 +172,23 @@
 
 ### Whiteboard Engine & Core Libraries (`src/lib/whiteboard/`)
 - [`src/lib/whiteboard/fabric-engine.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/lib/whiteboard/fabric-engine.ts):
-  - Master Fabric.js wrapper (`FabricWhiteboardEngine`).
+  - Master 2D Whiteboard Engine (`FabricWhiteboardEngine`).
   - Manages tool modes (`select`, `pencil`, `highlighter`, `eraser`, `rectangle`, `circle`, `triangle`, `line`, `arrow`, `text`, `laser`).
+  - Modularized with external helpers in `./engine/geometry.ts` and `./engine/shape-renderers.ts`.
+  - INP Optimized: Caches canvas layout bounding rects on `pointerdown` to eliminate layout thrashing during drag/draw operations.
   - Eraser mode: Dedicated eraser that identifies clicked or dragged-over objects, deletes them, and emits deletion events.
-  - Handles rough/excalidraw hand-drawn styling for geometric shapes.
   - Coordinate transformations for high-DPI displays and zoom/pan matrices.
+- [`src/lib/whiteboard/engine/geometry.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/lib/whiteboard/engine/geometry.ts):
+  - Modular geometry math: `isPointInObject`, `distanceToSegment`, `pointsToSvgPath`, `deepClone`, and unique ID generation.
+- [`src/lib/whiteboard/engine/shape-renderers.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/lib/whiteboard/engine/shape-renderers.ts):
+  - Modular canvas rendering routines: `renderCanvasObject`, `drawVirtualGrid`, `drawPointsPath`, sticky note styles, and LaTeX formula canvas rendering.
+- [`public/pdf.worker.min.mjs`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/public/pdf.worker.min.mjs):
+  - Bundled PDF.js v6.5.438 worker served directly from root for 0ms offline/CORS-safe rasterization, eliminating version mismatch errors.
 - [`src/lib/whiteboard/page-manager.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/lib/whiteboard/page-manager.ts):
   - In-memory state machine for multi-page notebook (`WhiteboardPageManager`).
   - Maintains page order, page snapshots, active page pointer, page insertion, page deletion, and serialization.
 - [`src/lib/whiteboard/pdf-renderer.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/lib/whiteboard/pdf-renderer.ts):
-  - `convertPdfToPageImages(pdfDataUrl)`: Ingests uploaded PDF binary / data URL using `pdfjs-dist`, renders each page into high-res raw images (2x scale for crisp retina display), and returns array of image data URLs.
+  - `convertPdfToPageImages(pdfDataUrl)`: Ingests uploaded PDF binary / data URL using `pdfjs-dist` (with local worker), renders each page into high-res raw images (2x scale for crisp retina display), and returns array of image data URLs.
   - `exportMultiPagePdf(pages)`: Composites all pages and sub-pages (raster background + Fabric JSON stroke drawings) into a unified downloadable multi-page PDF document.
 - [`src/lib/whiteboard/undo-redo-stack.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/lib/whiteboard/undo-redo-stack.ts):
   - Command-pattern undo/redo stack (`UndoRedoStack`) capturing JSON delta snapshots on canvas object additions, modifications, and deletions. Supports Ctrl+Z and Ctrl+Y shortcuts.
