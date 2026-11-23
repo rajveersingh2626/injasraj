@@ -76,10 +76,14 @@ function toUint8Array(buffer: ArrayBuffer | Uint8Array): Uint8Array {
  * or if installed in the node/bundler environment.
  */
 async function getPdfJs(): Promise<any | null> {
+  const defaultVersion = '6.5.438';
   if (typeof window !== 'undefined' && (window as any).pdfjsLib) {
     const lib = (window as any).pdfjsLib;
     if (lib.GlobalWorkerOptions && !lib.GlobalWorkerOptions.workerSrc) {
-      lib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${lib.version || '4.0.379'}/build/pdf.worker.min.mjs`;
+      lib.GlobalWorkerOptions.workerSrc =
+        typeof window !== 'undefined' && window.location?.origin
+          ? `${window.location.origin}/pdf.worker.min.mjs`
+          : `https://unpkg.com/pdfjs-dist@${lib.version || defaultVersion}/build/pdf.worker.min.mjs`;
     }
     return lib;
   }
@@ -89,7 +93,10 @@ async function getPdfJs(): Promise<any | null> {
     const pdfjs = await (Function('m', 'return import(m)')(pkg) as Promise<any>);
     const resolved = pdfjs.default || pdfjs;
     if (typeof window !== 'undefined' && resolved?.GlobalWorkerOptions && !resolved.GlobalWorkerOptions.workerSrc) {
-      resolved.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${resolved.version || '4.0.379'}/build/pdf.worker.min.mjs`;
+      resolved.GlobalWorkerOptions.workerSrc =
+        typeof window !== 'undefined' && window.location?.origin
+          ? `${window.location.origin}/pdf.worker.min.mjs`
+          : `https://unpkg.com/pdfjs-dist@${resolved.version || defaultVersion}/build/pdf.worker.min.mjs`;
     }
     return resolved;
   } catch {
