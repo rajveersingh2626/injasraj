@@ -325,7 +325,11 @@ function tryRenderWithCanvas(
 }
 
 // Document instance cache to avoid re-parsing large PDF buffers multiple times
-const cachedPdfDocuments = new Map<string, { pdf: any; lastAccess: number }>();
+const cachedPdfDocuments = new Map<string, { pdf: any; pdfjsLib: any; lastAccess: number }>();
+
+export function clearPdfDocumentCache(): void {
+  cachedPdfDocuments.clear();
+}
 
 function getPdfKey(bytes: Uint8Array): string {
   const len = bytes.length;
@@ -339,8 +343,9 @@ function getPdfKey(bytes: Uint8Array): string {
 export async function getOrLoadPdfDocument(pdfBuffer: ArrayBuffer | Uint8Array): Promise<any | null> {
   const bytes = toUint8Array(pdfBuffer);
   const key = getPdfKey(bytes);
+  const currentLib = typeof window !== 'undefined' ? (window as any).pdfjsLib : null;
   const cached = cachedPdfDocuments.get(key);
-  if (cached) {
+  if (cached && cached.pdfjsLib === currentLib) {
     cached.lastAccess = Date.now();
     return cached.pdf;
   }
@@ -348,7 +353,7 @@ export async function getOrLoadPdfDocument(pdfBuffer: ArrayBuffer | Uint8Array):
   if (!pdfjs) return null;
   try {
     const pdf = await pdfjs.getDocument({ data: bytes }).promise;
-    cachedPdfDocuments.set(key, { pdf, lastAccess: Date.now() });
+    cachedPdfDocuments.set(key, { pdf, pdfjsLib: currentLib, lastAccess: Date.now() });
     // Bounded cache to avoid memory leaks
     if (cachedPdfDocuments.size > 5) {
       let oldestKey: string | null = null;
@@ -795,33 +800,20 @@ export async function convertPdfToPageImages(
       pages.push(generateMockSvgDataUrl(i, totalPages, baseW, baseH, title));
     }
 
-    // 3. For small documents (<= 5 pages), progressively render remaining pages with event loop yields
-    if (totalPages <= 5) {
-      for (let i = 2; i <= totalPages; i++) {
-        await new Promise((r) => setTimeout(r, 0));
-        const rendered = await renderPdfPageToDataUrl(bytes, i, scale);
-        pages[i - 1] = rendered.dataUrl;
-        if (onProgress) {
-          onProgress(i, totalPages);
-        }
-      }
-    } else {
-      // For large documents (e.g. 87 pages): report progress complete immediately so upload returns in <100ms
-      if (onProgress) {
-        onProgress(totalPages, totalPages);
-      }
-      // Non-blocking background prefetch for first few pages (up to page 5)
-      setTimeout(async () => {
-        const prefetchMax = Math.min(5, totalPages);
-        for (let i = 2; i <= prefetchMax; i++) {
-          try {
-            await new Promise((r) => setTimeout(r, 16));
-            const rendered = await renderPdfPageToDataUrl(bytes, i, scale);
-            pages[i - 1] = rendered.dataUrl;
-          } catch {}
-        }
-      }, 50);
+    // 3. Report completion and trigger non-blocking background prefetch for subsequent pages
+    if (onProgress) {
+      onProgress(totalPages, totalPages);
     }
+    setTimeout(async () => {
+      const prefetchMax = Math.min(5, totalPages);
+      for (let i = 2; i <= prefetchMax; i++) {
+        try {
+          await new Promise((r) => setTimeout(r, 16));
+          const rendered = await renderPdfPageToDataUrl(bytes, i, scale);
+          pages[i - 1] = rendered.dataUrl;
+        } catch {}
+      }
+    }, 50);
   }
 
   return {

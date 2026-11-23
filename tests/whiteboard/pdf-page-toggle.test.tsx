@@ -120,6 +120,7 @@ describe('PDF Multi-Page Ingestion, Page Toggling, and Tool Fixes Suite', () => 
         role="teacher"
         userId="teacher-1"
         userName="Teacher Inja"
+        initialSidePanelCollapsed={false}
       />
     );
 

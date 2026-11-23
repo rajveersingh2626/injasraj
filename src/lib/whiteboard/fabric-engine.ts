@@ -292,16 +292,19 @@ export class FabricWhiteboardEngine {
 
     if (this.fabricCanvas && typeof this.fabricCanvas.setBackgroundImage === 'function') {
       try {
-        await new Promise<void>((resolve) => {
-          this.fabricCanvas.setBackgroundImage(
-            dataUrl,
-            () => {
-              if (this.fabricCanvas.renderAll) this.fabricCanvas.renderAll();
-              resolve();
-            },
-            { selectable: false, evented: false }
-          );
-        });
+        await Promise.race([
+          new Promise<void>((resolve) => {
+            this.fabricCanvas.setBackgroundImage(
+              dataUrl,
+              () => {
+                if (this.fabricCanvas.renderAll) this.fabricCanvas.renderAll();
+                resolve();
+              },
+              { selectable: false, evented: false }
+            );
+          }),
+          new Promise<void>((resolve) => setTimeout(resolve, 300)),
+        ]);
         return;
       } catch {
         // Fallback for headless environments
