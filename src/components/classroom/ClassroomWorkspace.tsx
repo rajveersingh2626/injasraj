@@ -230,6 +230,8 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   const [currentGrid, setCurrentGrid] = useState<GridPatternType>('blank');
   // Default active tool: Cursor / Select (prevents accidental stray marks on load)
   const [activeTool, setActiveTool] = useState<WhiteboardToolType>('select');
+  // Document conversion progress state
+  const [isConvertingDocument, setIsConvertingDocument] = useState<boolean>(false);
 
   // Classroom Timer HUD State
   const [isTimerOpen, setIsTimerOpen] = useState<boolean>(false);
@@ -514,9 +516,18 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
               pageManagerRef.current.updatePageBackground(
                 activeId,
                 delta.properties.backgroundPdfUrl,
-                1,
+                delta.properties.subPage || 1,
                 delta.properties.backgroundImageUrl
               );
+              if (delta.properties.pdfDocument) {
+                pageManagerRef.current.setPagePdfDocument(activeId, delta.properties.pdfDocument);
+              } else if (delta.properties.subPage) {
+                const curDoc = pageManagerRef.current.getActivePage()?.pdfDocument;
+                if (curDoc) {
+                  curDoc.currentPage = delta.properties.subPage;
+                  pageManagerRef.current.setPagePdfDocument(activeId, curDoc);
+                }
+              }
               setPages(pageManagerRef.current.getAllPages());
             } else {
               engineRef.current.modifyObject(delta.objectId, delta.properties);
@@ -1274,6 +1285,12 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   const handleRenamePage = (pageId: string, newTitle: string) => {
     pageManagerRef.current.renamePage(pageId, newTitle);
     setPages([...pageManagerRef.current.getAllPages()]);
+    whiteboardAdapter
+      ?.broadcastModify(activePage.id, '__page_background__', {
+        backgroundImageUrl: newBg,
+        subPage: targetPage,
+      })
+      .catch(() => {});
     schedulePersist();
     propOnPagesChange?.(pageManagerRef.current.getAllPages());
   };
@@ -1388,11 +1405,18 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     }
 
     setPages([...pageManagerRef.current.getAllPages()]);
+    whiteboardAdapter
+      ?.broadcastModify(activePage.id, '__page_background__', {
+        backgroundImageUrl: newBg,
+        subPage: targetPage,
+      })
+      .catch(() => {});
     schedulePersist();
   };
 
   // Document Material Loader (PDF, DOCX, DOC, Images)
   const handleLoadWorksheet = async (fileOrUrl: File | string) => {
+    setIsConvertingDocument(true);
     try {
       let backgroundUrl: string;
       let totalPdfPages = 1;
@@ -1487,6 +1511,16 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         ?.broadcastModify(activeId, '__page_background__', {
           backgroundPdfUrl: typeof fileOrUrl === 'string' ? fileOrUrl : undefined,
           backgroundImageUrl: backgroundUrl,
+          pdfDocument:
+            totalPdfPages > 1
+              ? {
+                  title: docTitle,
+                  pages: pdfPageDataUrls,
+                  currentPage: 1,
+                  totalPages: totalPdfPages,
+                  pageStrokes: {},
+                }
+              : undefined,
         })
         .catch(() => {});
 
@@ -1494,6 +1528,8 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       propOnLoadWorksheet?.(fileOrUrl);
     } catch (err) {
       console.warn('Error loading worksheet:', err);
+    } finally {
+      setIsConvertingDocument(false);
     }
   };
 
@@ -1913,6 +1949,16 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           data-testid="workspace-canvas-container"
           className="relative flex-1 w-full h-full min-w-0 min-h-0 overflow-hidden flex flex-col"
         >
+          {/* Non-blocking Document Processing Progress HUD */}
+          {isConvertingDocument && (
+            <div
+              data-testid="document-loading-indicator"
+              className="absolute top-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2.5 px-4 py-2 rounded-full bg-zinc-900/90 text-white text-xs font-medium shadow-xl backdrop-blur-md border border-zinc-700/60 animate-in fade-in select-none"
+            >
+              <div className="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+              <span>Loading Document...</span>
+            </div>
+          )}
           {role === 'student' && sessionStatus === 'waiting' && (
             <div
               data-testid="student-waiting-room"

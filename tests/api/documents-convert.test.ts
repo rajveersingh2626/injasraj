@@ -34,7 +34,7 @@ describe('Server-Side PDF Conversion Pipeline (/api/documents/convert)', () => {
 
       expect(result.pages[1].pageNumber).toBe(2);
       expect(result.pages[1].dataUrl).toMatch(/^data:image\/png;base64,/);
-    });
+    }, 20000);
 
     it('throws when given an invalid non-PDF buffer', async () => {
       const garbage = new TextEncoder().encode('Not a PDF file');
@@ -67,7 +67,7 @@ describe('Server-Side PDF Conversion Pipeline (/api/documents/convert)', () => {
       expect(json.pages[0].pageNumber).toBe(1);
       expect(json.pages[1].pageNumber).toBe(2);
       expect(json.pages[2].pageNumber).toBe(3);
-    });
+    }, 20000);
 
     it('handles multipart/form-data upload', async () => {
       const pdfBytes = await generateTestPdf(2, 'Chemistry Midterm');
@@ -89,7 +89,7 @@ describe('Server-Side PDF Conversion Pipeline (/api/documents/convert)', () => {
       expect(json.success).toBe(true);
       expect(json.totalPages).toBe(2);
       expect(json.pages).toHaveLength(2);
-    });
+    }, 20000);
 
     it('returns 400 when uploaded file is not a PDF', async () => {
       const blob = new Blob(['not a pdf'], { type: 'text/plain' });

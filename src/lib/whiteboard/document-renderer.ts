@@ -224,7 +224,53 @@ export async function convertDocumentToPageImages(
     }
   }
 
-  // 3. Import and delegate to PDF renderer
+  // 3. Server-side conversion pipeline (offloads PDF rendering from client browser to prevent UI hangs)
+  if (typeof window !== 'undefined' && typeof fetch === 'function') {
+    try {
+      let response: Response;
+      if (typeof File !== 'undefined' && bufferOrFile instanceof File) {
+        const formData = new FormData();
+        formData.append('file', bufferOrFile);
+        formData.append('scale', String(scale));
+        response = await fetch('/api/documents/convert', {
+          method: 'POST',
+          body: formData,
+        });
+      } else {
+        const bytes = bufferOrFile instanceof Uint8Array ? bufferOrFile : new Uint8Array(bufferOrFile);
+        let binary = '';
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const base64 = btoa(binary);
+        response = await fetch('/api/documents/convert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileData: `data:application/pdf;base64,${base64}`,
+            scale,
+          }),
+        });
+      }
+
+      if (response && response.ok) {
+        const data = await response.json();
+        if (data.success && Array.isArray(data.pages) && data.pages.length > 0) {
+          onProgress?.(data.totalPages, data.totalPages);
+          return {
+            title: data.title || 'Document',
+            totalPages: data.totalPages,
+            pages: data.pages.map((p: any) => p.dataUrl),
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('Server-side PDF conversion failed or unreachable, falling back to local renderer:', err);
+    }
+  }
+
+  // 4. Import and delegate to local PDF renderer fallback
   const { convertPdfToPageImages } = await import('./pdf-renderer');
   const result = await convertPdfToPageImages(bufferOrFile as any, scale, onProgress);
   return {
