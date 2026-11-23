@@ -151,14 +151,37 @@ export function parsePdfBytesInfo(bytes: Uint8Array): ParsedPdfInfo {
     if (hexTitleMatch && hexTitleMatch[1]) {
       const hex = hexTitleMatch[1];
       try {
-        let decoded = '';
-        for (let i = 0; i < hex.length; i += 2) {
-          decoded += String.fromCharCode(parseInt(hex.slice(i, i + 2), 16));
+        if (hex.toLowerCase().startsWith('feff')) {
+          // UTF-16 BE encoded title (starts with byte order mark 0xFEFF)
+          let decoded = '';
+          for (let i = 4; i < hex.length; i += 4) {
+            const code = parseInt(hex.slice(i, i + 4), 16);
+            if (!isNaN(code) && code >= 32) {
+              decoded += String.fromCharCode(code);
+            }
+          }
+          title = decoded.trim();
+        } else {
+          let decoded = '';
+          for (let i = 0; i < hex.length; i += 2) {
+            const code = parseInt(hex.slice(i, i + 2), 16);
+            if (!isNaN(code) && code >= 32 && code < 127) {
+              decoded += String.fromCharCode(code);
+            }
+          }
+          title = decoded.trim();
         }
-        title = decoded.trim();
       } catch {
         // ignore hex decode errors
       }
+    }
+  }
+
+  // Sanitize title to eliminate any leftover Unicode BOM or Latin-1 mojibake (e.g. þÿ)
+  if (title) {
+    title = title.replace(/^[þÿ\uFEFF\u00FE\u00FF\s]+/, '').trim();
+    if (!title || /^[^\w\s]+$/.test(title)) {
+      title = undefined;
     }
   }
 

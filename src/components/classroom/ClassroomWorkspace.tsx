@@ -1263,7 +1263,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     schedulePersist();
   };
 
-  // Worksheet Material Loader
+  // Document Material Loader (PDF, DOCX, DOC, Images)
   const handleLoadWorksheet = async (fileOrUrl: File | string) => {
     try {
       let backgroundUrl: string;
@@ -1274,37 +1274,11 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         backgroundUrl = fileOrUrl;
         pdfPageDataUrls.push(fileOrUrl);
       } else {
-        if (fileOrUrl.type === 'application/pdf' || fileOrUrl.name?.endsWith('.pdf')) {
-          const doc = await convertPdfToPageImages(fileOrUrl);
-          totalPdfPages = doc.totalPages;
-          backgroundUrl = doc.pages[0];
-          pdfPageDataUrls.push(...doc.pages);
-        } else if (
-          fileOrUrl.type?.startsWith('image/') ||
-          /\.(png|jpe?g|webp|svg)$/i.test(fileOrUrl.name || '')
-        ) {
-          backgroundUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = (e) => reject(e);
-            reader.readAsDataURL(fileOrUrl);
-          });
-          pdfPageDataUrls.push(backgroundUrl);
-        } else {
-          backgroundUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = () => {
-              try {
-                resolve(URL.createObjectURL(fileOrUrl));
-              } catch (e) {
-                reject(e);
-              }
-            };
-            reader.readAsDataURL(fileOrUrl);
-          });
-          pdfPageDataUrls.push(backgroundUrl);
-        }
+        const { convertDocumentToPageImages } = await import('../../lib/whiteboard/document-renderer');
+        const doc = await convertDocumentToPageImages(fileOrUrl);
+        totalPdfPages = doc.totalPages;
+        backgroundUrl = doc.pages[0];
+        pdfPageDataUrls.push(...doc.pages);
       }
 
       const docTitle =
