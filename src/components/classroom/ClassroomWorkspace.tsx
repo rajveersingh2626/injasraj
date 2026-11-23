@@ -1285,12 +1285,6 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   const handleRenamePage = (pageId: string, newTitle: string) => {
     pageManagerRef.current.renamePage(pageId, newTitle);
     setPages([...pageManagerRef.current.getAllPages()]);
-    whiteboardAdapter
-      ?.broadcastModify(activePage.id, '__page_background__', {
-        backgroundImageUrl: newBg,
-        subPage: targetPage,
-      })
-      .catch(() => {});
     schedulePersist();
     propOnPagesChange?.(pageManagerRef.current.getAllPages());
   };

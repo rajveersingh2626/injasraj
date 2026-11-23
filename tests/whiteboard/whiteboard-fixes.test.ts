@@ -154,10 +154,10 @@ describe('Whiteboard & UI Bugfixes Verification Suite', () => {
       expect(banner.className).toContain('z-30');
     });
 
-    it('WhiteboardStage defaults active tool to "pen" so drawing works immediately on load', () => {
+    it('WhiteboardStage defaults active tool to "select" (cursor) on load to prevent stray marks', () => {
       render(React.createElement(WhiteboardStage));
-      const penButton = screen.getByTestId('tool-pen');
-      expect(penButton.getAttribute('data-active')).toBe('true');
+      const selectButton = screen.getByTestId('tool-select');
+      expect(selectButton.getAttribute('data-active')).toBe('true');
     });
   });
 

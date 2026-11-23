@@ -237,7 +237,12 @@ export async function convertDocumentToPageImages(
           body: formData,
         });
       } else {
-        const bytes = bufferOrFile instanceof Uint8Array ? bufferOrFile : new Uint8Array(bufferOrFile);
+        const rawBuffer = bufferOrFile instanceof Uint8Array
+          ? bufferOrFile.buffer
+          : bufferOrFile instanceof ArrayBuffer
+          ? bufferOrFile
+          : await (bufferOrFile as Blob).arrayBuffer();
+        const bytes = new Uint8Array(rawBuffer);
         let binary = '';
         const len = bytes.byteLength;
         for (let i = 0; i < len; i++) {
