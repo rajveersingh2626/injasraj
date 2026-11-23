@@ -31,7 +31,7 @@ expect.extend({
   },
 });
 
-describe('WhiteboardStage Component (16:9 Canvas Stage with Floating Toolbars)', () => {
+describe('WhiteboardStage Component (LearnCube Portrait Document Stage & Floating Toolbars)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     if (typeof HTMLCanvasElement !== 'undefined') {
@@ -49,7 +49,7 @@ describe('WhiteboardStage Component (16:9 Canvas Stage with Floating Toolbars)',
     }
   });
 
-  it('renders stage container, 16:9 canvas stage wrapper, fabric canvas, and laser overlay', () => {
+  it('renders stage container, LearnCube portrait document stage wrapper (3:4), fabric canvas, and laser overlay', () => {
     render(<WhiteboardStage />);
 
     const stage = screen.getByTestId('whiteboard-stage');
@@ -57,17 +57,29 @@ describe('WhiteboardStage Component (16:9 Canvas Stage with Floating Toolbars)',
 
     const stageWrapper = screen.getByTestId('canvas-stage-wrapper');
     expect(stageWrapper).toBeInTheDocument();
-    expect(stageWrapper.style.aspectRatio).toBe('16 / 9');
+    expect(stageWrapper.style.aspectRatio).toBe('3 / 4');
 
     const canvas = screen.getByTestId('whiteboard-canvas');
     expect(canvas).toBeInTheDocument();
-    expect(canvas.getAttribute('width')).toBe('1920');
-    expect(canvas.getAttribute('height')).toBe('1080');
+    expect(canvas.getAttribute('width')).toBe('1200');
+    expect(canvas.getAttribute('height')).toBe('1600');
 
     const laserOverlay = screen.getByTestId('laser-overlay');
     expect(laserOverlay).toBeInTheDocument();
-    expect(laserOverlay.getAttribute('width')).toBe('1920');
-    expect(laserOverlay.getAttribute('height')).toBe('1080');
+    expect(laserOverlay.getAttribute('width')).toBe('1200');
+    expect(laserOverlay.getAttribute('height')).toBe('1600');
+  });
+
+  it('renders optional 16:9 canvas stage wrapper when stageAspect="16:9"', () => {
+    render(<WhiteboardStage stageAspect="16:9" />);
+
+    const stageWrapper = screen.getByTestId('canvas-stage-wrapper');
+    expect(stageWrapper).toBeInTheDocument();
+    expect(stageWrapper.style.aspectRatio).toBe('16 / 9');
+
+    const canvas = screen.getByTestId('whiteboard-canvas');
+    expect(canvas.getAttribute('width')).toBe('1920');
+    expect(canvas.getAttribute('height')).toBe('1080');
   });
 
   it('mounts floating toolbars: WhiteboardToolbar, ZoomControls, and PageNavigationBar', () => {
@@ -246,6 +258,7 @@ describe('WhiteboardStage Component (16:9 Canvas Stage with Floating Toolbars)',
     const handleLaserMove = vi.fn();
     render(
       <WhiteboardStage
+        stageAspect="16:9"
         activeTool="laser"
         onLaserMove={handleLaserMove}
       />

@@ -20,7 +20,11 @@ import { WhiteboardPageManager } from '../../lib/whiteboard/page-manager';
 import { getStudentStatusMessage } from '../../lib/whiteboard/permission-guard';
 import {
   calculateViewportTransform,
+  calculateFitToWidth,
   clampZoom,
+  DEFAULT_PORTRAIT_WIDTH,
+  DEFAULT_PORTRAIT_HEIGHT,
+  ZOOM_PRESETS,
   ViewportBounds,
 } from '../../lib/whiteboard/viewport-transform';
 import { TouchGestureHandler } from '../../lib/whiteboard/touch-gesture-handler';
@@ -83,6 +87,9 @@ export interface WhiteboardStageProps {
   // Laser Pointer
   onLaserMove?: (point: { x: number; y: number }) => void;
 
+  // Viewport / Aspect Ratio mode (LearnCube portrait vs landscape)
+  stageAspect?: 'portrait' | '16:9';
+
   // Container styling
   className?: string;
   style?: React.CSSProperties;
@@ -93,6 +100,7 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
   onEngineReady,
   pageManager,
   laserEngine: propLaserEngine,
+  stageAspect = 'portrait',
   // Tool state
   activeTool: controlledTool,
   onSelectTool,
@@ -256,7 +264,7 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
     }
   };
 
-  // Viewport bounds for 16:9 letterbox calculation
+  // Viewport bounds for stage calculation (portrait or 16:9)
   const [viewportBounds, setViewportBounds] = useState<ViewportBounds>({
     scale: 1,
     offsetX: 0,
@@ -265,11 +273,11 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
     renderedHeight: 0,
     containerWidth: 0,
     containerHeight: 0,
-    virtualWidth: 1920,
-    virtualHeight: 1080,
+    virtualWidth: stageAspect === '16:9' ? 1920 : DEFAULT_PORTRAIT_WIDTH,
+    virtualHeight: stageAspect === '16:9' ? 1080 : DEFAULT_PORTRAIT_HEIGHT,
   });
 
-  // Calculate and update 16:9 letterbox dimensions
+  // Calculate and update stage dimensions
   const updateLetterboxBounds = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -279,11 +287,13 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
     const h = rect.height || container.clientHeight || 0;
 
     if (w > 0 && h > 0) {
-      const bounds = calculateViewportTransform(w, h, 1920, 1080);
+      const vWidth = stageAspect === '16:9' ? 1920 : DEFAULT_PORTRAIT_WIDTH;
+      const vHeight = stageAspect === '16:9' ? 1080 : DEFAULT_PORTRAIT_HEIGHT;
+      const bounds = calculateViewportTransform(w, h, vWidth, vHeight);
       setViewportBounds(bounds);
       activeEngine?.requestRender();
     }
-  }, [activeEngine]);
+  }, [activeEngine, stageAspect]);
 
   useEffect(() => {
     updateLetterboxBounds();
@@ -323,9 +333,11 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
     if (propEngine) return;
 
     if (canvasRef.current && !internalEngineRef.current) {
+      const vWidth = stageAspect === '16:9' ? 1920 : DEFAULT_PORTRAIT_WIDTH;
+      const vHeight = stageAspect === '16:9' ? 1080 : DEFAULT_PORTRAIT_HEIGHT;
       const engine = new FabricWhiteboardEngine(canvasRef.current, {
-        virtualWidth: 1920,
-        virtualHeight: 1080,
+        virtualWidth: vWidth,
+        virtualHeight: vHeight,
       });
       internalEngineRef.current = engine;
       onEngineReadyRef.current?.(engine);
@@ -405,6 +417,18 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
     }
     onViewportChange?.({ zoom: 1.0, panX: 0, panY: 0 });
   };
+
+  const handleFitToWidth = useCallback(() => {
+    const container = containerRef.current;
+    const containerWidth = container ? container.clientWidth || 1200 : 1200;
+    const targetWidth = stageAspect === '16:9' ? 1920 : DEFAULT_PORTRAIT_WIDTH;
+    const fitScale = calculateFitToWidth(containerWidth, targetWidth, 64);
+    setPanOffset({ x: 0, y: 0 });
+    if (!isControlledZoom) {
+      setInternalZoom(fitScale);
+    }
+    onViewportChange?.({ zoom: fitScale, panX: 0, panY: 0 });
+  }, [stageAspect, isControlledZoom, onViewportChange]);
 
   // Broadcast teacher viewport changes to students
   useEffect(() => {
@@ -663,25 +687,27 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
+    const vWidth = stageAspect === '16:9' ? 1920 : DEFAULT_PORTRAIT_WIDTH;
+    const vHeight = stageAspect === '16:9' ? 1080 : DEFAULT_PORTRAIT_HEIGHT;
     const rectWidth =
       rect && rect.width > 0
         ? rect.width
         : canvas.clientWidth > 0
         ? canvas.clientWidth
-        : 1920;
+        : vWidth;
     const rectHeight =
       rect && rect.height > 0
         ? rect.height
         : canvas.clientHeight > 0
         ? canvas.clientHeight
-        : 1080;
+        : vHeight;
     const rectLeft =
       rect && typeof rect.left === 'number' && !isNaN(rect.left) ? rect.left : 0;
     const rectTop =
       rect && typeof rect.top === 'number' && !isNaN(rect.top) ? rect.top : 0;
 
-    const scaleX = 1920 / rectWidth;
-    const scaleY = 1080 / rectHeight;
+    const scaleX = vWidth / rectWidth;
+    const scaleY = vHeight / rectHeight;
     const x = Math.round((clientX - rectLeft) * scaleX);
     const y = Math.round((clientY - rectTop) * scaleY);
 
@@ -769,7 +795,7 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
     <div
       ref={containerRef}
       data-testid="whiteboard-stage"
-      className={`relative w-full h-full flex items-center justify-center overflow-hidden select-none bg-white pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] ${className}`}
+      className={`relative w-full h-full flex items-center justify-center overflow-auto select-none bg-stone-100/90 pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] ${className}`}
       style={style}
       onPointerDown={(e) => {
         handlePointerDown(e);
@@ -809,9 +835,9 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
       {/* Canonical Canvas Stage Wrapper with Infinite Pan and Zoom */}
       <div
         data-testid="canvas-stage-wrapper"
-        className="relative flex items-center justify-center transition-transform duration-75 ease-out overflow-visible"
+        className="relative flex items-center justify-center transition-transform duration-75 ease-out overflow-visible my-auto"
         style={{
-          aspectRatio: '16 / 9',
+          aspectRatio: stageAspect === '16:9' ? '16 / 9' : '3 / 4',
           width:
             viewportBounds.renderedWidth > 0
               ? `${viewportBounds.renderedWidth}px`
@@ -833,9 +859,9 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
         <canvas
           ref={canvasRef}
           data-testid="whiteboard-canvas"
-          width={1920}
-          height={1080}
-          className={`w-full h-full block bg-white touch-none ${getToolCursorClass(
+          width={stageAspect === '16:9' ? 1920 : DEFAULT_PORTRAIT_WIDTH}
+          height={stageAspect === '16:9' ? 1080 : DEFAULT_PORTRAIT_HEIGHT}
+          className={`w-full h-full block bg-white rounded-xl shadow-xl shadow-stone-900/10 border border-stone-200/80 touch-none ${getToolCursorClass(
             activeTool
           )}`}
           onPointerDown={handlePointerDown}
@@ -854,8 +880,8 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
         <canvas
           ref={laserCanvasRef}
           data-testid="laser-overlay"
-          width={1920}
-          height={1080}
+          width={stageAspect === '16:9' ? 1920 : DEFAULT_PORTRAIT_WIDTH}
+          height={stageAspect === '16:9' ? 1080 : DEFAULT_PORTRAIT_HEIGHT}
           className="absolute inset-0 pointer-events-none w-full h-full z-10"
         />
       </div>
@@ -891,6 +917,14 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
         onZoomOut={handleZoomOut}
         onResetZoom={handleResetZoom}
         onFitToScreen={handleFitToScreen}
+        onFitToWidth={handleFitToWidth}
+        onSelectPreset={(preset) => {
+          setPanOffset({ x: 0, y: 0 });
+          if (!isControlledZoom) {
+            setInternalZoom(preset);
+          }
+          onViewportChange?.({ zoom: preset, panX: 0, panY: 0 });
+        }}
         isFollowTeacherEnabled={isFollowTeacherEnabled}
         onToggleFollowTeacher={onToggleFollowTeacher}
         isTeacher={isTeacher}
