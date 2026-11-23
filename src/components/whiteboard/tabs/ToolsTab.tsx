@@ -79,16 +79,16 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
   return (
     <div
       data-testid="tools-tab"
-      className={`flex flex-col h-full gap-5 p-4 overflow-y-auto select-none ${className}`}
+      className={`flex flex-col h-full gap-5 p-4 overflow-y-auto select-none bg-stone-50/50 text-stone-900 ${className}`}
     >
       {/* 1. Background Grid Selector */}
       <section
         data-testid="grid-selector-section"
         aria-label="Background Grid Pattern"
-        className="flex flex-col gap-2.5 pb-4 border-b border-stone-800"
+        className="flex flex-col gap-2.5 pb-4 border-b border-stone-200"
       >
-        <div className="flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase text-amber-400">
-          <Grid className="w-3.5 h-3.5 text-amber-400" />
+        <div className="flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase text-amber-600">
+          <Grid className="w-3.5 h-3.5 text-amber-600" />
           <span>Canvas Grid Mode</span>
         </div>
 
@@ -103,10 +103,10 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
                 aria-pressed={isActive}
                 aria-label={`Select ${opt.label} grid`}
                 onClick={() => onChangeGrid?.(opt.type)}
-                className={`flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-xl border text-xs font-semibold cursor-pointer transition-all duration-150 active:scale-95 ${
+                className={`flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-xl border text-xs font-semibold cursor-pointer transition-all duration-150 active:scale-95 shadow-sm ${
                   isActive
-                    ? 'bg-amber-600/30 border-amber-400 text-amber-200 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
-                    : 'bg-stone-900 border-stone-700/80 text-stone-100 hover:bg-stone-800 hover:text-white'
+                    ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-amber-500/10'
+                    : 'bg-white border-stone-200 text-stone-700 hover:bg-stone-50 hover:text-stone-900'
                 }`}
               >
                 {opt.icon}
@@ -121,9 +121,9 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
       <section
         data-testid="page-thumbnails-section"
         aria-label="Multi-Page Manager"
-        className="flex flex-col gap-2.5 pb-4 border-b border-stone-800"
+        className="flex flex-col gap-2.5 pb-4 border-b border-stone-200"
       >
-        <div className="flex items-center justify-between text-xs font-semibold tracking-wider uppercase text-stone-300">
+        <div className="flex items-center justify-between text-xs font-semibold tracking-wider uppercase text-stone-500">
           <div className="flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5" />
             <span>Pages ({activePages.length})</span>
@@ -134,7 +134,7 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
               type="button"
               data-testid="add-page-btn"
               onClick={onAddPage}
-              className="flex items-center gap-1 text-[11px] text-amber-400 hover:text-amber-300 transition-colors cursor-pointer"
+              className="flex items-center gap-1 text-[11px] text-amber-600 hover:text-amber-700 font-medium transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>New Page</span>
@@ -151,14 +151,13 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
             const pageNumber = page.pageNumber || idx + 1;
 
             return (
-              <GlassCard
+              <div
                 key={page.id}
-                variant={isActive ? 'interactive' : 'default'}
                 data-testid={`page-thumbnail-card-${page.id}`}
-                className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
+                className={`flex items-center justify-between p-2.5 rounded-xl border transition-all shadow-sm ${
                   isActive
-                    ? 'border-amber-500/70 bg-amber-950/30 shadow-[0_0_12px_rgba(245,158,11,0.2)]'
-                    : 'border-stone-800 bg-stone-900/80 hover:border-stone-700'
+                    ? 'border-amber-400 bg-amber-50/70 text-stone-900'
+                    : 'border-stone-200 bg-white text-stone-800 hover:border-stone-300'
                 }`}
               >
                 {/* Clickable jump trigger */}
@@ -172,19 +171,19 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
                   <div
                     className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold ${
                       isActive
-                        ? 'bg-amber-600 text-stone-950'
-                        : 'bg-stone-800 text-stone-300'
+                        ? 'bg-amber-500 text-stone-950'
+                        : 'bg-stone-100 text-stone-600'
                     }`}
                   >
                     {pageNumber}
                   </div>
                   <div className="flex flex-col min-w-0">
-                    <span className="text-xs font-medium text-stone-100 truncate">
+                    <span className="text-xs font-medium text-stone-900 truncate">
                       {page.title || `Page ${pageNumber}`}
                     </span>
                     {page.backgroundPdfUrl && (
-                      <span className="text-[10px] text-stone-400 truncate">
-                        PDF Worksheet
+                      <span className="text-[10px] text-stone-500 truncate">
+                        Document Page
                       </span>
                     )}
                   </div>
@@ -199,7 +198,7 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
                       aria-label={`Clone page ${pageNumber}`}
                       onClick={() => onClonePage(page.id)}
                       title="Clone page"
-                      className="p-1.5 rounded-lg text-stone-400 hover:text-stone-100 hover:bg-stone-800 transition-colors cursor-pointer"
+                      className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors cursor-pointer"
                     >
                       <Copy className="w-3.5 h-3.5" />
                     </button>
@@ -213,13 +212,13 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
                       onClick={() => onDeletePage(page.id)}
                       disabled={activePages.length <= 1}
                       title="Delete page"
-                      className="p-1.5 rounded-lg text-stone-400 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                      className="p-1.5 rounded-lg text-stone-400 hover:text-red-500 hover:bg-red-50 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
-              </GlassCard>
+              </div>
             );
           })}
         </div>
@@ -231,7 +230,7 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
         aria-label="Export Whiteboard Content"
         className="flex flex-col gap-2.5"
       >
-        <div className="flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase text-stone-400">
+        <div className="flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase text-stone-500">
           <FileDown className="w-3.5 h-3.5" />
           <span>Export Options</span>
         </div>
@@ -243,9 +242,9 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
             size="sm"
             data-testid="export-pdf-btn"
             onClick={onExportPdf}
-            className="w-full flex items-center justify-center gap-2 py-2 text-xs border-stone-800 bg-stone-900 text-stone-200 hover:bg-stone-800"
+            className="w-full flex items-center justify-center gap-2 py-2 text-xs border-stone-200 bg-white text-stone-800 hover:bg-stone-50 shadow-sm"
           >
-            <FileDown className="w-4 h-4 text-amber-400" />
+            <FileDown className="w-4 h-4 text-amber-600" />
             <span>Save as PDF</span>
           </GlassButton>
 
@@ -255,9 +254,9 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
             size="sm"
             data-testid="export-image-btn"
             onClick={onExportImage}
-            className="w-full flex items-center justify-center gap-2 py-2 text-xs border-stone-800 bg-stone-900 text-stone-200 hover:bg-stone-800"
+            className="w-full flex items-center justify-center gap-2 py-2 text-xs border-stone-200 bg-white text-stone-800 hover:bg-stone-50 shadow-sm"
           >
-            <ImageIcon className="w-4 h-4 text-emerald-400" />
+            <ImageIcon className="w-4 h-4 text-emerald-600" />
             <span>Export Image</span>
           </GlassButton>
         </div>

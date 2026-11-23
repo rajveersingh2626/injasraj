@@ -152,7 +152,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({
   return (
     <div
       data-testid="chat-tab"
-      className={`flex flex-col h-full overflow-hidden select-none bg-[#181614] text-stone-100 ${className}`}
+      className={`flex flex-col h-full overflow-hidden select-none bg-stone-50/50 text-stone-900 ${className}`}
     >
       {/* Messages List Container */}
       <div
@@ -162,14 +162,14 @@ export const ChatTab: React.FC<ChatTabProps> = ({
         {allMessages.length === 0 ? (
           <div
             data-testid="chat-empty-state"
-            className="flex flex-col items-center justify-center h-full text-center text-stone-400 gap-2 p-4"
+            className="flex flex-col items-center justify-center h-full text-center text-stone-500 gap-2 p-4"
           >
-            <div className="w-10 h-10 rounded-full bg-stone-800 flex items-center justify-center text-stone-500">
-              <MessageSquare className="w-5 h-5 text-amber-500" />
+            <div className="w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center text-amber-600">
+              <MessageSquare className="w-5 h-5 text-amber-600" />
             </div>
-            <p className="text-xs font-medium text-stone-200">No messages yet</p>
-            <p className="text-[11px] text-stone-400 max-w-[200px]">
-              Chat messages appear here. Type <code className="text-amber-400 font-mono">/ask AI</code> for teaching help!
+            <p className="text-xs font-semibold text-stone-800">No messages yet</p>
+            <p className="text-[11px] text-stone-500 max-w-[200px]">
+              Chat messages appear here. Type <code className="text-amber-600 font-mono font-medium">/ask AI</code> for teaching help!
             </p>
           </div>
         ) : (
@@ -186,14 +186,14 @@ export const ChatTab: React.FC<ChatTabProps> = ({
               >
                 {/* Sender Header */}
                 <div className="flex items-center gap-1.5 mb-1 px-1">
-                  {isAi && <Sparkles className="w-3 h-3 text-amber-400 animate-pulse" />}
-                  <span className="text-[11px] font-medium text-stone-300">
+                  {isAi && <Sparkles className="w-3 h-3 text-amber-600 animate-pulse" />}
+                  <span className="text-[11px] font-medium text-stone-600">
                     {msg.senderName}
                   </span>
                   {isAi ? (
                     <span
                       data-testid={`message-role-badge-${msg.id}`}
-                      className="text-[9px] px-1.5 py-0.2 rounded-full font-semibold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1"
+                      className="text-[9px] px-1.5 py-0.2 rounded-full font-semibold uppercase tracking-wider bg-amber-500/15 text-amber-700 border border-amber-500/25 flex items-center gap-1"
                     >
                       <Bot className="w-2.5 h-2.5" />
                       AI Assistant
@@ -203,14 +203,14 @@ export const ChatTab: React.FC<ChatTabProps> = ({
                       data-testid={`message-role-badge-${msg.id}`}
                       className={`text-[9px] px-1.5 py-0.2 rounded-full font-semibold uppercase tracking-wider ${
                         isTeacher
-                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                          : 'bg-stone-800 text-stone-400 border border-stone-700'
+                          ? 'bg-amber-500/15 text-amber-700 border border-amber-500/25'
+                          : 'bg-stone-100 text-stone-600 border border-stone-200'
                       }`}
                     >
                       {isTeacher ? 'Teacher' : 'Student'}
                     </span>
                   ) : null}
-                  <span className="text-[10px] text-stone-500">
+                  <span className="text-[10px] text-stone-400">
                     {formatChatTime(msg.timestamp)}
                   </span>
                 </div>
@@ -219,10 +219,10 @@ export const ChatTab: React.FC<ChatTabProps> = ({
                 <div
                   className={`px-3 py-2 rounded-2xl text-xs leading-relaxed max-w-[85%] break-words ${
                     isAi
-                      ? 'bg-stone-900 text-stone-100 border border-amber-500/40 shadow-md rounded-tl-sm'
+                      ? 'bg-amber-50/70 text-stone-900 border border-amber-300/60 shadow-sm rounded-tl-sm'
                       : isSelf
-                      ? 'bg-amber-600 text-stone-950 font-medium rounded-br-sm shadow-md'
-                      : 'bg-stone-800 text-stone-200 border border-stone-700 rounded-bl-sm shadow-sm'
+                      ? 'bg-stone-900 text-white font-medium rounded-br-sm shadow-sm'
+                      : 'bg-white text-stone-800 border border-stone-200 rounded-bl-sm shadow-sm'
                   }`}
                 >
                   {renderMessageText(msg.text)}
@@ -235,17 +235,17 @@ export const ChatTab: React.FC<ChatTabProps> = ({
       </div>
 
       {/* Input Field Section */}
-      <div className="p-3 border-t border-stone-800 bg-[#1c1917] relative">
+      <div className="p-3 border-t border-stone-200 bg-white relative">
         {/* Slash Command Autocomplete Suggestion */}
         {isSlashPromptVisible && (
           <div
             data-testid="slash-command-suggestion"
             onClick={handleSelectSlashCommand}
-            className="absolute -top-10 left-3 right-3 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-stone-900 border border-amber-500/40 text-amber-300 text-xs cursor-pointer shadow-lg hover:bg-stone-800 transition-colors"
+            className="absolute -top-10 left-3 right-3 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-amber-300 text-amber-800 text-xs cursor-pointer shadow-lg hover:bg-amber-50/60 transition-colors"
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
             <span className="font-mono font-semibold">/ask AI</span>
-            <span className="text-stone-400 text-[11px] truncate">Ask AI Assistant a question</span>
+            <span className="text-stone-500 text-[11px] truncate">Ask AI Assistant a question</span>
           </div>
         )}
 
@@ -262,7 +262,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({
             placeholder="Type a message or /ask AI..."
             aria-label="Chat message input"
             style={{ fontSize: '16px' }}
-            className="flex-1 bg-stone-900 border border-stone-700 rounded-xl px-3.5 py-2 text-base text-stone-100 placeholder:text-stone-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors"
+            className="flex-1 bg-stone-50 border border-stone-300 rounded-xl px-3.5 py-2 text-base text-stone-900 placeholder:text-stone-400 focus:bg-white focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors"
           />
           <GlassButton
             type="submit"
@@ -271,7 +271,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({
             data-testid="send-chat-btn"
             aria-label="Send message"
             disabled={!inputText.trim()}
-            className="px-3 bg-amber-500 text-stone-950 hover:bg-amber-400 font-semibold"
+            className="px-3 bg-amber-500 text-stone-950 hover:bg-amber-400 font-semibold shadow-sm"
           >
             <Send className="w-4 h-4" />
           </GlassButton>

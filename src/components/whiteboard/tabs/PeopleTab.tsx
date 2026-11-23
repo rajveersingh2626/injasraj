@@ -82,24 +82,23 @@ export const PeopleTab: React.FC<PeopleTabProps> = ({
         <section
           data-testid="teacher-controls-section"
           aria-label="Teacher Whiteboard Controls"
-          className="flex flex-col gap-2.5 pb-3 border-b border-stone-800"
+          className="flex flex-col gap-2.5 pb-3 border-b border-stone-200"
         >
-          <div className="flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase text-amber-400">
-            <Shield className="w-3.5 h-3.5 text-amber-400" />
+          <div className="flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase text-amber-600">
+            <Shield className="w-3.5 h-3.5 text-amber-600" />
             <span>Classroom Authority</span>
           </div>
 
           {/* Global Lock Switch */}
-          <GlassCard
-            variant="subtle"
-            className="flex items-center justify-between p-3 rounded-xl border border-stone-800 bg-stone-900/90 text-stone-100"
+          <div
+            className="flex items-center justify-between p-3 rounded-xl border border-stone-200 bg-white text-stone-900 shadow-sm"
           >
             <div className="flex items-center gap-2.5 pr-2">
               <div
                 className={`w-7 h-7 rounded-lg flex items-center justify-center ${
                   permissions.isLockedGlobally
-                    ? 'bg-rose-500/20 text-rose-400'
-                    : 'bg-emerald-500/20 text-emerald-400'
+                    ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                    : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
                 }`}
               >
                 {permissions.isLockedGlobally ? (
@@ -109,8 +108,8 @@ export const PeopleTab: React.FC<PeopleTabProps> = ({
                 )}
               </div>
               <div>
-                <div className="text-xs font-semibold text-stone-100">Global Lock</div>
-                <div className="text-[11px] text-stone-400">Lock Whiteboard for All</div>
+                <div className="text-xs font-semibold text-stone-900">Global Lock</div>
+                <div className="text-[11px] text-stone-500">Lock Whiteboard for All</div>
               </div>
             </div>
 
@@ -122,7 +121,7 @@ export const PeopleTab: React.FC<PeopleTabProps> = ({
               aria-label="Lock Whiteboard for All"
               onClick={() => onToggleGlobalLock?.(!permissions.isLockedGlobally)}
               className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                permissions.isLockedGlobally ? 'bg-rose-600' : 'bg-stone-700'
+                permissions.isLockedGlobally ? 'bg-rose-600' : 'bg-stone-200'
               }`}
             >
               <span
@@ -131,26 +130,25 @@ export const PeopleTab: React.FC<PeopleTabProps> = ({
                 }`}
               />
             </button>
-          </GlassCard>
+          </div>
 
           {/* Laser Pointer Only Switch */}
-          <GlassCard
-            variant="subtle"
-            className="flex items-center justify-between p-3 rounded-xl border border-stone-800 bg-stone-900/90 text-stone-100"
+          <div
+            className="flex items-center justify-between p-3 rounded-xl border border-stone-200 bg-white text-stone-900 shadow-sm"
           >
             <div className="flex items-center gap-2.5 pr-2">
               <div
                 className={`w-7 h-7 rounded-lg flex items-center justify-center ${
                   permissions.laserPointerOnly
-                    ? 'bg-amber-500/20 text-amber-400'
-                    : 'bg-stone-800 text-stone-400'
+                    ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                    : 'bg-stone-100 text-stone-400'
                 }`}
               >
                 <Radio className="w-4 h-4" />
               </div>
               <div>
-                <div className="text-xs font-semibold text-stone-100">Laser Pointer Only</div>
-                <div className="text-[11px] text-stone-400">Restrict students to pointer</div>
+                <div className="text-xs font-semibold text-stone-900">Laser Pointer Only</div>
+                <div className="text-[11px] text-stone-500">Restrict students to pointer</div>
               </div>
             </div>
 
@@ -162,7 +160,7 @@ export const PeopleTab: React.FC<PeopleTabProps> = ({
               aria-label="Laser Pointer Only"
               onClick={() => onToggleLaserOnly?.(!permissions.laserPointerOnly)}
               className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                permissions.laserPointerOnly ? 'bg-amber-600' : 'bg-stone-700'
+                permissions.laserPointerOnly ? 'bg-amber-600' : 'bg-stone-200'
               }`}
             >
               <span
@@ -171,7 +169,7 @@ export const PeopleTab: React.FC<PeopleTabProps> = ({
                 }`}
               />
             </button>
-          </GlassCard>
+          </div>
         </section>
       )}
 
@@ -181,7 +179,7 @@ export const PeopleTab: React.FC<PeopleTabProps> = ({
         aria-label="Classroom Participants"
         className="flex flex-col gap-2.5 flex-1"
       >
-        <div className="flex items-center justify-between text-xs font-semibold text-stone-400 tracking-wider uppercase">
+        <div className="flex items-center justify-between text-xs font-semibold text-stone-500 tracking-wider uppercase">
           <span>Participants ({activeParticipants.length})</span>
         </div>
 
@@ -195,11 +193,10 @@ export const PeopleTab: React.FC<PeopleTabProps> = ({
                 : participant.isDrawingAllowed ?? false;
 
             return (
-              <GlassCard
+              <div
                 key={participant.id}
-                variant="default"
                 data-testid={`participant-card-${participant.id}`}
-                className="flex flex-col p-3 rounded-xl gap-2 border border-stone-800 bg-stone-900/90 text-stone-100"
+                className="flex flex-col p-3 rounded-xl gap-2 border border-stone-200 bg-white text-stone-900 shadow-sm"
               >
                 <div className="flex items-center justify-between">
                   {/* Name & Avatar */}
@@ -209,7 +206,7 @@ export const PeopleTab: React.FC<PeopleTabProps> = ({
                     </div>
                     <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-semibold text-stone-100 truncate">
+                        <span className="text-xs font-semibold text-stone-900 truncate">
                           {participant.name}
                         </span>
                         {participant.isSelf && (
@@ -220,8 +217,8 @@ export const PeopleTab: React.FC<PeopleTabProps> = ({
                         data-testid={`role-badge-${participant.id}`}
                         className={`text-[10px] font-medium tracking-wide w-fit px-1.5 py-0.5 rounded-full ${
                           participant.role === 'teacher'
-                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                            : 'bg-stone-800 text-stone-300 border border-stone-700'
+                            ? 'bg-amber-500/15 text-amber-700 border border-amber-500/25'
+                            : 'bg-stone-100 text-stone-600 border border-stone-200'
                         }`}
                       >
                         {participant.role === 'teacher' ? 'Teacher' : 'Student'}
@@ -239,8 +236,8 @@ export const PeopleTab: React.FC<PeopleTabProps> = ({
                       data-testid={`mic-status-${participant.id}`}
                       className={`p-1 rounded-md ${
                         participant.isMicOn
-                          ? 'text-emerald-400 bg-emerald-500/10'
-                          : 'text-stone-500 bg-stone-800'
+                          ? 'text-emerald-600 bg-emerald-50'
+                          : 'text-stone-400 bg-stone-100'
                       }`}
                     >
                       {participant.isMicOn ? (
@@ -254,8 +251,8 @@ export const PeopleTab: React.FC<PeopleTabProps> = ({
                       data-testid={`camera-status-${participant.id}`}
                       className={`p-1 rounded-md ${
                         participant.isCameraOn
-                          ? 'text-emerald-400 bg-emerald-500/10'
-                          : 'text-stone-500 bg-stone-800'
+                          ? 'text-emerald-600 bg-emerald-50'
+                          : 'text-stone-400 bg-stone-100'
                       }`}
                     >
                       {participant.isCameraOn ? (
@@ -269,9 +266,9 @@ export const PeopleTab: React.FC<PeopleTabProps> = ({
 
                 {/* Per-student drawing permission toggle (Teacher only) */}
                 {isTeacher && isStudent && (
-                  <div className="flex items-center justify-between pt-2 border-t border-stone-800/80">
-                    <div className="flex items-center gap-1.5 text-[11px] text-stone-300">
-                      <Edit3 className="w-3 h-3 text-amber-400" />
+                  <div className="flex items-center justify-between pt-2 border-t border-stone-100">
+                    <div className="flex items-center gap-1.5 text-[11px] text-stone-600">
+                      <Edit3 className="w-3 h-3 text-amber-600" />
                       <span>Allow Drawing</span>
                     </div>
                     <button
@@ -284,7 +281,7 @@ export const PeopleTab: React.FC<PeopleTabProps> = ({
                         onToggleStudentDrawing?.(participant.id, !hasDrawingAccess)
                       }
                       className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                        hasDrawingAccess ? 'bg-amber-600' : 'bg-stone-700'
+                        hasDrawingAccess ? 'bg-amber-600' : 'bg-stone-200'
                       }`}
                     >
                       <span
@@ -295,7 +292,7 @@ export const PeopleTab: React.FC<PeopleTabProps> = ({
                     </button>
                   </div>
                 )}
-              </GlassCard>
+              </div>
             );
           })}
         </div>
