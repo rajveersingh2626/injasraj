@@ -567,6 +567,10 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
     }
   };
 
+  // RAF throttling refs for high INP reduction during drag and pan
+  const rafPanRef = useRef<number | null>(null);
+  const pendingPanRef = useRef<{ x: number; y: number } | null>(null);
+
   const handlePointerMove = (e: any) => {
     if (isPanningRef.current) {
       const { clientX, clientY } = getCoordinatesFromEvent(e);
@@ -574,8 +578,22 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
       const dy = clientY - panStartRef.current.y;
       const nextPanX = panStartRef.current.initialPanX + dx;
       const nextPanY = panStartRef.current.initialPanY + dy;
-      setPanOffset({ x: nextPanX, y: nextPanY });
-      onViewportChange?.({ zoom, panX: nextPanX, panY: nextPanY });
+      pendingPanRef.current = { x: nextPanX, y: nextPanY };
+
+      if (!rafPanRef.current) {
+        if (typeof requestAnimationFrame !== 'undefined') {
+          rafPanRef.current = requestAnimationFrame(() => {
+            rafPanRef.current = null;
+            if (pendingPanRef.current) {
+              setPanOffset(pendingPanRef.current);
+              onViewportChange?.({ zoom, panX: pendingPanRef.current.x, panY: pendingPanRef.current.y });
+            }
+          });
+        } else {
+          setPanOffset(pendingPanRef.current);
+          onViewportChange?.({ zoom, panX: pendingPanRef.current.x, panY: pendingPanRef.current.y });
+        }
+      }
       return;
     }
     if (activeTool === 'laser') {
@@ -587,6 +605,14 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
   const handlePointerUp = () => {
     if (isPanningRef.current) {
       isPanningRef.current = false;
+      if (rafPanRef.current && typeof cancelAnimationFrame !== 'undefined') {
+        cancelAnimationFrame(rafPanRef.current);
+        rafPanRef.current = null;
+      }
+      if (pendingPanRef.current) {
+        setPanOffset(pendingPanRef.current);
+        onViewportChange?.({ zoom, panX: pendingPanRef.current.x, panY: pendingPanRef.current.y });
+      }
     }
   };
 
