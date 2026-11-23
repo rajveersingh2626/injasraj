@@ -458,6 +458,44 @@ describe('Task 10: Whiteboard Persistence & Supabase Integration', () => {
       consoleErrorSpy.mockRestore();
     });
 
+    it('loadWhiteboardSession and saveWhiteboardSession handle 42501 RLS error gracefully', async () => {
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const mockMaybeSingle = vi.fn().mockResolvedValue({
+        data: null,
+        error: { code: '42501', message: 'permission denied for table whiteboard_sessions' },
+      });
+      const mockEq = vi.fn().mockReturnValue({ maybeSingle: mockMaybeSingle });
+      const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
+      const mockSupabase = {
+        from: vi.fn().mockReturnValue({
+          select: mockSelect,
+          upsert: vi.fn().mockResolvedValue({
+            data: null,
+            error: { code: '42501', message: 'permission denied for table whiteboard_sessions' },
+          }),
+        }),
+      };
+
+      const loaded = await loadWhiteboardSession(mockSupabase, 'room-rls');
+      expect(loaded).toBeNull();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+      expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('42501'));
+
+      const saved = await saveWhiteboardSession(mockSupabase, {
+        room_id: 'room-rls',
+        pages: [],
+        active_page_id: 'p1',
+        permissions: defaultWhiteboardPermissions(),
+      });
+      expect(saved).toBe(false);
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+
+      consoleWarnSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+    });
+
     it('loadWhiteboardSession returns null when room_id is empty', async () => {
       const loaded = await loadWhiteboardSession({ from: vi.fn() } as any, '');
       expect(loaded).toBeNull();

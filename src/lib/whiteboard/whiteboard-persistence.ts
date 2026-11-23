@@ -316,6 +316,10 @@ export async function saveWhiteboardSession(
       .upsert(payload, { onConflict: 'room_id' });
 
     if (error) {
+      if (error.code === '42501') {
+        console.warn('saveWhiteboardSession: RLS restricted upsert (42501), persisting to local storage fallback');
+        return false;
+      }
       console.error('saveWhiteboardSession error:', error);
       return false;
     }
@@ -362,6 +366,11 @@ export async function loadWhiteboardSession(
     if (res?.error) {
       // PGRST116 indicates row not found in single()
       if (res.error.code === 'PGRST116') {
+        return null;
+      }
+      // 42501 indicates insufficient RLS privileges for anon client; fall back to local state
+      if (res.error.code === '42501') {
+        console.warn('loadWhiteboardSession: RLS restricted read (42501), using local session fallback');
         return null;
       }
       console.error('loadWhiteboardSession error:', res.error);

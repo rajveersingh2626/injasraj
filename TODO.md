@@ -6,9 +6,9 @@
   - [x] 1.3 In `ControlBar.tsx`, fix Device Settings outside-click listener to exclude the settings trigger button.
   - [x] 1.4 Commit Task 1 atomically.
 
-- [ ] Task 2: Supabase PostgREST 42501 Error Handling & Resilience
-  - [ ] 2.1 In `whiteboard-persistence.ts`, catch 42501 RLS permission errors gracefully without throwing noisy console errors, ensuring seamless localStorage fallback.
-  - [ ] 2.2 Commit Task 2 atomically.
+- [x] Task 2: Supabase PostgREST 42501 Error Handling & Resilience
+  - [x] 2.1 In `whiteboard-persistence.ts`, catch 42501 RLS permission errors gracefully without throwing noisy console errors, ensuring seamless localStorage fallback.
+  - [x] 2.2 Commit Task 2 atomically.
 
 - [ ] Task 3: Student Waiting Room Overlay & Toolbar UX
   - [ ] 3.1 In `ClassroomWorkspace.tsx`, dim and disable toolbar controls (`pointer-events-none opacity-40`) while `role === 'student' && sessionStatus === 'waiting'`.
