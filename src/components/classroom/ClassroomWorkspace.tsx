@@ -440,17 +440,33 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       if (!persistenceManager) return;
       const currentPerms = updatedPermissions || permissions;
       const activeId = pageManagerRef.current.getActivePageId();
+
+      // Synchronize latest canvas state from engine before saving
+      if (engineRef.current) {
+        const currentJson = engineRef.current.exportJson();
+        pageManagerRef.current.updatePageCanvas(activeId, currentJson);
+        const activePage = pageManagerRef.current.getActivePage();
+        if (activePage?.pdfDocument) {
+          const subPage = activePage.pdfDocument.currentPage || 1;
+          if (!activePage.pdfDocument.pageStrokes) {
+            activePage.pdfDocument.pageStrokes = {};
+          }
+          activePage.pdfDocument.pageStrokes[subPage] = currentJson;
+        }
+      }
+
       const currentPages = pageManagerRef.current.getAllPages();
       const sessionRecord = serializeWhiteboardSession(
         roomId,
         currentPages,
         activeId,
-        currentPerms
+        currentPerms,
+        { zoom, panX: panOffset.x, panY: panOffset.y }
       );
       persistenceManager.scheduleSave(sessionRecord);
       onSave?.(sessionRecord);
     },
-    [persistenceManager, permissions, roomId, onSave]
+    [persistenceManager, permissions, roomId, onSave, zoom, panOffset]
   );
 
   // Subscribe to real-time adapter deltas
@@ -629,20 +645,26 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       const snapshot = pastClass.whiteboardSnapshot;
       if (!snapshot || !snapshot.pages || snapshot.pages.length === 0) return;
 
-      pageManagerRef.current = new WhiteboardPageManager(snapshot.pages);
-      setPages([...snapshot.pages]);
-      const initialIdx = snapshot.pages.findIndex((p) => p.id === snapshot.active_page_id);
+      const deserialized = deserializeWhiteboardSession(snapshot);
+      const restoredPages = deserialized.pages;
+
+      pageManagerRef.current = new WhiteboardPageManager(restoredPages);
+      setPages([...restoredPages]);
+      const initialIdx = restoredPages.findIndex((p) => p.id === deserialized.activePageId);
       const targetIdx = initialIdx >= 0 ? initialIdx : 0;
       setCurrentPageIndex(targetIdx + 1);
 
-      const activePage = snapshot.pages[targetIdx];
+      const activePage = restoredPages[targetIdx];
       if (engineRef.current && activePage) {
         if (activePage.canvasJson && activePage.canvasJson.objects && activePage.canvasJson.objects.length > 0) {
           engineRef.current.loadJson(activePage.canvasJson);
         } else {
           engineRef.current.clearCurrentPage(true);
         }
-        const bgUrl = activePage.backgroundImageUrl || activePage.thumbnailUrl;
+        const bgUrl =
+          activePage.backgroundImageUrl ||
+          activePage.thumbnailUrl ||
+          (activePage.pdfDocument?.pages && activePage.pdfDocument.pages[0]);
         if (bgUrl) {
           engineRef.current.setBackgroundImage(bgUrl).catch(() => {});
         } else {
@@ -650,9 +672,22 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         }
       }
 
+      // Restore zoom and pan viewport state if available
+      if (deserialized.viewport) {
+        if (typeof deserialized.viewport.zoom === 'number') {
+          setZoom(deserialized.viewport.zoom);
+        }
+        if (
+          typeof deserialized.viewport.panX === 'number' &&
+          typeof deserialized.viewport.panY === 'number'
+        ) {
+          setPanOffset({ x: deserialized.viewport.panX, y: deserialized.viewport.panY });
+        }
+      }
+
       whiteboardAdapter?.broadcastCustomEvent?.('restore-whiteboard-session', {
-        pages: snapshot.pages,
-        activePageId: activePage?.id || snapshot.pages[0].id,
+        pages: restoredPages,
+        activePageId: activePage?.id || restoredPages[0].id,
       });
       schedulePersist();
     },

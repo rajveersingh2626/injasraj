@@ -545,5 +545,41 @@ describe('Task 10: Whiteboard Persistence & Supabase Integration', () => {
       expect(merged.permissions.studentDrawingGranted['student-alice']).toBe(true);
       expect(merged.permissions.studentDrawingGranted['student-bob']).toBe(true);
     });
+
+    it('preserves multi-page pdfDocument state and viewport coordinates across serialization and deserialization', () => {
+      const pageWithPdf = {
+        ...createDefaultWhiteboardPage('p-doc', 1),
+        pdfDocument: {
+          title: 'Calculus Worksheet',
+          pages: ['data:image/webp;base64,page1', 'data:image/webp;base64,page2'],
+          currentPage: 2,
+          totalPages: 2,
+          pageStrokes: {
+            1: { version: '6.0', objects: [{ id: 'stroke-1', type: 'path' }] },
+            2: { version: '6.0', objects: [{ id: 'stroke-2', type: 'rect' }] },
+          },
+        },
+      };
+
+      const viewportState = { zoom: 1.75, panX: -250, panY: 180 };
+      const serialized = serializeWhiteboardSession(
+        'room-restore-test',
+        [pageWithPdf],
+        'p-doc',
+        defaultWhiteboardPermissions(),
+        viewportState
+      );
+
+      expect(serialized.viewport).toEqual(viewportState);
+      expect(serialized.pages[0].pdfDocument).toBeDefined();
+      expect(serialized.pages[0].pdfDocument?.totalPages).toBe(2);
+
+      const deserialized = deserializeWhiteboardSession(serialized);
+      expect(deserialized.viewport).toEqual(viewportState);
+      expect(deserialized.pages[0].pdfDocument).toBeDefined();
+      expect(deserialized.pages[0].pdfDocument?.title).toBe('Calculus Worksheet');
+      expect(deserialized.pages[0].pdfDocument?.pages.length).toBe(2);
+      expect(deserialized.pages[0].pdfDocument?.pageStrokes?.[2].objects[0].id).toBe('stroke-2');
+    });
   });
 });

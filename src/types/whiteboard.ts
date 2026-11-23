@@ -122,6 +122,11 @@ export interface WhiteboardSessionRecord {
   pages: WhiteboardPage[];
   active_page_id: string;
   permissions: WhiteboardPermissions;
+  viewport?: {
+    zoom: number;
+    panX: number;
+    panY: number;
+  };
   updated_at?: string;
 }
 

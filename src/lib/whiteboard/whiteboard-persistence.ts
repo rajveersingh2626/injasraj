@@ -23,6 +23,11 @@ export interface WhiteboardSessionRecord {
   pages: WhiteboardPage[];
   active_page_id: string;
   permissions: WhiteboardPermissions;
+  viewport?: {
+    zoom: number;
+    panX: number;
+    panY: number;
+  };
   updated_at?: string;
 }
 
@@ -43,7 +48,8 @@ export function serializeWhiteboardSession(
   roomId: string,
   pages: WhiteboardPage[],
   activePageId: string,
-  permissions: WhiteboardPermissions
+  permissions: WhiteboardPermissions,
+  viewport?: { zoom: number; panX: number; panY: number }
 ): WhiteboardSessionRecord {
   const safePages: WhiteboardPage[] =
     Array.isArray(pages) && pages.length > 0
@@ -64,6 +70,7 @@ export function serializeWhiteboardSession(
     pages: safePages,
     active_page_id: resolvedActivePageId,
     permissions: safePermissions,
+    viewport: viewport ? deepClone(viewport) : undefined,
     updated_at: new Date().toISOString(),
   };
 }
@@ -73,7 +80,12 @@ export function serializeWhiteboardSession(
  */
 export function deserializeWhiteboardSession(
   record: any
-): { pages: WhiteboardPage[]; activePageId: string; permissions: WhiteboardPermissions } {
+): {
+  pages: WhiteboardPage[];
+  activePageId: string;
+  permissions: WhiteboardPermissions;
+  viewport?: { zoom: number; panX: number; panY: number };
+} {
   if (!record || typeof record !== 'object') {
     const fallbackPage = createDefaultWhiteboardPage('default-page', 1);
     return {
@@ -107,6 +119,7 @@ export function deserializeWhiteboardSession(
           ? deepClone(p.canvasJson)
           : { version: '6.0', objects: [] },
       thumbnailUrl: p.thumbnailUrl,
+      pdfDocument: p.pdfDocument ? deepClone(p.pdfDocument) : undefined,
     }));
   } else {
     parsedPages = [createDefaultWhiteboardPage('default-page', 1)];
@@ -166,10 +179,20 @@ export function deserializeWhiteboardSession(
         }
       : defaultPerms;
 
+  let viewport: { zoom: number; panX: number; panY: number } | undefined;
+  if (record.viewport && typeof record.viewport === 'object') {
+    viewport = {
+      zoom: typeof record.viewport.zoom === 'number' ? record.viewport.zoom : 1,
+      panX: typeof record.viewport.panX === 'number' ? record.viewport.panX : 0,
+      panY: typeof record.viewport.panY === 'number' ? record.viewport.panY : 0,
+    };
+  }
+
   return {
     pages: parsedPages,
     activePageId,
     permissions,
+    viewport,
   };
 }
 
