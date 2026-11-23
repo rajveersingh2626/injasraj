@@ -1,7 +1,9 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { PdfSubPageNavigator } from '../src/components/whiteboard/PdfSubPageNavigator';
+import { ClassroomWorkspace } from '../src/components/classroom/ClassroomWorkspace';
+import { createDefaultWhiteboardPage } from '../src/types/whiteboard';
 
 describe('PdfSubPageNavigator Component', () => {
   it('renders nothing if totalPages <= 1', () => {
@@ -71,5 +73,42 @@ describe('PdfSubPageNavigator Component', () => {
 
     const nextBtn = screen.getByLabelText('Next PDF Page') as HTMLButtonElement;
     expect(nextBtn.disabled).toBe(true);
+  });
+
+  it('strictly mounts PdfSubPageNavigator only when current page has multi-page document, and hides on blank pages', () => {
+    const pageWithDoc = createDefaultWhiteboardPage('p1', 1, 'Math Worksheet');
+    pageWithDoc.pdfDocument = {
+      title: 'Math Worksheet',
+      pages: ['data:image/png;base64,page1', 'data:image/png;base64,page2'],
+      currentPage: 1,
+      totalPages: 2,
+    };
+    const blankPage = createDefaultWhiteboardPage('p2', 2, 'Blank Notes');
+
+    render(
+      <ClassroomWorkspace
+        roomId="room-test"
+        initialPages={[pageWithDoc, blankPage]}
+      />
+    );
+
+    // Active on Page 1: document navigator is visible
+    const pdfNav = screen.getByTestId('pdf-subpage-navigator');
+    expect(pdfNav).toBeDefined();
+    expect(within(pdfNav).getByText('Page 1 of 2')).toBeDefined();
+
+    // Switch to Page 2 (blank page): document navigator must be unmounted/hidden completely
+    const blankTab = screen.getByTestId('tab-p2');
+    fireEvent.click(blankTab);
+
+    expect(screen.queryByTestId('pdf-subpage-navigator')).toBeNull();
+
+    // Switch back to Page 1: document navigator reappears
+    const docTab = screen.getByTestId('tab-p1');
+    fireEvent.click(docTab);
+
+    const pdfNavRestored = screen.getByTestId('pdf-subpage-navigator');
+    expect(pdfNavRestored).toBeDefined();
+    expect(within(pdfNavRestored).getByText('Page 1 of 2')).toBeDefined();
   });
 });

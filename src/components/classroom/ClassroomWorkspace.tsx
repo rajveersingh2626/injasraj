@@ -544,6 +544,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           pageManagerRef.current.setActivePage(delta.pageId);
           const idx = pageManagerRef.current.getActivePageIndex();
           setCurrentPageIndex(idx + 1);
+          setPages([...pageManagerRef.current.getAllPages()]);
           const target = pageManagerRef.current.getActivePage();
           if (engineRef.current && target) {
             if (target.canvasJson) {
@@ -1188,6 +1189,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       }
       pageManagerRef.current.setActivePage(target.id);
       setCurrentPageIndex(pageNum);
+      setPages([...pageManagerRef.current.getAllPages()]);
       if (engineRef.current) {
         if (target.canvasJson && target.canvasJson.objects && target.canvasJson.objects.length > 0) {
           engineRef.current.loadJson(target.canvasJson);
@@ -1556,6 +1558,30 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     ]
   );
 
+  // Active page resolution & strict multi-page document isolation
+  const currentActivePageId =
+    pages[currentPageIndex - 1]?.id ||
+    pageManagerRef.current.getActivePageId() ||
+    pages[0]?.id ||
+    'page-1';
+
+  const activeWhiteboardPage = useMemo(() => {
+    return (
+      pages.find((p) => p.id === currentActivePageId) ||
+      pageManagerRef.current.getPageById(currentActivePageId) ||
+      pages[currentPageIndex - 1] ||
+      null
+    );
+  }, [pages, currentActivePageId, currentPageIndex]);
+
+  // Strict conditional rendering: PDF navigator ONLY renders if the current active whiteboard has a multi-page document loaded
+  const hasActiveMultiPageDocument = Boolean(
+    activeWhiteboardPage?.pdfDocument &&
+    activeWhiteboardPage.pdfDocument.totalPages > 1 &&
+    Array.isArray(activeWhiteboardPage.pdfDocument.pages) &&
+    activeWhiteboardPage.pdfDocument.pages.length > 1
+  );
+
   return (
     <div
       data-testid="classroom-workspace"
@@ -1905,7 +1931,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           )}
           <BrowserTabBar
             pages={pages}
-            activePageId={pages[currentPageIndex - 1]?.id || pages[0]?.id || 'page-1'}
+            activePageId={currentActivePageId}
             onSelectTab={handleSelectPage}
             onAddTab={handleAddPage}
             onCloseTab={handleDeletePage}
@@ -1939,12 +1965,12 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             className="w-full flex-1 min-h-0"
           />
 
-          {/* In-Tab PDF Sub-Page Navigation */}
-          {pages[currentPageIndex - 1]?.pdfDocument && (
+          {/* In-Tab PDF Sub-Page Navigation: strictly isolated to active multi-page documents only */}
+          {hasActiveMultiPageDocument && activeWhiteboardPage?.pdfDocument && (
             <PdfSubPageNavigator
-              currentPage={pages[currentPageIndex - 1].pdfDocument!.currentPage}
-              totalPages={pages[currentPageIndex - 1].pdfDocument!.totalPages}
-              documentTitle={pages[currentPageIndex - 1].pdfDocument!.title}
+              currentPage={activeWhiteboardPage.pdfDocument.currentPage || 1}
+              totalPages={activeWhiteboardPage.pdfDocument.totalPages}
+              documentTitle={activeWhiteboardPage.pdfDocument.title}
               onPageChange={handlePdfSubPageChange}
             />
           )}
