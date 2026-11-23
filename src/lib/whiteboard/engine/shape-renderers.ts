@@ -19,24 +19,28 @@ export function drawVirtualGrid(
 
   context.save();
   const step = 40;
+  const minX = -4000;
+  const maxX = virtualWidth + 4000;
+  const minY = -4000;
+  const maxY = virtualHeight + 4000;
 
   if (gridType === 'lines' || gridType === 'grid') {
     context.strokeStyle = '#F1F5F9';
     context.lineWidth = 1;
     context.beginPath();
-    for (let x = step; x < virtualWidth; x += step) {
-      context.moveTo(x, 0);
-      context.lineTo(x, virtualHeight);
+    for (let x = minX; x <= maxX; x += step) {
+      context.moveTo(x, minY);
+      context.lineTo(x, maxY);
     }
-    for (let y = step; y < virtualHeight; y += step) {
-      context.moveTo(0, y);
-      context.lineTo(virtualWidth, y);
+    for (let y = minY; y <= maxY; y += step) {
+      context.moveTo(minX, y);
+      context.lineTo(maxX, y);
     }
     context.stroke();
   } else if (gridType === 'dots') {
     context.fillStyle = '#CBD5E1';
-    for (let x = step; x < virtualWidth; x += step) {
-      for (let y = step; y < virtualHeight; y += step) {
+    for (let x = minX; x <= maxX; x += step) {
+      for (let y = minY; y <= maxY; y += step) {
         context.beginPath();
         context.arc(x, y, 1.5, 0, Math.PI * 2);
         context.fill();

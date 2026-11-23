@@ -771,13 +771,45 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
       data-testid="whiteboard-stage"
       className={`relative w-full h-full flex items-center justify-center overflow-hidden select-none bg-white pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] ${className}`}
       style={style}
+      onPointerDown={(e) => {
+        handlePointerDown(e);
+        if (e.target !== canvasRef.current && canvasRef.current && activeEngine) {
+          try {
+            const synthetic = new PointerEvent('pointerdown', {
+              clientX: e.clientX,
+              clientY: e.clientY,
+              button: e.button,
+              buttons: e.buttons,
+              bubbles: true,
+              pointerId: e.pointerId,
+            });
+            canvasRef.current.dispatchEvent(synthetic);
+          } catch {}
+        }
+      }}
+      onPointerMove={(e) => {
+        handlePointerMove(e);
+        if (e.target !== canvasRef.current && canvasRef.current && activeEngine) {
+          try {
+            const synthetic = new PointerEvent('pointermove', {
+              clientX: e.clientX,
+              clientY: e.clientY,
+              button: e.button,
+              buttons: e.buttons,
+              bubbles: true,
+              pointerId: e.pointerId,
+            });
+            canvasRef.current.dispatchEvent(synthetic);
+          } catch {}
+        }
+      }}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
     >
-      {/* 16:9 Canonical Canvas Stage Wrapper with Infinite Pan and Zoom */}
+      {/* Canonical Canvas Stage Wrapper with Infinite Pan and Zoom */}
       <div
         data-testid="canvas-stage-wrapper"
-        className="relative flex items-center justify-center transition-transform duration-75 ease-out"
+        className="relative flex items-center justify-center transition-transform duration-75 ease-out overflow-visible"
         style={{
           aspectRatio: '16 / 9',
           width:

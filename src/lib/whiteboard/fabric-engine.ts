@@ -1283,7 +1283,8 @@ export class FabricWhiteboardEngine {
         this.virtualWidth,
         this.virtualHeight
       );
-      return screenToVirtualPoint(screenX, screenY, transform, true);
+      // Unclamped coordinates allow drawing and panning infinitely in any direction (-∞ to +∞)
+      return screenToVirtualPoint(screenX, screenY, transform, false);
     } catch {
       return { x: 0, y: 0 };
     }
@@ -1371,9 +1372,9 @@ export class FabricWhiteboardEngine {
       context.translate(viewport.offsetX, viewport.offsetY);
       context.scale(viewport.scale, viewport.scale);
 
-      // 1. Draw virtual canvas background (canonical 1920x1080 white sheet)
+      // 1. Draw infinite white canvas background (-∞ to +∞)
       context.fillStyle = '#FFFFFF';
-      context.fillRect(0, 0, this.virtualWidth, this.virtualHeight);
+      context.fillRect(-100000, -100000, 200000, 200000);
 
       // 2. Draw optional grid lines or dots
       this.drawVirtualGrid(context);
