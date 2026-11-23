@@ -12,10 +12,11 @@ export interface DocumentConvertedResult {
  */
 export function isPdfBuffer(buffer: ArrayBuffer | Uint8Array | File): boolean {
   if (!buffer) return false;
-  if (typeof File !== 'undefined' && buffer instanceof File) {
-    return buffer.type === 'application/pdf' || buffer.name.toLowerCase().endsWith('.pdf');
+  if (typeof (buffer as any)?.name === 'string') {
+    const file = buffer as File;
+    return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
   }
-  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer as ArrayBuffer);
   if (bytes.length < 5) return false;
   const pdfMagic = [0x25, 0x50, 0x44, 0x46, 0x2d]; // %PDF-
   for (let i = 0; i <= Math.min(bytes.length - 5, 1024); i++) {
@@ -37,9 +38,10 @@ export function isPdfBuffer(buffer: ArrayBuffer | Uint8Array | File): boolean {
  */
 export function isWordDocument(bufferOrFile: ArrayBuffer | Uint8Array | File): boolean {
   if (!bufferOrFile) return false;
-  if (typeof File !== 'undefined' && bufferOrFile instanceof File) {
-    const name = bufferOrFile.name.toLowerCase();
-    const type = bufferOrFile.type;
+  if (typeof (bufferOrFile as any)?.name === 'string') {
+    const file = bufferOrFile as File;
+    const name = file.name.toLowerCase();
+    const type = file.type;
     return (
       name.endsWith('.docx') ||
       name.endsWith('.doc') ||
@@ -47,7 +49,7 @@ export function isWordDocument(bufferOrFile: ArrayBuffer | Uint8Array | File): b
       type === 'application/msword'
     );
   }
-  const bytes = bufferOrFile instanceof Uint8Array ? bufferOrFile : new Uint8Array(bufferOrFile);
+  const bytes = bufferOrFile instanceof Uint8Array ? bufferOrFile : new Uint8Array(bufferOrFile as ArrayBuffer);
   if (bytes.length < 4) return false;
   // DOCX is a zip archive starting with PK\x03\x04
   return bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04;
@@ -172,10 +174,9 @@ export async function convertWordDocumentToPageImages(
     title = bufferOrFile.name.replace(/\.[^/.]+$/, '');
     arrayBuffer = await bufferOrFile.arrayBuffer();
   } else if (bufferOrFile instanceof Uint8Array) {
-    arrayBuffer = bufferOrFile.buffer.slice(
-      bufferOrFile.byteOffset,
-      bufferOrFile.byteOffset + bufferOrFile.byteLength
-    );
+    const copy = new Uint8Array(bufferOrFile.byteLength);
+    copy.set(bufferOrFile);
+    arrayBuffer = copy.buffer as ArrayBuffer;
   } else {
     arrayBuffer = bufferOrFile as ArrayBuffer;
   }

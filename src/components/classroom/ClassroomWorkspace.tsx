@@ -49,6 +49,7 @@ import { WhiteboardRealtimeAdapter } from '../../lib/whiteboard/whiteboard-signa
 import {
   DebouncedPersistenceManager,
   serializeWhiteboardSession,
+  deserializeWhiteboardSession,
   WhiteboardSessionRecord,
 } from '../../lib/whiteboard/whiteboard-persistence';
 import { FabricWhiteboardEngine } from '../../lib/whiteboard/fabric-engine';
