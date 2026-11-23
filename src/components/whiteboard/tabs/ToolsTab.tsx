@@ -134,7 +134,7 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({
               type="button"
               data-testid="add-page-btn"
               onClick={onAddPage}
-              className="flex items-center gap-1 text-[11px] text-amber-600 hover:text-amber-700 font-medium transition-colors cursor-pointer"
+              className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 font-medium transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>New Page</span>

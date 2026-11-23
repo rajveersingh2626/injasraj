@@ -36,7 +36,7 @@ export const EndClassSummaryModal: React.FC<EndClassSummaryModalProps> = ({
       aria-modal="true"
       aria-labelledby="summary-modal-title"
     >
-      <div className="relative w-full max-w-md bg-stone-900 border border-stone-800 rounded-2xl p-6 shadow-2xl shadow-black/80 text-stone-100 flex flex-col gap-6">
+      <div className="relative w-full max-w-md bg-stone-900 border border-stone-800 rounded-2xl p-6 shadow-2xl shadow-black/80 text-stone-100 flex flex-col gap-6 animate-modal-scale">
         {/* Close Button */}
         <button
           onClick={onClose}

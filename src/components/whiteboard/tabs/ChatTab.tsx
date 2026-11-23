@@ -168,7 +168,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({
               <MessageSquare className="w-5 h-5 text-amber-600" />
             </div>
             <p className="text-xs font-semibold text-stone-800">No messages yet</p>
-            <p className="text-[11px] text-stone-500 max-w-[200px]">
+            <p className="text-xs text-stone-500 max-w-[200px]">
               Chat messages appear here. Type <code className="text-amber-600 font-mono font-medium">/ask AI</code> for teaching help!
             </p>
           </div>
@@ -245,7 +245,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
             <span className="font-mono font-semibold">/ask AI</span>
-            <span className="text-stone-500 text-[11px] truncate">Ask AI Assistant a question</span>
+            <span className="text-stone-500 text-xs truncate">Ask AI Assistant a question</span>
           </div>
         )}
 

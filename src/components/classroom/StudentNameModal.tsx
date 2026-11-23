@@ -45,7 +45,7 @@ export const StudentNameModal: React.FC<StudentNameModalProps> = ({
       data-testid="student-name-modal"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fadeIn"
     >
-      <div className="relative w-full max-w-md bg-stone-900 border border-stone-800/90 rounded-2xl p-6 sm:p-7 shadow-2xl space-y-6">
+      <div className="relative w-full max-w-md bg-stone-900 border border-stone-800/90 rounded-2xl p-6 sm:p-7 shadow-2xl space-y-6 animate-modal-scale">
         <div className="text-center space-y-2">
           <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto shadow-inner">
             <User className="w-6 h-6" />

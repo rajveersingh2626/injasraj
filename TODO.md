@@ -15,11 +15,11 @@
   - [x] 3.2 Display explicit locked status so students understand tools unlock when the teacher begins.
   - [x] 3.3 Commit Task 3 atomically.
 
-- [ ] Task 4: Emil Design Polish (Modal Physical Scale, Press Feedback & Typography)
-  - [ ] 4.1 In `StudentNameModal.tsx`, `EndClassSummaryModal.tsx`, and `TeacherLoginModal.tsx`, add `scale(0.95)` -> `scale(1)` physical entry transition with `var(--ease-out)`.
-  - [ ] 4.2 In `StudioSidePanel.tsx`, upgrade sub-11px typography to `text-xs` (12px) for WCAG legibility.
-  - [ ] 4.3 Ensure `active:scale-[0.97]` press feedback on toolbar and dock interactive buttons.
-  - [ ] 4.4 Commit Task 4 atomically.
+- [x] Task 4: Emil Design Polish (Modal Physical Scale, Press Feedback & Typography)
+  - [x] 4.1 In `StudentNameModal.tsx`, `EndClassSummaryModal.tsx`, and `TeacherLoginModal.tsx`, add `scale(0.95)` -> `scale(1)` physical entry transition with `var(--ease-out)`.
+  - [x] 4.2 In `StudioSidePanel.tsx`, upgrade sub-11px typography to `text-xs` (12px) for WCAG legibility.
+  - [x] 4.3 Ensure `active:scale-[0.97]` press feedback on toolbar and dock interactive buttons.
+  - [x] 4.4 Commit Task 4 atomically.
 
 - [ ] Task 5: Full Verification & Playwright Walkthrough
   - [ ] 5.1 Run full Vitest suite (`npm test`).

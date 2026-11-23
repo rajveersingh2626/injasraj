@@ -109,7 +109,7 @@ export const PeopleTab: React.FC<PeopleTabProps> = ({
               </div>
               <div>
                 <div className="text-xs font-semibold text-stone-900">Global Lock</div>
-                <div className="text-[11px] text-stone-500">Lock Whiteboard for All</div>
+                <div className="text-xs text-stone-500">Lock Whiteboard for All</div>
               </div>
             </div>
 
@@ -148,7 +148,7 @@ export const PeopleTab: React.FC<PeopleTabProps> = ({
               </div>
               <div>
                 <div className="text-xs font-semibold text-stone-900">Laser Pointer Only</div>
-                <div className="text-[11px] text-stone-500">Restrict students to pointer</div>
+                <div className="text-xs text-stone-500">Restrict students to pointer</div>
               </div>
             </div>
 
@@ -267,7 +267,7 @@ export const PeopleTab: React.FC<PeopleTabProps> = ({
                 {/* Per-student drawing permission toggle (Teacher only) */}
                 {isTeacher && isStudent && (
                   <div className="flex items-center justify-between pt-2 border-t border-stone-100">
-                    <div className="flex items-center gap-1.5 text-[11px] text-stone-600">
+                    <div className="flex items-center gap-1.5 text-xs text-stone-600">
                       <Edit3 className="w-3 h-3 text-amber-600" />
                       <span>Allow Drawing</span>
                     </div>

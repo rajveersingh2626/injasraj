@@ -51,7 +51,7 @@ export const TeacherLoginModal: React.FC<TeacherLoginModalProps> = ({
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
     >
       <div
-        className="relative w-full max-w-md p-6 rounded-2xl bg-stone-900/95 border border-stone-800 text-stone-100 shadow-2xl space-y-5"
+        className="relative w-full max-w-md p-6 rounded-2xl bg-stone-900/95 border border-stone-800 text-stone-100 shadow-2xl space-y-5 animate-modal-scale"
         style={{
           boxShadow:
             'inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 24px 48px -12px rgba(0, 0, 0, 0.7)',
@@ -133,7 +133,7 @@ export const TeacherLoginModal: React.FC<TeacherLoginModalProps> = ({
               type="submit"
               data-testid="submit-login-btn"
               disabled={isSubmitting || !passcode}
-              className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-medium bg-amber-600 hover:bg-amber-500 text-stone-950 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-md font-semibold"
+              className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-stone-950 transition-all active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
             >
               <ShieldCheck className="w-4 h-4" />
               <span>{isSubmitting ? 'Verifying...' : 'Unlock Teacher Hub'}</span>

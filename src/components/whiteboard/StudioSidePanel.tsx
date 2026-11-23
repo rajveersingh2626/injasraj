@@ -246,7 +246,7 @@ export const StudioSidePanel: React.FC<StudioSidePanelProps> = ({
                 role="tab"
                 aria-label={`${tab.label} tab`}
                 onClick={() => handleSelectTab(tab.id)}
-                className={`flex flex-col items-center justify-center gap-1 py-1.5 px-1 rounded-xl text-[11px] font-medium transition-all duration-150 cursor-pointer active:scale-95 ${
+                className={`flex flex-col items-center justify-center gap-1 py-1.5 px-1 rounded-xl text-xs font-medium transition-all duration-150 cursor-pointer active:scale-95 ${
                   isActive
                     ? 'bg-white text-stone-900 border border-stone-200/90 shadow-sm font-semibold'
                     : 'text-stone-500 hover:text-stone-900 hover:bg-stone-200/40 border border-transparent'

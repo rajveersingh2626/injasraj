@@ -103,7 +103,7 @@ export const MaterialsTab: React.FC<MaterialsTabProps> = ({
             <span className="text-xs font-medium text-stone-800">
               {selectedFile ? selectedFile.name : 'Upload Document'}
             </span>
-            <span className="text-[11px] text-stone-500">
+            <span className="text-xs text-stone-500">
               {selectedFile
                 ? `${(selectedFile.size / 1024).toFixed(1)} KB`
                 : 'Supports PDF, Word (.docx/.doc), and WebP/PNG images'}
@@ -191,7 +191,7 @@ export const MaterialsTab: React.FC<MaterialsTabProps> = ({
                       {item.title}
                     </h4>
                     {item.description && (
-                      <p className="text-[11px] text-stone-600 mt-0.5 line-clamp-2">
+                      <p className="text-xs text-stone-600 mt-0.5 line-clamp-2">
                         {item.description}
                       </p>
                     )}
