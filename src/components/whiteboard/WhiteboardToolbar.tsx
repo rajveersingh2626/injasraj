@@ -71,7 +71,7 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
   const shapesMenuRef = useRef<HTMLDivElement>(null);
   const colorContainerRef = useRef<HTMLDivElement>(null);
 
-  // Close shapes menu when clicking outside
+  // Close shapes menu when clicking outside or pressing Escape
   useEffect(() => {
     if (!isShapesMenuOpen) return;
 
@@ -81,12 +81,20 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
       }
     };
 
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsShapesMenuOpen(false);
+      }
+    };
+
     document.addEventListener('mousedown', handlePointerDown);
     document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
 
     return () => {
       document.removeEventListener('mousedown', handlePointerDown);
       document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isShapesMenuOpen]);
 
@@ -241,7 +249,10 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
       <div className="relative" ref={shapesMenuRef}>
         <button
           type="button"
-          onClick={() => setIsShapesMenuOpen((prev) => !prev)}
+          onClick={() => {
+            setIsShapesMenuOpen((prev) => !prev);
+            setIsColorPopoverOpen(false);
+          }}
           aria-label="Shapes menu"
           aria-haspopup="true"
           aria-expanded={isShapesMenuOpen}
@@ -378,7 +389,10 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
       <div className="relative" ref={colorContainerRef}>
         <button
           type="button"
-          onClick={() => setIsColorPopoverOpen((prev) => !prev)}
+          onClick={() => {
+            setIsColorPopoverOpen((prev) => !prev);
+            setIsShapesMenuOpen(false);
+          }}
           aria-label="Color and stroke settings"
           aria-haspopup="dialog"
           aria-expanded={isColorPopoverOpen}
@@ -406,6 +420,7 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
           }}
           position="top"
           align="center"
+          triggerRef={colorContainerRef}
         />
       </div>
 

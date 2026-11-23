@@ -9,6 +9,7 @@ export interface ColorStrokePopoverProps {
   className?: string;
   position?: 'top' | 'bottom';
   align?: 'center' | 'left' | 'right';
+  triggerRef?: React.RefObject<HTMLElement | null>;
 }
 
 export const COLOR_SWATCHES = [
@@ -36,6 +37,7 @@ export const ColorStrokePopover: React.FC<ColorStrokePopoverProps> = ({
   className = '',
   position = 'top',
   align = 'center',
+  triggerRef,
 }) => {
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -44,7 +46,11 @@ export const ColorStrokePopover: React.FC<ColorStrokePopoverProps> = ({
     if (!isOpen) return;
 
     const handlePointerDown = (e: MouseEvent | TouchEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (triggerRef?.current && triggerRef.current.contains(target)) {
+        return;
+      }
+      if (popoverRef.current && !popoverRef.current.contains(target)) {
         onClose?.();
       }
     };
@@ -64,7 +70,7 @@ export const ColorStrokePopover: React.FC<ColorStrokePopoverProps> = ({
       document.removeEventListener('touchstart', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, triggerRef]);
 
   if (!isOpen) return null;
 

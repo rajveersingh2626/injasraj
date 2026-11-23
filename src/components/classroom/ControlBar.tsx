@@ -60,6 +60,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 }) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const settingsBtnRef = useRef<HTMLButtonElement>(null);
   const [dragTop, setDragTop] = useState<number | null>(null);
   const isDraggingRef = useRef(false);
   const startYRef = useRef(0);
@@ -76,7 +77,11 @@ export const ControlBar: React.FC<ControlBarProps> = ({
     }
 
     function handleClickOutside(e: MouseEvent) {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (settingsBtnRef.current && settingsBtnRef.current.contains(target)) {
+        return;
+      }
+      if (popoverRef.current && !popoverRef.current.contains(target)) {
         setIsSettingsOpen(false);
       }
     }
@@ -306,6 +311,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 
         {/* Device Settings Button */}
         <GlassButton
+          ref={settingsBtnRef}
           data-testid="device-settings-btn"
           variant={isSettingsOpen ? 'primary' : 'default'}
           size="md"
