@@ -341,4 +341,21 @@ describe('WhiteboardStage Component (LearnCube Portrait Document Stage & Floatin
     const penBtn = screen.getByTestId('tool-pen');
     expect(penBtn.getAttribute('data-active')).toBe('false');
   });
+
+  it('clamps trackpad/wheel scrolling to prevent over-scrolling into empty void', () => {
+    const onViewportChange = vi.fn();
+    render(<WhiteboardStage initialZoom={1.0} onViewportChange={onViewportChange} />);
+    const stage = screen.getByTestId('whiteboard-stage');
+
+    // Trigger large wheel scroll event past allowable boundary
+    fireEvent.wheel(stage, { deltaX: 5000, deltaY: 5000 });
+
+    expect(onViewportChange).toHaveBeenCalled();
+    const lastCall = onViewportChange.mock.calls[onViewportChange.mock.calls.length - 1][0];
+    expect(Number.isFinite(lastCall.panX)).toBe(true);
+    expect(Number.isFinite(lastCall.panY)).toBe(true);
+    // Verified clamped values, not unbounded 5000
+    expect(Math.abs(lastCall.panX)).toBeLessThan(1000);
+    expect(Math.abs(lastCall.panY)).toBeLessThan(1000);
+  });
 });

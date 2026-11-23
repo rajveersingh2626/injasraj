@@ -22,6 +22,7 @@ import {
   calculateViewportTransform,
   calculateFitToWidth,
   clampZoom,
+  clampPanOffset,
   DEFAULT_PORTRAIT_WIDTH,
   DEFAULT_PORTRAIT_HEIGHT,
   ZOOM_PRESETS,
@@ -227,6 +228,19 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
     };
   }, []);
 
+  // Viewport bounds for stage calculation (portrait or 16:9)
+  const [viewportBounds, setViewportBounds] = useState<ViewportBounds>({
+    scale: 1,
+    offsetX: 0,
+    offsetY: 0,
+    renderedWidth: 0,
+    renderedHeight: 0,
+    containerWidth: 0,
+    containerHeight: 0,
+    virtualWidth: stageAspect === '16:9' ? 1920 : DEFAULT_PORTRAIT_WIDTH,
+    virtualHeight: stageAspect === '16:9' ? 1080 : DEFAULT_PORTRAIT_HEIGHT,
+  });
+
   // Native Trackpad Pinch-to-Zoom & Two-Finger Scroll Pan Listener
   useEffect(() => {
     const container = containerRef.current;
@@ -242,14 +256,35 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
         if (!isControlledZoom) {
           setInternalZoom(nextZoom);
         }
-        onViewportChange?.({ zoom: nextZoom, panX: panOffset.x, panY: panOffset.y });
+        setPanOffset((prev) => {
+          const clamped = clampPanOffset(
+            prev.x,
+            prev.y,
+            viewportBounds.containerWidth,
+            viewportBounds.containerHeight,
+            viewportBounds.renderedWidth,
+            viewportBounds.renderedHeight,
+            nextZoom
+          );
+          onViewportChange?.({ zoom: nextZoom, panX: clamped.x, panY: clamped.y });
+          return clamped;
+        });
       } else {
-        // Trackpad two-finger scroll OR mouse wheel pan
+        // Trackpad two-finger scroll OR mouse wheel pan (clamped to prevent over-scrolling into void)
         setPanOffset((prev) => {
           const nextPanX = prev.x - e.deltaX;
           const nextPanY = prev.y - e.deltaY;
-          onViewportChange?.({ zoom, panX: nextPanX, panY: nextPanY });
-          return { x: nextPanX, y: nextPanY };
+          const clamped = clampPanOffset(
+            nextPanX,
+            nextPanY,
+            viewportBounds.containerWidth,
+            viewportBounds.containerHeight,
+            viewportBounds.renderedWidth,
+            viewportBounds.renderedHeight,
+            zoom
+          );
+          onViewportChange?.({ zoom, panX: clamped.x, panY: clamped.y });
+          return clamped;
         });
       }
     };
@@ -258,7 +293,7 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
     return () => {
       container.removeEventListener('wheel', handleWheel);
     };
-  }, [zoom, panOffset, minZoom, maxZoom, isControlledZoom, onViewportChange]);
+  }, [zoom, panOffset, minZoom, maxZoom, isControlledZoom, onViewportChange, viewportBounds]);
 
   // LaTeX Math Equation Modal State
   const [isEquationModalOpen, setIsEquationModalOpen] = useState(false);
@@ -267,19 +302,6 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
       activeEngine.addMathFormula(latex, svgDataUrl);
     }
   };
-
-  // Viewport bounds for stage calculation (portrait or 16:9)
-  const [viewportBounds, setViewportBounds] = useState<ViewportBounds>({
-    scale: 1,
-    offsetX: 0,
-    offsetY: 0,
-    renderedWidth: 0,
-    renderedHeight: 0,
-    containerWidth: 0,
-    containerHeight: 0,
-    virtualWidth: stageAspect === '16:9' ? 1920 : DEFAULT_PORTRAIT_WIDTH,
-    virtualHeight: stageAspect === '16:9' ? 1080 : DEFAULT_PORTRAIT_HEIGHT,
-  });
 
   // Calculate and update stage dimensions
   const updateLetterboxBounds = useCallback(() => {
@@ -444,12 +466,24 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
   // Follow-Teacher Viewport Synchronization effect
   useEffect(() => {
     if (!isTeacher && isFollowTeacherEnabled && remoteViewport) {
-      if (remoteViewport.zoom) setInternalZoom(remoteViewport.zoom);
+      const targetZoom = remoteViewport.zoom ? clampZoom(remoteViewport.zoom, minZoom, maxZoom) : zoom;
+      if (remoteViewport.zoom && !isControlledZoom) {
+        setInternalZoom(targetZoom);
+      }
       if (remoteViewport.panX !== undefined && remoteViewport.panY !== undefined) {
-        setPanOffset({ x: remoteViewport.panX, y: remoteViewport.panY });
+        const clamped = clampPanOffset(
+          remoteViewport.panX,
+          remoteViewport.panY,
+          viewportBounds.containerWidth,
+          viewportBounds.containerHeight,
+          viewportBounds.renderedWidth,
+          viewportBounds.renderedHeight,
+          targetZoom
+        );
+        setPanOffset(clamped);
       }
     }
-  }, [isTeacher, isFollowTeacherEnabled, remoteViewport]);
+  }, [isTeacher, isFollowTeacherEnabled, remoteViewport, isControlledZoom, minZoom, maxZoom, viewportBounds, zoom]);
 
   // Page clear handler
   const handleClearPage = () => {
@@ -606,7 +640,16 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
       const dy = clientY - panStartRef.current.y;
       const nextPanX = panStartRef.current.initialPanX + dx;
       const nextPanY = panStartRef.current.initialPanY + dy;
-      pendingPanRef.current = { x: nextPanX, y: nextPanY };
+      const clamped = clampPanOffset(
+        nextPanX,
+        nextPanY,
+        viewportBounds.containerWidth,
+        viewportBounds.containerHeight,
+        viewportBounds.renderedWidth,
+        viewportBounds.renderedHeight,
+        zoom
+      );
+      pendingPanRef.current = clamped;
 
       if (!rafPanRef.current) {
         if (typeof requestAnimationFrame !== 'undefined') {
@@ -638,8 +681,17 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
         rafPanRef.current = null;
       }
       if (pendingPanRef.current) {
-        setPanOffset(pendingPanRef.current);
-        onViewportChange?.({ zoom, panX: pendingPanRef.current.x, panY: pendingPanRef.current.y });
+        const clamped = clampPanOffset(
+          pendingPanRef.current.x,
+          pendingPanRef.current.y,
+          viewportBounds.containerWidth,
+          viewportBounds.containerHeight,
+          viewportBounds.renderedWidth,
+          viewportBounds.renderedHeight,
+          zoom
+        );
+        setPanOffset(clamped);
+        onViewportChange?.({ zoom, panX: clamped.x, panY: clamped.y });
       }
     }
   };

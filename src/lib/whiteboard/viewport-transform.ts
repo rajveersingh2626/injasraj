@@ -189,3 +189,82 @@ export function isPointInViewport(
     screenY <= transform.offsetY + transform.renderedHeight
   );
 }
+
+export interface ScrollClampBounds {
+  minPanX: number;
+  maxPanX: number;
+  minPanY: number;
+  maxPanY: number;
+}
+
+export const DEFAULT_SCROLL_MARGIN = 64; // Comfortable 64px padding boundary (40px-80px range)
+
+/**
+ * Calculates strict pan/scroll boundaries based on active container dimensions,
+ * rendered document stage dimensions, zoom factor, and margin padding.
+ * Prevents over-scrolling into empty void.
+ */
+export function calculateScrollClampBounds(
+  containerWidth: number,
+  containerHeight: number,
+  renderedWidth: number,
+  renderedHeight: number,
+  zoom: number = 1.0,
+  margin: number = DEFAULT_SCROLL_MARGIN
+): ScrollClampBounds {
+  if (containerWidth <= 0 || containerHeight <= 0 || renderedWidth <= 0 || renderedHeight <= 0) {
+    return { minPanX: -margin, maxPanX: margin, minPanY: -margin, maxPanY: margin };
+  }
+
+  const effectiveZoom = Math.max(0.1, zoom || 1.0);
+  const scaledWidth = renderedWidth * effectiveZoom;
+  const scaledHeight = renderedHeight * effectiveZoom;
+
+  const overflowX = Math.max(0, (scaledWidth - containerWidth) / 2);
+  const overflowY = Math.max(0, (scaledHeight - containerHeight) / 2);
+
+  return {
+    minPanX: -overflowX - margin,
+    maxPanX: overflowX + margin,
+    minPanY: -overflowY - margin,
+    maxPanY: overflowY + margin,
+  };
+}
+
+/**
+ * Enforces pan offset constraints against dynamic stage boundaries.
+ */
+export function clampPanOffset(
+  panX: number,
+  panY: number,
+  containerWidth: number,
+  containerHeight: number,
+  renderedWidth: number,
+  renderedHeight: number,
+  zoom: number = 1.0,
+  margin: number = DEFAULT_SCROLL_MARGIN
+): { x: number; y: number } {
+  const bounds = calculateScrollClampBounds(
+    containerWidth,
+    containerHeight,
+    renderedWidth,
+    renderedHeight,
+    zoom,
+    margin
+  );
+
+  const resolveSafe = (val: number, min: number, max: number): number => {
+    if (val === Infinity) return max;
+    if (val === -Infinity) return min;
+    if (!Number.isFinite(val)) return 0;
+    return val;
+  };
+
+  const safeX = resolveSafe(panX, bounds.minPanX, bounds.maxPanX);
+  const safeY = resolveSafe(panY, bounds.minPanY, bounds.maxPanY);
+
+  return {
+    x: Math.max(bounds.minPanX, Math.min(bounds.maxPanX, safeX)),
+    y: Math.max(bounds.minPanY, Math.min(bounds.maxPanY, safeY)),
+  };
+}

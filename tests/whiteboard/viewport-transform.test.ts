@@ -6,6 +6,9 @@ import {
   clampZoom,
   isPointInViewport,
   calculateFitToWidth,
+  calculateScrollClampBounds,
+  clampPanOffset,
+  DEFAULT_SCROLL_MARGIN,
   DEFAULT_VIRTUAL_WIDTH,
   DEFAULT_VIRTUAL_HEIGHT,
   type ViewportBounds,
@@ -368,6 +371,51 @@ describe('ViewportTransform Engine', () => {
     it('clamps fit-to-width gracefully between minimum and maximum bounds', () => {
       expect(calculateFitToWidth(100, 1200, 64)).toBe(0.3); // Clamped to min 0.3
       expect(calculateFitToWidth(4000, 1200, 64)).toBe(2.0); // Clamped to max 2.0
+    });
+  });
+
+  describe('calculateScrollClampBounds & clampPanOffset', () => {
+    it('calculates scroll bounds for non-overflowing canvas', () => {
+      // 1000x800 container, 800x600 rendered canvas at 1x scale
+      const bounds = calculateScrollClampBounds(1000, 800, 800, 600, 1.0, 64);
+      expect(bounds.minPanX).toBe(-64);
+      expect(bounds.maxPanX).toBe(64);
+      expect(bounds.minPanY).toBe(-64);
+      expect(bounds.maxPanY).toBe(64);
+    });
+
+    it('calculates scroll bounds dynamically for zoomed-in / tall portrait stage', () => {
+      // 1000x800 container, 800x1200 rendered canvas at 1.5x scale -> scaled: 1200x1800
+      // overflowX = (1200 - 1000) / 2 = 100
+      // overflowY = (1800 - 800) / 2 = 500
+      const bounds = calculateScrollClampBounds(1000, 800, 800, 1200, 1.5, 64);
+      expect(bounds.minPanX).toBe(-164);
+      expect(bounds.maxPanX).toBe(164);
+      expect(bounds.minPanY).toBe(-564);
+      expect(bounds.maxPanY).toBe(564);
+    });
+
+    it('clamps extreme over-scroll values into comfortable boundary range', () => {
+      // User attempts to pan into empty void (e.g., panX = -9999, panY = 8888)
+      const clamped = clampPanOffset(-9999, 8888, 1000, 800, 800, 1200, 1.5, 64);
+      expect(clamped.x).toBe(-164);
+      expect(clamped.y).toBe(564);
+    });
+
+    it('preserves valid in-bounds pan coordinates without modification', () => {
+      const clamped = clampPanOffset(50, -100, 1000, 800, 800, 1200, 1.5, 64);
+      expect(clamped.x).toBe(50);
+      expect(clamped.y).toBe(-100);
+    });
+
+    it('handles zero or invalid container dimensions defensively', () => {
+      const bounds = calculateScrollClampBounds(0, 0, 800, 600, 1.0, 64);
+      expect(bounds.minPanX).toBe(-64);
+      expect(bounds.maxPanX).toBe(64);
+
+      const clamped = clampPanOffset(NaN, Infinity, 0, 0, 800, 600, 1.0, 64);
+      expect(clamped.x).toBe(0);
+      expect(clamped.y).toBe(64);
     });
   });
 });
