@@ -9,8 +9,27 @@
 
 export const DEFAULT_VIRTUAL_WIDTH = 1920;
 export const DEFAULT_VIRTUAL_HEIGHT = 1080;
+export const DEFAULT_PORTRAIT_WIDTH = 1200;
+export const DEFAULT_PORTRAIT_HEIGHT = 1600; // Standard 3:4 portrait document aspect ratio
+export const PORTRAIT_PAGE_GAP = 40; // Vertical spacing between stacked document pages in px
 export const DEFAULT_MIN_ZOOM = 0.5;
 export const DEFAULT_MAX_ZOOM = 3.0;
+export const ZOOM_PRESETS = [0.75, 1.0, 1.25, 1.5];
+
+/**
+ * Calculates a crisp fit-to-width zoom scale factor for portrait document stages
+ * ensuring both student and teacher view the exact same document framing with comfortable margins.
+ */
+export function calculateFitToWidth(
+  containerWidth: number,
+  pageWidth: number = DEFAULT_PORTRAIT_WIDTH,
+  horizontalMargin: number = 64
+): number {
+  if (containerWidth <= horizontalMargin) return 1.0;
+  const availableWidth = containerWidth - horizontalMargin;
+  const scale = availableWidth / pageWidth;
+  return Math.min(2.0, Math.max(0.3, parseFloat(scale.toFixed(2))));
+}
 
 export interface ViewportBounds {
   scale: number;

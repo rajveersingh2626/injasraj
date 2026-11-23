@@ -5,6 +5,7 @@ import {
   virtualToScreenPoint,
   clampZoom,
   isPointInViewport,
+  calculateFitToWidth,
   DEFAULT_VIRTUAL_WIDTH,
   DEFAULT_VIRTUAL_HEIGHT,
   type ViewportBounds,
@@ -349,6 +350,24 @@ describe('ViewportTransform Engine', () => {
       // Boundary edge is inside
       expect(isPointInViewport(0, 96, transform)).toBe(true);
       expect(isPointInViewport(1024, 672, transform)).toBe(true);
+    });
+  });
+
+  describe('calculateFitToWidth', () => {
+    it('calculates fit-to-width scale factor for various screen widths', () => {
+      // 1264px container with 64px padding -> 1200px available / 1200px page = 1.0
+      expect(calculateFitToWidth(1264, 1200, 64)).toBe(1.0);
+
+      // Laptop 1440px container with 64px padding -> 1376px / 1200px = 1.15
+      expect(calculateFitToWidth(1440, 1200, 64)).toBe(1.15);
+
+      // Mobile / tablet 768px container with 64px padding -> 704px / 1200px = 0.59
+      expect(calculateFitToWidth(768, 1200, 64)).toBe(0.59);
+    });
+
+    it('clamps fit-to-width gracefully between minimum and maximum bounds', () => {
+      expect(calculateFitToWidth(100, 1200, 64)).toBe(0.3); // Clamped to min 0.3
+      expect(calculateFitToWidth(4000, 1200, 64)).toBe(2.0); // Clamped to max 2.0
     });
   });
 });
