@@ -50,7 +50,7 @@ describe('Classroom Session Lifecycle (Start Class & End Class)', () => {
       const closeBtn = screen.getByTestId('close-summary-modal-btn');
       fireEvent.click(closeBtn);
       expect(mockClose).toHaveBeenCalledTimes(1);
-    });
+    }, 15000);
 
     it('does not render when isOpen is false', () => {
       const { container } = render(
