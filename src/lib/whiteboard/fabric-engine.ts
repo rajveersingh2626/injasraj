@@ -371,9 +371,9 @@ export class FabricWhiteboardEngine {
   }
 
   public exportDataUrl(type: string = 'image/png', quality: number = 0.92): string | null {
-    if (!this.canvas) return null;
+    if (!this.canvasElement) return null;
     try {
-      return this.canvas.toDataURL(type, quality);
+      return this.canvasElement.toDataURL(type, quality);
     } catch {
       return null;
     }
