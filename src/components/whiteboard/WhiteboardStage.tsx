@@ -1015,6 +1015,7 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
         onOpenEquationModal={() => setIsEquationModalOpen(true)}
         isTeacher={isTeacher}
         readOnly={readOnly}
+        className={readOnly ? 'pointer-events-none opacity-40 select-none' : ''}
       />
 
       {/* LaTeX Math Formula Modal */}

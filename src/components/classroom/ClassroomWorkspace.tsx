@@ -16,6 +16,7 @@ import {
   Edit2,
   Users,
   Star,
+  Lock,
 } from 'lucide-react';
 import {
   IMediaSession,
@@ -1967,6 +1968,10 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
               <p className="text-sm text-stone-400 mt-1">
                 Please sit tight. Your lesson will begin shortly.
               </p>
+              <div className="mt-4 px-3.5 py-1.5 rounded-full bg-stone-900/80 border border-stone-800 text-stone-400 text-xs flex items-center gap-2 select-none shadow-sm">
+                <Lock className="w-3.5 h-3.5 text-amber-400/90" />
+                <span>Whiteboard and interactive tools are locked until class begins</span>
+              </div>
             </div>
           )}
           <BrowserTabBar
@@ -1980,6 +1985,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           />
           <WhiteboardStage
             role={role}
+            readOnly={role === 'student' && sessionStatus === 'waiting'}
             userId={userId}
             userName={localName}
             activeTool={activeTool}

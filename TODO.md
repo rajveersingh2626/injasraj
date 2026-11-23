@@ -10,10 +10,10 @@
   - [x] 2.1 In `whiteboard-persistence.ts`, catch 42501 RLS permission errors gracefully without throwing noisy console errors, ensuring seamless localStorage fallback.
   - [x] 2.2 Commit Task 2 atomically.
 
-- [ ] Task 3: Student Waiting Room Overlay & Toolbar UX
-  - [ ] 3.1 In `ClassroomWorkspace.tsx`, dim and disable toolbar controls (`pointer-events-none opacity-40`) while `role === 'student' && sessionStatus === 'waiting'`.
-  - [ ] 3.2 Display explicit locked status so students understand tools unlock when the teacher begins.
-  - [ ] 3.3 Commit Task 3 atomically.
+- [x] Task 3: Student Waiting Room Overlay & Toolbar UX
+  - [x] 3.1 In `ClassroomWorkspace.tsx`, dim and disable toolbar controls (`pointer-events-none opacity-40`) while `role === 'student' && sessionStatus === 'waiting'`.
+  - [x] 3.2 Display explicit locked status so students understand tools unlock when the teacher begins.
+  - [x] 3.3 Commit Task 3 atomically.
 
 - [ ] Task 4: Emil Design Polish (Modal Physical Scale, Press Feedback & Typography)
   - [ ] 4.1 In `StudentNameModal.tsx`, `EndClassSummaryModal.tsx`, and `TeacherLoginModal.tsx`, add `scale(0.95)` -> `scale(1)` physical entry transition with `var(--ease-out)`.
