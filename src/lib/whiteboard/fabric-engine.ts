@@ -370,6 +370,15 @@ export class FabricWhiteboardEngine {
     };
   }
 
+  public exportDataUrl(type: string = 'image/png', quality: number = 0.92): string | null {
+    if (!this.canvas) return null;
+    try {
+      return this.canvas.toDataURL(type, quality);
+    } catch {
+      return null;
+    }
+  }
+
   public async loadJson(json: any): Promise<void> {
     if (!json || typeof json !== 'object') {
       throw new Error('Invalid JSON provided to loadJson');

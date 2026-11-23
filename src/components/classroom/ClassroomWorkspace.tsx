@@ -994,10 +994,76 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     }
   }, [roomId, currentPageIndex]);
 
-  const handleExportPdf = useCallback(() => {
-    downloadMultiPagePdf(pages, roomId).catch((err) => {
-      console.error('Failed to export lesson PDF:', err);
-    });
+  const handleExportPdf = useCallback(async () => {
+    try {
+      const { exportAnnotatedPdf, downloadPdfBlob } = await import(
+        '../../lib/whiteboard/pdf-lib-export'
+      );
+
+      const exportPages = [];
+      const currentActiveId = pageManagerRef.current.getActivePageId();
+
+      if (engineRef.current) {
+        pageManagerRef.current.updatePageCanvas(
+          currentActiveId,
+          engineRef.current.exportJson()
+        );
+      }
+
+      const allPages = pageManagerRef.current.getAllPages();
+      let pageNum = 1;
+
+      for (const p of allPages) {
+        if (p.pdfDocument && p.pdfDocument.pages && p.pdfDocument.pages.length > 0) {
+          for (let subIdx = 0; subIdx < p.pdfDocument.pages.length; subIdx++) {
+            const bgUrl = p.pdfDocument.pages[subIdx];
+            let annotationDataUrl: string | undefined;
+            if (
+              p.id === currentActiveId &&
+              engineRef.current &&
+              (p.pdfDocument.currentPage || 1) === subIdx + 1
+            ) {
+              const exported = engineRef.current.exportDataUrl();
+              if (exported) annotationDataUrl = exported;
+            }
+            exportPages.push({
+              pageNumber: pageNum++,
+              backgroundImageUrl: bgUrl,
+              annotationDataUrl,
+              width: 1200,
+              height: 1600,
+            });
+          }
+        } else {
+          let annotationDataUrl: string | undefined;
+          if (p.id === currentActiveId && engineRef.current) {
+            const exported = engineRef.current.exportDataUrl();
+            if (exported) annotationDataUrl = exported;
+          }
+          exportPages.push({
+            pageNumber: pageNum++,
+            backgroundImageUrl: p.backgroundImageUrl,
+            annotationDataUrl,
+            width: 1200,
+            height: 1600,
+          });
+        }
+      }
+
+      const pdfBytes = await exportAnnotatedPdf(exportPages, {
+        title: `Lesson Summary - ${roomId}`,
+        author: 'Injasraj Classroom',
+        pageWidth: 1200,
+        pageHeight: 1600,
+      });
+
+      downloadPdfBlob(pdfBytes, `lesson-${roomId}-full-summary.pdf`);
+    } catch (err) {
+      console.warn('pdf-lib export failed, falling back to legacy multi-page export:', err);
+      downloadMultiPagePdf(pages, roomId).catch((fallbackErr) => {
+        console.error('Failed to export lesson PDF:', fallbackErr);
+      });
+    }
   }, [pages, roomId]);
 
   // Guarded Page Clear Handler (Preserves Locked Worksheet Background)
