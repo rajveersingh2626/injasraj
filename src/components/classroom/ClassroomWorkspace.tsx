@@ -382,7 +382,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   // Follow-Teacher Viewport Synchronization State
   const [isFollowTeacherEnabled, setIsFollowTeacherEnabled] = useState<boolean>(false);
   const [remoteViewport, setRemoteViewport] = useState<{ zoom: number; panX: number; panY: number } | undefined>(undefined);
-  const currentViewportRef = useRef<{ zoom: number; panX: number; panY: number }>({ zoom: 1, panX: 0, panY: 0 });
+  const currentViewportRef = useRef<{ zoom: number; panX: number; panY: number }>({ zoom: 1.25, panX: 0, panY: 0 });
 
   // Whiteboard Pages & Navigation
   const defaultInitialPages = useMemo(

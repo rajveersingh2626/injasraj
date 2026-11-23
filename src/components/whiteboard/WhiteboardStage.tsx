@@ -47,6 +47,8 @@ export interface WhiteboardStageProps {
 
   // Zoom & Pan State
   zoom?: number;
+  initialZoom?: number;
+  showZoomControls?: boolean;
   onZoomIn?: () => void;
   onZoomOut?: () => void;
   onResetZoom?: () => void;
@@ -108,6 +110,8 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
   onChangeStrokeProperties,
   // Zoom state
   zoom: controlledZoom,
+  initialZoom = 1.25,
+  showZoomControls = false,
   onZoomIn,
   onZoomOut,
   onResetZoom,
@@ -175,7 +179,7 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
 
   // Zoom state (controlled vs uncontrolled)
   const isControlledZoom = controlledZoom !== undefined;
-  const [internalZoom, setInternalZoom] = useState<number>(1.0);
+  const [internalZoom, setInternalZoom] = useState<number>(initialZoom);
   const zoom = isControlledZoom ? controlledZoom : internalZoom;
 
   // Viewport Pan Offset & Gestures
@@ -910,27 +914,29 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
         canAddPage={canAddPage && isTeacher}
       />
 
-      {/* Floating Zoom Controls */}
-      <ZoomControls
-        zoom={zoom}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onResetZoom={handleResetZoom}
-        onFitToScreen={handleFitToScreen}
-        onFitToWidth={handleFitToWidth}
-        onSelectPreset={(preset) => {
-          setPanOffset({ x: 0, y: 0 });
-          if (!isControlledZoom) {
-            setInternalZoom(preset);
-          }
-          onViewportChange?.({ zoom: preset, panX: 0, panY: 0 });
-        }}
-        isFollowTeacherEnabled={isFollowTeacherEnabled}
-        onToggleFollowTeacher={onToggleFollowTeacher}
-        isTeacher={isTeacher}
-        minZoom={minZoom}
-        maxZoom={maxZoom}
-      />
+      {/* Floating Zoom Controls (removed by default for uncluttered canvas, enabled when showZoomControls=true) */}
+      {showZoomControls && (
+        <ZoomControls
+          zoom={zoom}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onResetZoom={handleResetZoom}
+          onFitToScreen={handleFitToScreen}
+          onFitToWidth={handleFitToWidth}
+          onSelectPreset={(preset) => {
+            setPanOffset({ x: 0, y: 0 });
+            if (!isControlledZoom) {
+              setInternalZoom(preset);
+            }
+            onViewportChange?.({ zoom: preset, panX: 0, panY: 0 });
+          }}
+          isFollowTeacherEnabled={isFollowTeacherEnabled}
+          onToggleFollowTeacher={onToggleFollowTeacher}
+          isTeacher={isTeacher}
+          minZoom={minZoom}
+          maxZoom={maxZoom}
+        />
+      )}
 
       {/* Floating Glass Toolset Toolbar */}
       <WhiteboardToolbar

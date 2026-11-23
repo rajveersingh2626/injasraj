@@ -88,6 +88,7 @@ describe('WhiteboardStage Component (LearnCube Portrait Document Stage & Floatin
         currentPage={1}
         totalPages={3}
         zoom={1.2}
+        showZoomControls={true}
       />
     );
 
@@ -212,6 +213,7 @@ describe('WhiteboardStage Component (LearnCube Portrait Document Stage & Floatin
     render(
       <WhiteboardStage
         zoom={1.0}
+        showZoomControls={true}
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
         onResetZoom={handleResetZoom}
@@ -295,7 +297,7 @@ describe('WhiteboardStage Component (LearnCube Portrait Document Stage & Floatin
   });
 
   it('handles multi-touch pinch-to-zoom gesture on canvas', () => {
-    render(<WhiteboardStage minZoom={0.5} maxZoom={3.0} />);
+    render(<WhiteboardStage initialZoom={1.0} minZoom={0.5} maxZoom={3.0} />);
     const canvas = screen.getByTestId('whiteboard-canvas');
     const stageWrapper = screen.getByTestId('canvas-stage-wrapper');
 
