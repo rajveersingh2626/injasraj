@@ -131,7 +131,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   worksheets,
   onSave,
   participants: propParticipants,
-  initialSidePanelCollapsed = false,
+  initialSidePanelCollapsed = true,
   restoreRoomId,
   className = '',
 }) => {
