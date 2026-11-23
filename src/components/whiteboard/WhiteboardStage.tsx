@@ -743,7 +743,7 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
     <div
       ref={containerRef}
       data-testid="whiteboard-stage"
-      className={`relative w-full h-full flex items-center justify-center overflow-hidden select-none bg-[#121110] bg-[radial-gradient(#292524_1px,transparent_1px)] [background-size:24px_24px] pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] ${className}`}
+      className={`relative w-full h-full flex items-center justify-center overflow-hidden select-none bg-white pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] ${className}`}
       style={style}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
@@ -751,7 +751,7 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
       {/* 16:9 Canonical Canvas Stage Wrapper with Infinite Pan and Zoom */}
       <div
         data-testid="canvas-stage-wrapper"
-        className="relative flex items-center justify-center transition-transform duration-75 ease-out shadow-2xl"
+        className="relative flex items-center justify-center transition-transform duration-75 ease-out"
         style={{
           aspectRatio: '16 / 9',
           width:
@@ -777,7 +777,7 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
           data-testid="whiteboard-canvas"
           width={1920}
           height={1080}
-          className={`w-full h-full block bg-white rounded-lg shadow-inner touch-none ${getToolCursorClass(
+          className={`w-full h-full block bg-white touch-none ${getToolCursorClass(
             activeTool
           )}`}
           onPointerDown={handlePointerDown}
@@ -798,7 +798,7 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
           data-testid="laser-overlay"
           width={1920}
           height={1080}
-          className="absolute inset-0 pointer-events-none w-full h-full z-10 rounded-lg"
+          className="absolute inset-0 pointer-events-none w-full h-full z-10"
         />
       </div>
 

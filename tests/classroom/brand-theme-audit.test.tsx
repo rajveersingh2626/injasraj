@@ -62,6 +62,6 @@ describe('Brand Palette & Zero-Glow Emil Polish Audit', () => {
     const html = container.innerHTML;
     expect(html).not.toContain('shadow-purple-500/50');
     expect(html).not.toContain('from-indigo-500 via-purple-500');
-    expect(html).toContain('bg-[#121110]');
+    expect(html).toContain('bg-white');
   });
 });
