@@ -12,6 +12,7 @@ export class LiveKitMediaSession implements IMediaSession {
   private screenShareEnabled = false;
   private remoteTrackCallbacks: ((track: MediaStreamTrack, stream: MediaStream) => void)[] = [];
   private qualityCallbacks: ((metrics: ConnectionQuality) => void)[] = [];
+  private participantCallbacks: ((participants: any[]) => void)[] = [];
   private currentQuality: ConnectionQuality = createDefaultQuality();
 
   constructor(serverUrl?: string) {
@@ -33,7 +34,10 @@ export class LiveKitMediaSession implements IMediaSession {
     return this.screenShareEnabled;
   }
 
-  async connect(roomId: string, token: string): Promise<void> {
+  async connect(roomId: string, token: string, serverUrl?: string): Promise<void> {
+    if (serverUrl) {
+      this.url = serverUrl;
+    }
     try {
       // Lazy load livekit-client dynamically so non-browser environments do not crash
       const { Room, RoomEvent, ConnectionQuality: LKQuality, Track } = await import(
@@ -49,6 +53,19 @@ export class LiveKitMediaSession implements IMediaSession {
           const mediaStream = new MediaStream([track.mediaStreamTrack]);
           this.emitRemoteTrack(track.mediaStreamTrack, mediaStream);
         }
+        this.emitParticipants();
+      });
+
+      this.room.on(RoomEvent.TrackUnsubscribed, () => {
+        this.emitParticipants();
+      });
+
+      this.room.on(RoomEvent.ParticipantConnected, () => {
+        this.emitParticipants();
+      });
+
+      this.room.on(RoomEvent.ParticipantDisconnected, () => {
+        this.emitParticipants();
       });
 
       this.room.on(
@@ -72,9 +89,63 @@ export class LiveKitMediaSession implements IMediaSession {
       );
 
       await this.room.connect(this.url, token);
-      await this.room.localParticipant.enableCameraAndMicrophone();
+      this.emitParticipants();
+
+      try {
+        await this.room.localParticipant.enableCameraAndMicrophone();
+      } catch (mediaErr) {
+        console.warn('LiveKit local device auto-enable skipped:', mediaErr);
+      }
     } catch (err) {
       console.warn('LiveKit connect notice:', err);
+    }
+  }
+
+  public getLocalStream(): MediaStream | null {
+    if (!this.room?.localParticipant) return null;
+    const tracks: MediaStreamTrack[] = [];
+    try {
+      this.room.localParticipant.trackPublications?.forEach?.((pub: any) => {
+        if (pub.track?.mediaStreamTrack) {
+          tracks.push(pub.track.mediaStreamTrack);
+        }
+      });
+    } catch {}
+    return tracks.length > 0 ? new MediaStream(tracks) : null;
+  }
+
+  public getParticipants(): any[] {
+    if (!this.room) return [];
+    const result: any[] = [];
+    try {
+      if (this.room.remoteParticipants) {
+        this.room.remoteParticipants.forEach((p: any) => {
+          result.push({
+            id: p.identity || p.sid,
+            name: p.name || p.identity,
+            role: p.metadata ? JSON.parse(p.metadata)?.role : 'student',
+            isMicOn: p.isMicrophoneEnabled ?? true,
+            isCameraOn: p.isCameraEnabled ?? true,
+          });
+        });
+      }
+    } catch {}
+    return result;
+  }
+
+  public onParticipantsChange(callback: (participants: any[]) => void): void {
+    this.participantCallbacks.push(callback);
+    callback(this.getParticipants());
+  }
+
+  public emitParticipants(customParticipants?: any[]): void {
+    const list = customParticipants || this.getParticipants();
+    for (const cb of this.participantCallbacks) {
+      try {
+        cb(list);
+      } catch (e) {
+        console.error(e);
+      }
     }
   }
 

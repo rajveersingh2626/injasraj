@@ -231,20 +231,56 @@ export function ClassroomView({
       // Connect signaling & WebRTC / LiveKit
       try {
         if (activeMediaSession instanceof LiveKitMediaSession) {
-          const res = await fetch(
-            `/api/livekit/token?room=${encodeURIComponent(roomId)}&username=${encodeURIComponent(
-              localName || userId
-            )}&role=${activeRole}`
-          );
+          const origin =
+            typeof window !== 'undefined' && window.location?.origin
+              ? window.location.origin
+              : 'http://localhost:3000';
+          const tokenUrl = `${origin}/api/livekit/token?room=${encodeURIComponent(roomId)}&username=${encodeURIComponent(
+            localName || userId
+          )}&role=${activeRole}`;
+          const res = await fetch(tokenUrl);
           if (res.ok) {
             const data = await res.json();
-            await activeMediaSession.connect(roomId, data.token);
+            await (activeMediaSession as any).connect(roomId, data.token, data.url);
           }
         } else if (typeof activeMediaSession.connect === 'function') {
           await activeMediaSession.connect(roomId, userId);
         }
       } catch (err) {
         console.warn('WebRTC/LiveKit session connect notice:', err);
+      }
+
+      // Wire LiveKit participant changes to classroom state
+      if (typeof (activeMediaSession as any).onParticipantsChange === 'function') {
+        (activeMediaSession as any).onParticipantsChange((lkParticipants: any[]) => {
+          if (!isCancelled && Array.isArray(lkParticipants) && lkParticipants.length > 0) {
+            setRemoteParticipants((prev) => {
+              const updated = [...prev];
+              lkParticipants.forEach((p) => {
+                if (p.id !== userId && !updated.some((u) => u.id === p.id)) {
+                  updated.push({
+                    id: p.id,
+                    name: p.name || 'Participant',
+                    role: p.role || 'student',
+                    isMicOn: p.isMicOn ?? true,
+                    isCameraOn: p.isCameraOn ?? true,
+                    isSelf: false,
+                    isDrawingAllowed: p.role === 'teacher',
+                  });
+                }
+              });
+              return updated;
+            });
+          }
+        });
+      }
+
+      // Check if LiveKit already acquired a local stream
+      if (typeof (activeMediaSession as any).getLocalStream === 'function') {
+        const lkStream = (activeMediaSession as any).getLocalStream();
+        if (lkStream && !isCancelled) {
+          setLocalStream(lkStream);
+        }
       }
 
       // Try acquiring local media if available in browser
@@ -258,7 +294,7 @@ export function ClassroomView({
             video: true,
           });
           if (!isCancelled) {
-            setLocalStream(stream);
+            setLocalStream((curr) => curr || stream);
             const audioTrack = stream.getAudioTracks()[0];
             const videoTrack = stream.getVideoTracks()[0];
             if (typeof activeMediaSession.publishLocalMedia === 'function') {
