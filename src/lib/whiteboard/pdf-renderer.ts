@@ -431,7 +431,7 @@ export async function renderPageWithPdfInstance(
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          await page.render({ canvasContext: ctx, viewport }).promise;
+          await page.render({ canvasContext: ctx, canvas, viewport }).promise;
           let url: string | null = null;
           try {
             url = canvas.toDataURL('image/webp', 0.92);
@@ -445,8 +445,8 @@ export async function renderPageWithPdfInstance(
             dataUrl = url;
           }
         }
-      } catch {
-        // Fall through
+      } catch (renderErr) {
+        console.warn(`PDF.js page render error on page ${pageNumber}:`, renderErr);
       }
     }
   }
@@ -805,34 +805,26 @@ export async function convertPdfToPageImages(
 
   const pages: string[] = [];
 
-  // 1. Immediately render Page 1 so it loads instantly on the canvas without freezing the thread
+  // 1. Render Page 1
   const page1 = await renderPdfPageToDataUrl(bytes, 1, scale);
   pages.push(page1.dataUrl);
   if (onProgress) {
     onProgress(1, totalPages);
   }
 
-  if (totalPages > 1) {
-    // 2. Pre-fill remaining slots with responsive SVG placeholders
-    const baseW = page1.width || DEFAULT_BASE_PAGE_WIDTH;
-    const baseH = page1.height || DEFAULT_BASE_PAGE_HEIGHT;
-    for (let i = 2; i <= totalPages; i++) {
+  // 2. Render all remaining pages into real image data URLs
+  for (let i = 2; i <= totalPages; i++) {
+    try {
+      const rendered = await renderPdfPageToDataUrl(bytes, i, scale);
+      pages.push(rendered.dataUrl);
+    } catch {
+      const baseW = page1.width || DEFAULT_BASE_PAGE_WIDTH;
+      const baseH = page1.height || DEFAULT_BASE_PAGE_HEIGHT;
       pages.push(generateMockSvgDataUrl(i, totalPages, baseW, baseH, title));
     }
-
-    // 3. Report completion and trigger non-blocking background prefetch for subsequent pages
     if (onProgress) {
-      onProgress(totalPages, totalPages);
+      onProgress(i, totalPages);
     }
-    setTimeout(async () => {
-      for (let i = 2; i <= totalPages; i++) {
-        try {
-          await new Promise((r) => setTimeout(r, 16));
-          const rendered = await renderPdfPageToDataUrl(bytes, i, scale);
-          pages[i - 1] = rendered.dataUrl;
-        } catch {}
-      }
-    }, 50);
   }
 
   return {

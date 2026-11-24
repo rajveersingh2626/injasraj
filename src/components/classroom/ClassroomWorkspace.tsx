@@ -209,6 +209,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     worksheets || []
   );
   const currentDocumentBufferRef = useRef<Uint8Array | null>(null);
+  const documentBuffersMap = useRef<Map<string, Uint8Array>>(new Map());
 
   useEffect(() => {
     if (worksheets && worksheets.length > 0) {
@@ -1383,24 +1384,27 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       }
     }
 
-    // If newBg is an SVG placeholder and we have the raw PDF bytes, render on-demand
+    // If newBg is an SVG placeholder or missing, and we have raw PDF bytes, render on-demand
     const isPlaceholder = !newBg || newBg.startsWith('data:image/svg+xml');
-    if (isPlaceholder && currentDocumentBufferRef.current) {
+    const pdfBuf =
+      currentDocumentBufferRef.current ||
+      (doc.title ? documentBuffersMap.current.get(doc.title) : undefined) ||
+      documentBuffersMap.current.get(activePage.id);
+
+    if (isPlaceholder && pdfBuf) {
       import('../../lib/whiteboard/pdf-renderer').then(({ renderPdfPageToDataUrl }) => {
-        if (currentDocumentBufferRef.current) {
-          renderPdfPageToDataUrl(currentDocumentBufferRef.current, targetPage).then((result) => {
-            if (result && result.dataUrl) {
-              if (doc.pages) {
-                doc.pages[targetPage - 1] = result.dataUrl;
-              }
-              if (doc.currentPage === targetPage && engineRef.current) {
-                engineRef.current.setBackgroundImage(result.dataUrl).catch(() => {});
-              }
+        renderPdfPageToDataUrl(pdfBuf, targetPage).then((result) => {
+          if (result && result.dataUrl) {
+            if (doc.pages) {
+              doc.pages[targetPage - 1] = result.dataUrl;
             }
-          }).catch((err) => {
-            console.warn(`Failed on-demand render of PDF page ${targetPage}:`, err);
-          });
-        }
+            if (doc.currentPage === targetPage && engineRef.current) {
+              engineRef.current.setBackgroundImage(result.dataUrl).catch(() => {});
+            }
+          }
+        }).catch((err) => {
+          console.warn(`Failed on-demand render of PDF page ${targetPage}:`, err);
+        });
       }).catch(() => {});
     }
 
@@ -1443,12 +1447,21 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           backgroundUrl = fileOrUrl;
           pdfPageDataUrls.push(fileOrUrl);
         }
+
+        const preserved =
+          documentBuffersMap.current.get(fileOrUrl) ||
+          documentBuffersMap.current.get(docTitle);
+        if (preserved) {
+          currentDocumentBufferRef.current = preserved;
+        }
       } else {
         try {
           const arrayBuf = await fileOrUrl.arrayBuffer();
           const copy = new Uint8Array(arrayBuf.byteLength);
           copy.set(new Uint8Array(arrayBuf));
           currentDocumentBufferRef.current = copy;
+          documentBuffersMap.current.set(docTitle, copy);
+          documentBuffersMap.current.set(fileOrUrl.name, copy);
         } catch {}
 
         const { convertDocumentToPageImages } = await import('../../lib/whiteboard/document-renderer');
@@ -1491,6 +1504,12 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         description: `${totalPdfPages} page${totalPdfPages > 1 ? 's' : ''}`,
         pages: pdfPageDataUrls,
       };
+      if (currentDocumentBufferRef.current) {
+        documentBuffersMap.current.set(newDocItem.id, currentDocumentBufferRef.current);
+        documentBuffersMap.current.set(newDocItem.url, currentDocumentBufferRef.current);
+        documentBuffersMap.current.set(activeId, currentDocumentBufferRef.current);
+      }
+
       setUploadedDocuments((prev) => {
         const existing = prev.findIndex((d) => d.title === docTitle && d.pageCount === totalPdfPages);
         if (existing >= 0) {

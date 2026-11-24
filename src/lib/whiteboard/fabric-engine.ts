@@ -1437,9 +1437,45 @@ export class FabricWhiteboardEngine {
     const width = this.backgroundImage.width ?? this.virtualWidth;
     const height = this.backgroundImage.height ?? this.virtualHeight;
 
+    const renderWithAspect = (img: HTMLImageElement) => {
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+        const imgAspect = img.naturalWidth / img.naturalHeight;
+        const canvasAspect = width / height;
+        let drawW = width;
+        let drawH = height;
+        let drawX = left;
+        let drawY = top;
+
+        if (imgAspect < canvasAspect) {
+          // Portrait / tall document: fit height, center horizontally
+          drawH = height;
+          drawW = Math.round(drawH * imgAspect);
+          drawX = left + Math.round((width - drawW) / 2);
+        } else if (imgAspect > canvasAspect * 1.05) {
+          // Wider document: fit width, center vertically
+          drawW = width;
+          drawH = Math.round(drawW / imgAspect);
+          drawY = top + Math.round((height - drawH) / 2);
+        }
+
+        if (drawX > left || drawY > top) {
+          context.save();
+          context.fillStyle = '#ffffff';
+          context.shadowColor = 'rgba(0, 0, 0, 0.15)';
+          context.shadowBlur = 16;
+          context.shadowOffsetY = 4;
+          context.fillRect(drawX, drawY, drawW, drawH);
+          context.restore();
+        }
+        context.drawImage(img, drawX, drawY, drawW, drawH);
+      } else {
+        context.drawImage(img, left, top, width, height);
+      }
+    };
+
     if (this.cachedBgImageElement && this.cachedBgImageSrc === src) {
       try {
-        context.drawImage(this.cachedBgImageElement, left, top, width, height);
+        renderWithAspect(this.cachedBgImageElement);
       } catch {}
       return;
     }
@@ -1457,7 +1493,7 @@ export class FabricWhiteboardEngine {
         if (img.complete && img.naturalWidth > 0) {
           this.cachedBgImageElement = img;
           this.cachedBgImageSrc = src;
-          context.drawImage(img, left, top, width, height);
+          renderWithAspect(img);
         }
       } catch {}
     }
