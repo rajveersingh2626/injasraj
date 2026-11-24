@@ -39,7 +39,7 @@ export async function convertPdfServerSide(
     throw new Error('Invalid PDF buffer: Missing %PDF- header');
   }
 
-  const scale = options.scale ?? 2.0;
+  const scale = options.scale ?? 1.5;
   const format = options.format ?? 'png';
 
   // 1. Extract accurate per-page dimensions and title using pdf-lib

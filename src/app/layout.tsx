@@ -26,6 +26,12 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="bg-zinc-950 text-zinc-100 min-h-[100dvh] antialiased selection:bg-indigo-500/30 selection:text-indigo-200">
+        <script
+          type="module"
+          dangerouslySetInnerHTML={{
+            __html: `try{import('/pdf.min.mjs').then(function(m){var lib=m.default||m;if(lib&&lib.GlobalWorkerOptions){lib.GlobalWorkerOptions.workerSrc='/pdf.worker.min.mjs';}window.pdfjsLib=lib;}).catch(function(){});}catch(e){}`,
+          }}
+        />
         {children}
       </body>
     </html>

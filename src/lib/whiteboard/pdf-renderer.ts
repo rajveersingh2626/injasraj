@@ -77,30 +77,47 @@ function toUint8Array(buffer: ArrayBuffer | Uint8Array): Uint8Array {
  */
 async function getPdfJs(): Promise<any | null> {
   const defaultVersion = '6.5.438';
-  if (typeof window !== 'undefined' && (window as any).pdfjsLib) {
-    const lib = (window as any).pdfjsLib;
-    if (lib.GlobalWorkerOptions && !lib.GlobalWorkerOptions.workerSrc) {
-      lib.GlobalWorkerOptions.workerSrc =
-        typeof window !== 'undefined' && window.location?.origin
-          ? `${window.location.origin}/pdf.worker.min.mjs`
-          : `https://unpkg.com/pdfjs-dist@${lib.version || defaultVersion}/build/pdf.worker.min.mjs`;
+  if (typeof window !== 'undefined') {
+    if ((window as any).pdfjsLib) {
+      const lib = (window as any).pdfjsLib;
+      if (lib.GlobalWorkerOptions && !lib.GlobalWorkerOptions.workerSrc) {
+        lib.GlobalWorkerOptions.workerSrc =
+          window.location?.origin
+            ? `${window.location.origin}/pdf.worker.min.mjs`
+            : `/pdf.worker.min.mjs`;
+      }
+      return lib;
     }
-    return lib;
+
+    try {
+      const origin = window.location?.origin || '';
+      const url = `${origin}/pdf.min.mjs`;
+      const pdfjs = await (Function('u', 'return import(/* @vite-ignore */ u)')(url) as Promise<any>);
+      const resolved = pdfjs.default || pdfjs;
+      if (resolved) {
+        if (resolved.GlobalWorkerOptions && !resolved.GlobalWorkerOptions.workerSrc) {
+          resolved.GlobalWorkerOptions.workerSrc = `${origin}/pdf.worker.min.mjs`;
+        }
+        (window as any).pdfjsLib = resolved;
+        return resolved;
+      }
+    } catch {
+      // Fall through to node/legacy import
+    }
   }
+
   try {
-    const pkg = 'pdfjs-dist';
-    // Dynamic variable import prevents bundler compile-time failure when optional package is not installed
+    const pkg = 'pdfjs-dist/legacy/build/pdf.mjs';
     const pdfjs = await (Function('m', 'return import(m)')(pkg) as Promise<any>);
-    const resolved = pdfjs.default || pdfjs;
-    if (typeof window !== 'undefined' && resolved?.GlobalWorkerOptions && !resolved.GlobalWorkerOptions.workerSrc) {
-      resolved.GlobalWorkerOptions.workerSrc =
-        typeof window !== 'undefined' && window.location?.origin
-          ? `${window.location.origin}/pdf.worker.min.mjs`
-          : `https://unpkg.com/pdfjs-dist@${resolved.version || defaultVersion}/build/pdf.worker.min.mjs`;
-    }
-    return resolved;
+    return pdfjs.default || pdfjs;
   } catch {
-    return null;
+    try {
+      const pkg = 'pdfjs-dist';
+      const pdfjs = await (Function('m', 'return import(m)')(pkg) as Promise<any>);
+      return pdfjs.default || pdfjs;
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -352,7 +369,10 @@ export async function getOrLoadPdfDocument(pdfBuffer: ArrayBuffer | Uint8Array):
   const pdfjs = await getPdfJs();
   if (!pdfjs) return null;
   try {
-    const pdf = await pdfjs.getDocument({ data: bytes }).promise;
+    // Clone bytes so PDF.js worker/transfer never detaches caller's buffer
+    const dataCopy = new Uint8Array(bytes.byteLength);
+    dataCopy.set(bytes);
+    const pdf = await pdfjs.getDocument({ data: dataCopy }).promise;
     cachedPdfDocuments.set(key, { pdf, pdfjsLib: currentLib, lastAccess: Date.now() });
     // Bounded cache to avoid memory leaks
     if (cachedPdfDocuments.size > 5) {
@@ -805,8 +825,7 @@ export async function convertPdfToPageImages(
       onProgress(totalPages, totalPages);
     }
     setTimeout(async () => {
-      const prefetchMax = Math.min(5, totalPages);
-      for (let i = 2; i <= prefetchMax; i++) {
+      for (let i = 2; i <= totalPages; i++) {
         try {
           await new Promise((r) => setTimeout(r, 16));
           const rendered = await renderPdfPageToDataUrl(bytes, i, scale);

@@ -3,13 +3,14 @@ import { convertPdfServerSide } from '@/lib/server/pdf-to-images';
 import { isPdfBuffer } from '@/lib/whiteboard/pdf-renderer';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {
     const contentType = request.headers.get('content-type') || '';
     let pdfBytes: Uint8Array | null = null;
     let fileName: string | undefined;
-    let scale = 2.0;
+    let scale = 1.5;
     let format: 'png' | 'jpg' = 'png';
 
     let isFormData = contentType.includes('multipart/form-data');

@@ -64,6 +64,9 @@ export const StudentBookingCalendar: React.FC<StudentBookingCalendarProps> = ({
 
   // Compute available slots
   const computedSlots = useMemo(() => {
+    if (initialSlots && initialSlots.length > 0) {
+      return initialSlots;
+    }
     if (teacherAvailability && teacherAvailability.length > 0) {
       const now = new Date();
       // 14-day window in UTC
@@ -77,7 +80,7 @@ export const StudentBookingCalendar: React.FC<StudentBookingCalendarProps> = ({
         currentTimezone
       );
     }
-    return initialSlots || [];
+    return [];
   }, [teacherAvailability, existingLessons, initialSlots, currentTimezone]);
 
   // 14-day date picker dates

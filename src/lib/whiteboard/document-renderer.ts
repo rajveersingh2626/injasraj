@@ -225,14 +225,19 @@ export async function convertDocumentToPageImages(
   }
 
   // 3. Server-side conversion pipeline (offloads PDF rendering from client browser to prevent UI hangs)
-  if (typeof window !== 'undefined' && typeof fetch === 'function') {
+  const origin = typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null'
+    ? window.location.origin
+    : '';
+
+  if (origin && typeof fetch === 'function') {
     try {
+      const endpoint = `${origin}/api/documents/convert`;
       let response: Response;
       if (typeof File !== 'undefined' && bufferOrFile instanceof File) {
         const formData = new FormData();
         formData.append('file', bufferOrFile);
         formData.append('scale', String(scale));
-        response = await fetch('/api/documents/convert', {
+        response = await fetch(endpoint, {
           method: 'POST',
           body: formData,
         });
@@ -245,11 +250,13 @@ export async function convertDocumentToPageImages(
         const bytes = new Uint8Array(rawBuffer);
         let binary = '';
         const len = bytes.byteLength;
-        for (let i = 0; i < len; i++) {
-          binary += String.fromCharCode(bytes[i]);
+        const chunkSize = 8192;
+        for (let i = 0; i < len; i += chunkSize) {
+          const chunk = bytes.subarray(i, Math.min(i + chunkSize, len));
+          binary += String.fromCharCode.apply(null, chunk as any);
         }
         const base64 = btoa(binary);
-        response = await fetch('/api/documents/convert', {
+        response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -10,7 +10,7 @@ import { BookTeacherView } from '../../src/components/booking/BookTeacherView';
 import ClassroomPage from '../../src/app/classroom/[roomId]/page';
 import { ClassroomView } from '../../src/components/classroom/ClassroomView';
 import { IMediaSession, ConnectionQuality } from '../../src/types/media';
-import { SlotItem } from '../../src/utils/timezone';
+import { SlotItem, formatDateLabel } from '../../src/utils/timezone';
 import { loginTeacher, logoutTeacher } from '../../src/lib/auth/teacher-auth';
 
 // Extend expect for jest-dom matchers
@@ -97,23 +97,26 @@ class MockMediaStream {
   }
 }
 
+const todayDate = new Date();
+const todayLabel = formatDateLabel(todayDate, 'America/New_York');
+
 const mockTestSlots: SlotItem[] = [
   {
     id: 'slot-regular-1',
-    utcStartTime: '2026-11-23T10:30:00.000Z',
-    utcEndTime: '2026-11-23T11:30:00.000Z',
+    utcStartTime: todayDate.toISOString(),
+    utcEndTime: new Date(todayDate.getTime() + 3600000).toISOString(),
     studentFormattedTime: 'Nov 23, 2026, 5:30 AM EST',
     teacherFormattedTime: 'Nov 23, 2026, 4:00 PM IST',
-    dateLabel: 'Mon, Nov 23, 2026',
+    dateLabel: todayLabel,
     isCrossDay: false,
   },
   {
     id: 'slot-crossday-2',
-    utcStartTime: '2026-11-23T20:30:00.000Z',
-    utcEndTime: '2026-11-23T21:30:00.000Z',
+    utcStartTime: new Date(todayDate.getTime() + 7200000).toISOString(),
+    utcEndTime: new Date(todayDate.getTime() + 10800000).toISOString(),
     studentFormattedTime: 'Nov 23, 2026, 3:30 PM EST',
     teacherFormattedTime: 'Nov 24, 2026, 2:00 AM IST',
-    dateLabel: 'Mon, Nov 23, 2026',
+    dateLabel: todayLabel,
     isCrossDay: true,
   },
 ];

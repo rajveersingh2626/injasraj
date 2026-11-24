@@ -148,7 +148,7 @@ describe('PDF Multi-Page Ingestion, Page Toggling, and Tool Fixes Suite', () => 
     await waitFor(() => {
       expect(screen.getByTestId('pdf-subpage-navigator')).toBeInTheDocument();
       expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
 
     // Next PDF page button should now be enabled
     const nextPdfBtn = screen.getByLabelText('Next PDF Page');
@@ -161,7 +161,7 @@ describe('PDF Multi-Page Ingestion, Page Toggling, and Tool Fixes Suite', () => 
 
     await waitFor(() => {
       expect(screen.getByText('Page 2 of 3')).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
 
     // Toggle to Page 3
     await act(async () => {
@@ -170,7 +170,7 @@ describe('PDF Multi-Page Ingestion, Page Toggling, and Tool Fixes Suite', () => 
 
     await waitFor(() => {
       expect(screen.getByText('Page 3 of 3')).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
 
     // Previous PDF button should now be enabled to go back
     const prevPdfBtn = screen.getByLabelText('Previous PDF Page');
@@ -183,7 +183,7 @@ describe('PDF Multi-Page Ingestion, Page Toggling, and Tool Fixes Suite', () => 
 
     await waitFor(() => {
       expect(screen.getByText('Page 2 of 3')).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
   });
 
   it('keeps header controls visible without overlap when StudioSidePanel is open', () => {

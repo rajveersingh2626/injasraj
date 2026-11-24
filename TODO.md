@@ -1,27 +1,22 @@
-# Fix & Polish: QA Audit & Emil Design Engineering Bugs
+# TODO: Fix PDF Loading & Multi-Page Whiteboard Rendering
 
-- [x] Task 1: Fix Popover & Flyout Menu Outside-Click Listeners
-  - [x] 1.1 In `ColorStrokePopover.tsx`, allow trigger button clicks to cleanly toggle popover without instant outside-click closure.
-  - [x] 1.2 In `WhiteboardToolbar.tsx`, fix Shapes menu click toggle and outside-click handling.
-  - [x] 1.3 In `ControlBar.tsx`, fix Device Settings outside-click listener to exclude the settings trigger button.
-  - [x] 1.4 Commit Task 1 atomically.
+- [x] Task 1: Fix Client PDF.js Loading & Buffer Preservation
+  - [x] 1.1 Copy `pdf.min.mjs` into `public/pdf.min.mjs` so the browser can load it locally without CDN dependencies.
+  - [x] 1.2 In `src/app/layout.tsx`, add `<script type="module">` to preload `window.pdfjsLib` and configure `GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'`.
+  - [x] 1.3 In `src/lib/whiteboard/pdf-renderer.ts`, update `getPdfJs()` to reliably import from `window.pdfjsLib`, `/pdf.min.mjs`, and Node fallback.
+  - [x] 1.4 In `getOrLoadPdfDocument()`, clone input `bytes` before passing to `pdfjs.getDocument` so underlying buffers are never detached/neutered.
+  - [x] 1.5 In `convertPdfToPageImages()`, remove the 5-page cap (`Math.min(5, totalPages)`) and prefetch all pages sequentially in the background.
+  - [x] 1.6 In `renderPdfPageToDataUrl()`, return recognizable SVG data URLs for placeholders so callers can detect and replace them.
 
-- [x] Task 2: Supabase PostgREST 42501 Error Handling & Resilience
-  - [x] 2.1 In `whiteboard-persistence.ts`, catch 42501 RLS permission errors gracefully without throwing noisy console errors, ensuring seamless localStorage fallback.
-  - [x] 2.2 Commit Task 2 atomically.
+- [x] Task 2: Fix Sub-Page Flipping & Whiteboard On-Demand Rendering
+  - [x] 2.1 In `ClassroomWorkspace.tsx` (`handlePdfSubPageChange`), ensure flipping to any sub-page (e.g. Page 6 of 10) dynamically renders the page from `currentDocumentBufferRef.current` if not already rendered.
+  - [x] 2.2 In `handleLoadWorksheet`, ensure `currentDocumentBufferRef.current` retains a clean non-detached copy of the file bytes.
 
-- [x] Task 3: Student Waiting Room Overlay & Toolbar UX
-  - [x] 3.1 In `ClassroomWorkspace.tsx`, dim and disable toolbar controls (`pointer-events-none opacity-40`) while `role === 'student' && sessionStatus === 'waiting'`.
-  - [x] 3.2 Display explicit locked status so students understand tools unlock when the teacher begins.
-  - [x] 3.3 Commit Task 3 atomically.
+- [x] Task 3: Fix & Optimize Server Conversion API (`/api/documents/convert`)
+  - [x] 3.1 In `src/app/api/documents/convert/route.ts`, improve FormData parsing resilience so multipart boundaries and stream decoding never fail with false 400.
+  - [x] 3.2 Add `maxDuration = 60` to allow multi-page rasterization without Vercel gateway timeout.
 
-- [x] Task 4: Emil Design Polish (Modal Physical Scale, Press Feedback & Typography)
-  - [x] 4.1 In `StudentNameModal.tsx`, `EndClassSummaryModal.tsx`, and `TeacherLoginModal.tsx`, add `scale(0.95)` -> `scale(1)` physical entry transition with `var(--ease-out)`.
-  - [x] 4.2 In `StudioSidePanel.tsx`, upgrade sub-11px typography to `text-xs` (12px) for WCAG legibility.
-  - [x] 4.3 Ensure `active:scale-[0.97]` press feedback on toolbar and dock interactive buttons.
-  - [x] 4.4 Commit Task 4 atomically.
-
-- [x] Task 5: Full Verification & Playwright Walkthrough
-  - [x] 5.1 Run full Vitest suite (`npm test` - 719 tests pass).
-  - [x] 5.2 Run Next.js production build (`npm run build` - exit code 0).
-  - [x] 5.3 Run Playwright test script to verify popovers (shapes, color, settings), waiting room, and complete walkthrough pass with code 0.
+- [x] Task 4: Mechanical Verification & Testing
+  - [x] 4.1 Run unit and integration tests (`npm test`).
+  - [x] 4.2 Verify Next.js production build (`npm run build`).
+  - [x] 4.3 Verify user PDF pages render completely and accurately.

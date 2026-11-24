@@ -1384,17 +1384,22 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     }
 
     // If newBg is an SVG placeholder and we have the raw PDF bytes, render on-demand
-    if (newBg && newBg.startsWith('data:image/svg+xml') && currentDocumentBufferRef.current) {
+    const isPlaceholder = !newBg || newBg.startsWith('data:image/svg+xml');
+    if (isPlaceholder && currentDocumentBufferRef.current) {
       import('../../lib/whiteboard/pdf-renderer').then(({ renderPdfPageToDataUrl }) => {
         if (currentDocumentBufferRef.current) {
           renderPdfPageToDataUrl(currentDocumentBufferRef.current, targetPage).then((result) => {
-            if (doc.pages && doc.pages[targetPage - 1] === newBg) {
-              doc.pages[targetPage - 1] = result.dataUrl;
+            if (result && result.dataUrl) {
+              if (doc.pages) {
+                doc.pages[targetPage - 1] = result.dataUrl;
+              }
               if (doc.currentPage === targetPage && engineRef.current) {
                 engineRef.current.setBackgroundImage(result.dataUrl).catch(() => {});
               }
             }
-          }).catch(() => {});
+          }).catch((err) => {
+            console.warn(`Failed on-demand render of PDF page ${targetPage}:`, err);
+          });
         }
       }).catch(() => {});
     }
@@ -1441,7 +1446,9 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       } else {
         try {
           const arrayBuf = await fileOrUrl.arrayBuffer();
-          currentDocumentBufferRef.current = new Uint8Array(arrayBuf);
+          const copy = new Uint8Array(arrayBuf.byteLength);
+          copy.set(new Uint8Array(arrayBuf));
+          currentDocumentBufferRef.current = copy;
         } catch {}
 
         const { convertDocumentToPageImages } = await import('../../lib/whiteboard/document-renderer');
