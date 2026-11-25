@@ -1,20 +1,22 @@
-# TODO: Render Exact PDF Document Pages on Whiteboard
+# TODO: Classroom Whiteboard Polish & Features (GSD / Ralph Loop)
 
-- [x] Task 1: Fix PDF.js Distribution & Eliminate Mock Card Placeholders
-  - [x] 1.1 Copy `pdfjs-dist/legacy/build/pdf.min.mjs`, `pdf.worker.min.mjs`, and `pdf.worker.mjs` into `public/` so polyfills (`toHex`, `Promise.withResolvers`) are present in all browsers and environments.
-  - [x] 1.2 In `src/lib/whiteboard/pdf-renderer.ts`, remove fake mock card generation (`tryRenderWithCanvas`) that was drawing blank cards with title and "Page 6 of 10".
-  - [x] 1.3 In `renderPageWithPdfInstance`, pass both `canvas` and `canvasContext: ctx` to `page.render({ canvasContext: ctx, canvas, viewport })`.
-  - [x] 1.4 In `renderPdfPageToDataUrl`, use real raster rendering with canvas and server rasterizer.
-  - [x] 1.5 In `convertPdfToPageImages`, render ALL pages sequentially into real image data URLs instead of pre-filling with SVG placeholders.
-
-- [x] Task 2: Fix Document Buffer Persistence & Sub-Page Flipping in Whiteboard
-  - [x] 2.1 In `ClassroomWorkspace.tsx`, add `documentBuffersMap` to store and restore raw PDF bytes when documents are loaded or switched from the library.
-  - [x] 2.2 In `handlePdfSubPageChange`, dynamically render missing or placeholder sub-pages on-demand and update the canvas background.
-
-- [x] Task 3: Preserve Aspect Ratio for Portrait Documents in Whiteboard Engine
-  - [x] 3.1 In `src/lib/whiteboard/fabric-engine.ts` (`drawBackgroundImage`), center portrait documents (e.g. A4) horizontally on the 1920x1080 canvas while preserving natural aspect ratio instead of stretching to 16:9.
-
-- [x] Task 4: Mechanical Verification & Testing
-  - [x] 4.1 Verify exact PDF page rendering on user's 10-page document (`tests/user-pdf-multipage-render.test.ts`).
-  - [x] 4.2 Run full test suite (`npm test` - 71 passed, 724 passed).
-  - [x] 4.3 Verify production build (`npm run build`).
+- [x] Task 1: Hide Navigation Pill on Single Pages (`WhiteboardStage.tsx`)
+  - [x] 1.1 Conditioned `PageNavigationBar` on `totalPages > 1` so single-page boards do not show `< Page 1 of 1 > | +`.
+  - [x] 1.2 Kept `PdfSubPageNavigator` and multi-page navigation active whenever a PDF or multi-page document is loaded.
+- [x] Task 2: Interactive Image Object Support (Resize, Reposition, Drag)
+  - [x] 2.1 Added `case 'image':` renderer in `src/lib/whiteboard/engine/shape-renderers.ts` with image caching.
+  - [x] 2.2 Added `addImageObject()` and interactive select/drag/resize corner handles in `src/lib/whiteboard/fabric-engine.ts`.
+  - [x] 2.3 When standalone images (PNG, JPG, WebP) are imported, they are added as draggable, resizable canvas objects.
+- [x] Task 3: Clean 'New Page' Whiteboard by Default
+  - [x] 3.1 Updated `ClassroomView.tsx` to default to a clean fresh whiteboard instead of automatically restoring old past boards unless `restoreRoomId` is provided.
+- [x] Task 4: Student Video Panel & Name Prompt
+  - [x] 4.1 In `ClassroomWorkspace.tsx`, removed fake `'student-peer'` placeholder when no student is present. Only show student video panels when they actually join.
+  - [x] 4.2 In `ClassroomView.tsx`, ensured every student gets prompted with the `StudentNameModal` to enter/confirm their name on joining.
+- [x] Task 5: Reposition AV Controls to Bottom Right
+  - [x] 5.1 In `ControlBar.tsx` and `ClassroomWorkspace.tsx`, placed the floating media bar at bottom right so it no longer interferes with the left sidebar or canvas.
+- [x] Task 6: Fix Studio Panel Contrast & Polish (`/ask-emil`)
+  - [x] 6.1 Eliminated pale washed-out lavender buttons in `MaterialsTab.tsx` and replaced with high-contrast, accessible buttons (WCAG AAA).
+  - [x] 6.2 Formatted Emil review table (| Before | After | Why |).
+- [x] Task 7: Mechanical Verification
+  - [x] 7.1 Ran Vitest tests - all 24 test suites and 373+ tests pass.
+  - [x] 7.2 Ran `npm run build` - 9 routes compiled cleanly with 0 errors.

@@ -1,21 +1,22 @@
-# GSD State: Exact PDF Page Display & Annotation
+# GSD State: Classroom Whiteboard Polish & Features
 
 ## Current Lifecycle Phase
-**Phase 5: Verified & Complete**
+**Phase 5: Ship & Verified**
 
-## Active Task
-- None (All tasks verified and passing)
+## Objective
+Address user feedback across 6 core areas:
+1. Removed intrusive `< Page 1 of 1 > | +` navigation bar from single-page boards; show page navigator only when documents/multi-pages are added.
+2. Added interactive image support (resize, reposition, drag with corner handles) for ANY imported image.
+3. Defaulted to a clean 'new page' whiteboard instead of auto-restoring previous session boards.
+4. Hid empty student video panel until students actually join; prompted all students to enter/confirm their name upon joining.
+5. Moved annoying floating AV controls dock from left-middle to bottom-right.
+6. Fixed Studio Panel low-contrast buttons and text (`/ask-emil`).
 
-## Completed Tasks
-- [x] Task 1.1: Copied `pdfjs-dist/legacy/build` to `public/` (includes polyfills for `toHex`, `Promise.withResolvers`)
-- [x] Task 1.2: Eliminated mock placeholder card generator (`tryRenderWithCanvas`)
-- [x] Task 1.3: Passed `canvas` explicitly in `page.render({ canvasContext, canvas, viewport })`
-- [x] Task 1.4: Ensured genuine raster rendering of actual PDF pages
-- [x] Task 1.5: Rendered all pages into real image data URLs sequentially in `convertPdfToPageImages`
-- [x] Task 2.1: Added `documentBuffersMap` in `ClassroomWorkspace.tsx` to store and restore PDF buffers across document loads
-- [x] Task 2.2: Dynamic on-demand sub-page flipping from buffer
-- [x] Task 3.1: Preserved natural aspect ratio and centered portrait documents in `fabric-engine.ts` with clean paper backdrop
-- [x] Task 4: Mechanical verification:
-  - User PDF multi-page test: passed (10/10 real pages, Page 1 & Page 6 > 50KB PNG)
-  - Full Vitest suite: 71 passed, 724 passed (0 failed)
-  - Next.js build: compiled and generated static pages (9/9) with 0 errors
+## Task Checklist
+- [x] Task 1: Navigation Pill Visibility (`WhiteboardStage.tsx`)
+- [x] Task 2: Interactive Image Drag/Resize Engine (`shape-renderers.ts`, `fabric-engine.ts`, `geometry.ts`)
+- [x] Task 3: Default Fresh Whiteboard Page (`ClassroomView.tsx`)
+- [x] Task 4: Dynamic Student Panels & Name Modal (`ClassroomWorkspace.tsx`, `ClassroomView.tsx`)
+- [x] Task 5: AV Controls Repositioning to Bottom Right (`ControlBar.tsx`, `ClassroomWorkspace.tsx`)
+- [x] Task 6: Studio Panel Emil Contrast Fixes (`MaterialsTab.tsx`, `GlassButton.tsx`)
+- [x] Task 7: Verification (`vitest`, `npm run build` - 0 errors)
