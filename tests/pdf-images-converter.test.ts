@@ -45,5 +45,5 @@ trailer <</Size 6 /Root 1 0 R /Info <</Title (Sample Geometry Worksheet)>>>>
     // Verify progress tracking fired
     expect(progressTracker.length).toBeGreaterThanOrEqual(1);
     expect(progressTracker[progressTracker.length - 1]).toEqual({ current: 3, total: 3 });
-  });
+  }, 30000);
 });

@@ -64,16 +64,6 @@ export async function renderHtmlToPageImage(
   height: number = 2112,
   title?: string
 ): Promise<string> {
-  if (typeof document === 'undefined') {
-    // Headless / JSDOM fallback
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-      <rect width="${width}" height="${height}" fill="#ffffff" />
-      <rect x="32" y="32" width="${width - 64}" height="${height - 64}" fill="none" stroke="#e2e8f0" stroke-width="2" rx="8" />
-      <text x="64" y="96" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="32" font-weight="600" fill="#0f172a">${title ? title.replace(/[<>&'"]/g, '') : 'Word Document'}</text>
-    </svg>`;
-    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-  }
-
   const cleanHtml = htmlContent.trim();
   const styledDocument = `
     <div xmlns="http://www.w3.org/1999/xhtml" style="
@@ -104,6 +94,15 @@ export async function renderHtmlToPageImage(
       ${cleanHtml}
     </div>
   `;
+
+  if (typeof document === 'undefined') {
+    // Headless / SSR fallback: embed full styled HTML
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+      <rect width="${width}" height="${height}" fill="#ffffff" />
+      <foreignObject width="100%" height="100%">${styledDocument}</foreignObject>
+    </svg>`;
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  }
 
   // Check if JSDOM / mocked canvas
   const isJSDOM =
@@ -224,7 +223,24 @@ export async function convertDocumentToPageImages(
     }
   }
 
-  // 3. Server-side conversion pipeline (offloads PDF rendering from client browser to prevent UI hangs)
+  // 3. Client-side PDF rendering first if in browser (fast GazBoard approach: instant hardware-accelerated canvas)
+  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    try {
+      const { convertPdfToPageImages } = await import('./pdf-renderer');
+      const result = await convertPdfToPageImages(bufferOrFile as any, scale, onProgress);
+      if (result && result.pages && result.pages.length > 0) {
+        return {
+          title: result.title,
+          totalPages: result.totalPages,
+          pages: result.pages,
+        };
+      }
+    } catch (clientErr) {
+      console.warn('Client-side PDF rendering failed, attempting server-side conversion fallback:', clientErr);
+    }
+  }
+
+  // 4. Server-side conversion pipeline fallback
   const origin = typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null'
     ? window.location.origin
     : '';
@@ -282,7 +298,7 @@ export async function convertDocumentToPageImages(
     }
   }
 
-  // 4. Import and delegate to local PDF renderer fallback
+  // 5. Final fallback: delegate directly to pdf-renderer
   const { convertPdfToPageImages } = await import('./pdf-renderer');
   const result = await convertPdfToPageImages(bufferOrFile as any, scale, onProgress);
   return {

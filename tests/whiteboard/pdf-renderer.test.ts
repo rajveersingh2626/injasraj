@@ -4,6 +4,7 @@ import {
   extractPdfMetadata,
   renderPdfPageToDataUrl,
   generateMockSvgDataUrl,
+  clearPdfDocumentCache,
   type PdfPageRenderResult,
   type PdfMetadata,
 } from '../../src/lib/whiteboard/pdf-renderer';
@@ -48,6 +49,7 @@ describe('PDF Ingestion & Worksheet Background Renderer', () => {
         delete (globalThis as any).window.pdfjsLib;
       }
     }
+    clearPdfDocumentCache();
     vi.restoreAllMocks();
   });
 

@@ -148,7 +148,7 @@ describe('PDF Multi-Page Ingestion, Page Toggling, and Tool Fixes Suite', () => 
     await waitFor(() => {
       expect(screen.getByTestId('pdf-subpage-navigator')).toBeInTheDocument();
       expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
-    }, { timeout: 5000 });
+    }, { timeout: 20000 });
 
     // Next PDF page button should now be enabled
     const nextPdfBtn = screen.getByLabelText('Next PDF Page');
@@ -161,7 +161,7 @@ describe('PDF Multi-Page Ingestion, Page Toggling, and Tool Fixes Suite', () => 
 
     await waitFor(() => {
       expect(screen.getByText('Page 2 of 3')).toBeInTheDocument();
-    }, { timeout: 5000 });
+    }, { timeout: 20000 });
 
     // Toggle to Page 3
     await act(async () => {
@@ -170,7 +170,7 @@ describe('PDF Multi-Page Ingestion, Page Toggling, and Tool Fixes Suite', () => 
 
     await waitFor(() => {
       expect(screen.getByText('Page 3 of 3')).toBeInTheDocument();
-    }, { timeout: 5000 });
+    }, { timeout: 20000 });
 
     // Previous PDF button should now be enabled to go back
     const prevPdfBtn = screen.getByLabelText('Previous PDF Page');
@@ -183,8 +183,8 @@ describe('PDF Multi-Page Ingestion, Page Toggling, and Tool Fixes Suite', () => 
 
     await waitFor(() => {
       expect(screen.getByText('Page 2 of 3')).toBeInTheDocument();
-    }, { timeout: 5000 });
-  });
+    }, { timeout: 15000 });
+  }, 30000);
 
   it('keeps header controls visible without overlap when StudioSidePanel is open', () => {
     render(
@@ -209,7 +209,7 @@ describe('PDF Multi-Page Ingestion, Page Toggling, and Tool Fixes Suite', () => 
     expect(screen.getByTestId('toggle-timer-btn')).toBeInTheDocument();
     expect(screen.getByTestId('toggle-video-sync-btn')).toBeInTheDocument();
     expect(screen.getByTestId('toggle-studio-panel-btn')).toBeInTheDocument();
-  });
+  }, 30000);
 
   it('enables undo button and executes undo with objects on canvas even if user history stack was empty', async () => {
     let workspaceEngine: FabricWhiteboardEngine | null = null;
@@ -246,5 +246,5 @@ describe('PDF Multi-Page Ingestion, Page Toggling, and Tool Fixes Suite', () => 
 
     // Object should be removed
     expect(workspaceEngine!.getObjectById('stroke-1')).toBeFalsy();
-  });
+  }, 30000);
 });

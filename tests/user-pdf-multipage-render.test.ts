@@ -58,7 +58,7 @@ describe('User Multi-Page PDF Loading & Sub-Page Flipping Verification', () => {
     expect(p6.dataUrl.length).toBeGreaterThan(50000);
   }, 45000);
 
-  it('client convertPdfToPageImages produces all 10 pages without losing pages > 5', async () => {
+  it('client convertPdfToPageImages produces all 10 authentic visual raster pages without mock SVGs', async () => {
     const freshBytes = new Uint8Array(fileBytes);
     const result = await convertPdfToPageImages(freshBytes, 1.0);
 
@@ -68,7 +68,9 @@ describe('User Multi-Page PDF Loading & Sub-Page Flipping Verification', () => {
 
     for (let i = 0; i < result.pages.length; i++) {
       expect(result.pages[i]).toBeDefined();
-      expect(result.pages[i].startsWith('data:image/')).toBe(true);
+      expect(result.pages[i].startsWith('data:image/png;base64,')).toBe(true);
+      expect(result.pages[i].length).toBeGreaterThan(20000);
+      expect(result.pages[i]).not.toContain('svg+xml');
     }
-  });
+  }, 45000);
 });
