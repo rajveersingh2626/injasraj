@@ -412,6 +412,33 @@ export function renderCanvasObject(
       context.restore();
       break;
     }
+    case 'image': {
+      const left = obj.left ?? 0;
+      const top = obj.top ?? 0;
+      const width = obj.width ?? 300;
+      const height = obj.height ?? 200;
+
+      if (obj._imageElement && obj._imageElement.complete) {
+        context.drawImage(obj._imageElement, left, top, width, height);
+      } else if (obj.src && typeof Image !== 'undefined') {
+        if (!obj._imageLoading) {
+          obj._imageLoading = true;
+          const img = new Image();
+          img.onload = () => {
+            obj._imageElement = img;
+            obj._imageLoading = false;
+            if (typeof obj._onLoad === 'function') {
+              obj._onLoad();
+            }
+          };
+          img.onerror = () => {
+            obj._imageLoading = false;
+          };
+          img.src = obj.src;
+        }
+      }
+      break;
+    }
   }
 
   context.restore();

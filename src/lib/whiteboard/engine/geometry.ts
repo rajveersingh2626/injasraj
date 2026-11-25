@@ -75,7 +75,14 @@ export function isPointInObject(
 ): boolean {
   if (!obj) return false;
 
-  if (obj.type === 'rect' || obj.type === 'sticky' || obj.type === 'text' || obj.type === 'triangle') {
+  if (
+    obj.type === 'rect' ||
+    obj.type === 'sticky' ||
+    obj.type === 'text' ||
+    obj.type === 'triangle' ||
+    obj.type === 'image' ||
+    obj.type === 'formula'
+  ) {
     const left = obj.left ?? 0;
     const top = obj.top ?? 0;
     const width = obj.width ?? 100;

@@ -969,16 +969,18 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
         </aside>
       )}
 
-      {/* Floating Page Navigation Bar */}
-      <PageNavigationBar
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={onPageChange || (() => {})}
-        onAddPage={onAddPage}
-        onToggleThumbnails={onToggleThumbnails}
-        isThumbnailsOpen={isThumbnailsOpen}
-        canAddPage={canAddPage && isTeacher}
-      />
+      {/* Floating Page Navigation Bar - Only shown for multi-page boards or documents */}
+      {totalPages > 1 && (
+        <PageNavigationBar
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={onPageChange || (() => {})}
+          onAddPage={onAddPage}
+          onToggleThumbnails={onToggleThumbnails}
+          isThumbnailsOpen={isThumbnailsOpen}
+          canAddPage={canAddPage && isTeacher}
+        />
+      )}
 
       {/* Floating Zoom Controls (removed by default for uncluttered canvas, enabled when showZoomControls=true) */}
       {showZoomControls && (

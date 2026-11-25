@@ -98,6 +98,13 @@ export class FabricWhiteboardEngine {
     current: { x: number; y: number };
   } | null = null;
 
+  // Object dragging and resizing state in 'select' mode
+  private isDraggingObject: boolean = false;
+  private dragHandleType: 'nw' | 'ne' | 'se' | 'sw' | 'move' | null = null;
+  private dragStartPoint: { x: number; y: number } | null = null;
+  private dragInitialBounds: { left: number; top: number; width: number; height: number } | null = null;
+  private draggedObject: any | null = null;
+
   // 2D Rendering Engine State
   private renderRequested: boolean = false;
   private animFrameId: any = null;
@@ -779,6 +786,33 @@ export class FabricWhiteboardEngine {
     return this.addObject(formulaObj);
   }
 
+  public addImageObject(
+    src: string,
+    options?: {
+      left?: number;
+      top?: number;
+      width?: number;
+      height?: number;
+      id?: string;
+      [key: string]: any;
+    }
+  ): any {
+    const imgObj = {
+      id: options?.id || generateObjectId(),
+      type: 'image',
+      src,
+      left: options?.left ?? 200,
+      top: options?.top ?? 150,
+      width: options?.width ?? 400,
+      height: options?.height ?? 300,
+      selectable: options?.selectable ?? true,
+      evented: options?.evented ?? true,
+      _onLoad: () => this.requestRender(),
+      ...options,
+    };
+    return this.addObject(imgObj);
+  }
+
   public removeObject(idOrObj: string | any): boolean {
     const id = typeof idOrObj === 'string' ? idOrObj : idOrObj?.id;
     if (!id) return false;
@@ -1123,10 +1157,47 @@ export class FabricWhiteboardEngine {
       }
 
       if (this.activeTool === 'select') {
+        const selectedList = this.getSelectedObjects();
+        let targetHandle: 'nw' | 'ne' | 'se' | 'sw' | 'move' | null = null;
+        let targetObj: any = null;
+
+        for (const sel of selectedList) {
+          const handle = this.getSelectionHandleAt(pt, sel);
+          if (handle) {
+            targetHandle = handle;
+            targetObj = sel;
+            break;
+          }
+        }
+
+        if (targetHandle && targetObj) {
+          this.isDraggingObject = true;
+          this.dragHandleType = targetHandle;
+          this.dragStartPoint = pt;
+          this.draggedObject = targetObj;
+          this.dragInitialBounds = {
+            left: targetObj.left ?? 0,
+            top: targetObj.top ?? 0,
+            width: targetObj.type === 'circle' ? (targetObj.radius ?? 50) * 2 : (targetObj.width ?? 100),
+            height: targetObj.type === 'circle' ? (targetObj.radius ?? 50) * 2 : (targetObj.height ?? 100),
+          };
+          return;
+        }
+
         const hit = this.hitTest(pt);
         this.deselectAll();
         if (hit) {
           this.selectObject(hit);
+          this.isDraggingObject = true;
+          this.dragHandleType = 'move';
+          this.dragStartPoint = pt;
+          this.draggedObject = hit;
+          this.dragInitialBounds = {
+            left: hit.left ?? 0,
+            top: hit.top ?? 0,
+            width: hit.type === 'circle' ? (hit.radius ?? 50) * 2 : (hit.width ?? 100),
+            height: hit.type === 'circle' ? (hit.radius ?? 50) * 2 : (hit.height ?? 100),
+          };
         }
         return;
       }
@@ -1180,6 +1251,56 @@ export class FabricWhiteboardEngine {
         return;
       }
 
+      if (this.isDraggingObject && this.draggedObject && this.dragStartPoint && this.dragInitialBounds) {
+        const dx = pt.x - this.dragStartPoint.x;
+        const dy = pt.y - this.dragStartPoint.y;
+        const init = this.dragInitialBounds;
+        const obj = this.draggedObject;
+
+        if (this.dragHandleType === 'move') {
+          obj.left = Math.round(init.left + dx);
+          obj.top = Math.round(init.top + dy);
+        } else if (this.dragHandleType === 'se') {
+          const nw = Math.max(20, Math.round(init.width + dx));
+          const nh = Math.max(20, Math.round(init.height + dy));
+          obj.width = nw;
+          obj.height = nh;
+          if (obj.type === 'circle') {
+            obj.radius = Math.round(Math.max(nw, nh) / 2);
+          }
+        } else if (this.dragHandleType === 'sw') {
+          const nw = Math.max(20, Math.round(init.width - dx));
+          const nh = Math.max(20, Math.round(init.height + dy));
+          obj.left = Math.round(init.left + (init.width - nw));
+          obj.width = nw;
+          obj.height = nh;
+          if (obj.type === 'circle') {
+            obj.radius = Math.round(Math.max(nw, nh) / 2);
+          }
+        } else if (this.dragHandleType === 'ne') {
+          const nw = Math.max(20, Math.round(init.width + dx));
+          const nh = Math.max(20, Math.round(init.height - dy));
+          obj.top = Math.round(init.top + (init.height - nh));
+          obj.width = nw;
+          obj.height = nh;
+          if (obj.type === 'circle') {
+            obj.radius = Math.round(Math.max(nw, nh) / 2);
+          }
+        } else if (this.dragHandleType === 'nw') {
+          const nw = Math.max(20, Math.round(init.width - dx));
+          const nh = Math.max(20, Math.round(init.height - dy));
+          obj.left = Math.round(init.left + (init.width - nw));
+          obj.top = Math.round(init.top + (init.height - nh));
+          obj.width = nw;
+          obj.height = nh;
+          if (obj.type === 'circle') {
+            obj.radius = Math.round(Math.max(nw, nh) / 2);
+          }
+        }
+        this.requestRender();
+        return;
+      }
+
       if (this.activeTool === 'eraser' && (e.buttons === 1 || this.isDrawing)) {
         this.eraseAtPoint(pt);
         return;
@@ -1202,6 +1323,16 @@ export class FabricWhiteboardEngine {
     };
 
     const handlePointerUp = (e?: MouseEvent | PointerEvent) => {
+      if (this.isDraggingObject && this.draggedObject) {
+        this.notifyObjectModified(this.draggedObject);
+        this.isDraggingObject = false;
+        this.dragHandleType = null;
+        this.dragStartPoint = null;
+        this.dragInitialBounds = null;
+        this.draggedObject = null;
+        this.requestRender();
+        return;
+      }
       if (this.isDrawingShape && this.shapeStartPoint && this.activeShapeType) {
         const pt = (e ? this.getEventVirtualPoint(e, canvas) : null) || this.currentShapePreview?.current || this.shapeStartPoint;
         const start = this.shapeStartPoint;
@@ -1309,6 +1440,38 @@ export class FabricWhiteboardEngine {
         return obj;
       }
     }
+    return null;
+  }
+
+  public getSelectionHandleAt(
+    pt: { x: number; y: number },
+    obj: any
+  ): 'nw' | 'ne' | 'se' | 'sw' | 'move' | null {
+    if (!obj) return null;
+    const left = obj.left ?? 0;
+    const top = obj.top ?? 0;
+    const width = obj.type === 'circle' ? (obj.radius ?? 50) * 2 : (obj.width ?? 100);
+    const height = obj.type === 'circle' ? (obj.radius ?? 50) * 2 : (obj.height ?? 100);
+    const pad = 4;
+    const handleThreshold = 14;
+
+    const corners: Record<'nw' | 'ne' | 'sw' | 'se', { x: number; y: number }> = {
+      nw: { x: left - pad, y: top - pad },
+      ne: { x: left + width + pad, y: top - pad },
+      sw: { x: left - pad, y: top + height + pad },
+      se: { x: left + width + pad, y: top + height + pad },
+    };
+
+    for (const [corner, c] of Object.entries(corners) as ['nw' | 'ne' | 'sw' | 'se', { x: number; y: number }][]) {
+      if (Math.abs(pt.x - c.x) <= handleThreshold && Math.abs(pt.y - c.y) <= handleThreshold) {
+        return corner;
+      }
+    }
+
+    if (isPointInObject(pt, obj, 8)) {
+      return 'move';
+    }
+
     return null;
   }
 
