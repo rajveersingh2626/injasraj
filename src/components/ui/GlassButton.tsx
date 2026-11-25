@@ -14,7 +14,7 @@ const variantStyles: Record<GlassButtonVariant, string> = {
   default:
     'bg-[#121218]/72 border-[rgba(255,255,255,0.08)] text-zinc-200 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[#1c1c24]/80 [@media(hover:hover)_and_(pointer:fine)]:hover:border-[rgba(255,255,255,0.16)] [@media(hover:hover)_and_(pointer:fine)]:hover:text-white',
   primary:
-    'bg-indigo-600/30 border-indigo-400/40 text-white [@media(hover:hover)_and_(pointer:fine)]:hover:bg-indigo-600/45 [@media(hover:hover)_and_(pointer:fine)]:hover:border-indigo-400/60',
+    'bg-indigo-600 border-indigo-500 text-white font-semibold shadow-md [@media(hover:hover)_and_(pointer:fine)]:hover:bg-indigo-500 [@media(hover:hover)_and_(pointer:fine)]:hover:border-indigo-400',
   danger:
     'bg-[rgba(239,68,68,0.2)] border-[rgba(239,68,68,0.4)] text-red-200 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[rgba(239,68,68,0.35)] [@media(hover:hover)_and_(pointer:fine)]:hover:border-[rgba(239,68,68,0.6)] [@media(hover:hover)_and_(pointer:fine)]:hover:text-white',
   active:
