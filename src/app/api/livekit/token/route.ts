@@ -6,6 +6,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const room = searchParams.get('room');
     const username = searchParams.get('username');
+    const userId = searchParams.get('userId');
     const role = searchParams.get('role') || 'student';
 
     if (!room || !room.trim()) {
@@ -27,8 +28,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const participantIdentity =
+      userId && userId.trim()
+        ? userId.trim()
+        : `${username.trim()}__${Math.random().toString(36).substring(2, 7)}`;
+
     const at = new AccessToken(apiKey, apiSecret, {
-      identity: username.trim(),
+      identity: participantIdentity,
       name: username.trim(),
     });
 

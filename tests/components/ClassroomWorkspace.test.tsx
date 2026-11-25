@@ -38,6 +38,10 @@ describe('ClassroomWorkspace Component (Dual-Mode Container)', () => {
         roomId="room-1"
         role="teacher"
         userName="Teacher Inja"
+        participants={[
+          { id: 'teacher-1', name: 'Teacher Inja', role: 'teacher' },
+          { id: 'student-1', name: 'Student Maya', role: 'student' },
+        ]}
       />
     );
 
@@ -85,7 +89,12 @@ describe('ClassroomWorkspace Component (Dual-Mode Container)', () => {
       <ClassroomWorkspace
         roomId="room-1"
         role="teacher"
+        userId="teacher-1"
         userName="Teacher Inja"
+        participants={[
+          { id: 'teacher-1', name: 'Teacher Inja', role: 'teacher' },
+          { id: 'student-1', name: 'Student Maya', role: 'student' },
+        ]}
       />
     );
 

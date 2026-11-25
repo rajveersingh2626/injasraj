@@ -133,6 +133,16 @@ class MockRealtimeChannel {
 describe('Task 15: End-to-End Classroom Integration & Teaching Whiteboard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.setItem(
+      'injasraj_teacher_auth_v1',
+      JSON.stringify({
+        isAuthenticated: true,
+        teacherId: 'teacher-feynman',
+        teacherName: 'Dr. Feynman',
+        role: 'teacher',
+        loginTime: new Date().toISOString(),
+      })
+    );
   });
 
   // =========================================================================
@@ -212,6 +222,9 @@ describe('Task 15: End-to-End Classroom Integration & Teaching Whiteboard', () =
           roomId="quantum-lab"
           role="teacher"
           userName="Prof. Bohr"
+          initialParticipants={[
+            { id: 'student-1', name: 'Werner Heisenberg', role: 'student' },
+          ]}
         />
       );
 

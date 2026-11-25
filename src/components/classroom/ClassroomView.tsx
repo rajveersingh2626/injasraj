@@ -45,6 +45,7 @@ export interface ClassroomViewProps {
   onSave?: (session: WhiteboardSessionRecord) => void;
   onLoadWorksheet?: (fileOrUrl: File | string) => void;
   restoreRoomId?: string;
+  initialParticipants?: Participant[];
 }
 
 export function ClassroomView({
@@ -64,6 +65,7 @@ export function ClassroomView({
   onSave,
   onLoadWorksheet,
   restoreRoomId,
+  initialParticipants,
 }: ClassroomViewProps) {
   const router = useRouter();
 
@@ -73,7 +75,7 @@ export function ClassroomView({
     return '';
   });
   const [isNameModalOpen, setIsNameModalOpen] = useState<boolean>(false);
-  const [remoteParticipants, setRemoteParticipants] = useState<Participant[]>([]);
+  const [remoteParticipants, setRemoteParticipants] = useState<Participant[]>(initialParticipants || []);
   const [isRoomExpired, setIsRoomExpired] = useState<boolean>(false);
 
   // Client-side hydration sync for storage-based auth and user profile
@@ -86,13 +88,11 @@ export function ClassroomView({
         const stored = localStorage.getItem(STUDENT_NAME_STORAGE_KEY);
         if (stored && stored.trim() !== '') {
           setResolvedStudentName(stored.trim());
-        } else if (!userName || userName.trim() === '') {
-          setIsNameModalOpen(true);
         }
-      } catch {
-        if (!userName || userName.trim() === '') {
-          setIsNameModalOpen(true);
-        }
+      } catch {}
+      // Always give students the option/prompt to fill or confirm their name when joining class
+      if (!userName || userName.trim() === '' || userName.trim().toLowerCase() === 'student') {
+        setIsNameModalOpen(true);
       }
     }
   }, [role, userName]);
@@ -173,6 +173,7 @@ export function ClassroomView({
 
   // Local media stream state
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
   // Whiteboard initial loaded state
   const [loadedPages, setLoadedPages] = useState<WhiteboardPage[] | undefined>(
@@ -191,13 +192,15 @@ export function ClassroomView({
     };
   }, [activeWhiteboardAdapter]);
 
-  // Load existing whiteboard session from Supabase Postgres on initial mount
+  // Load existing whiteboard session ONLY if restoreRoomId is explicitly requested (keeps a clean 'new page' whiteboard by default)
   useEffect(() => {
+    if (!restoreRoomId) return;
+
     let isCancelled = false;
     const loadSession = async () => {
       try {
         const client = injectedSupabaseClient || createBrowserClient();
-        const session = await loadWhiteboardSession(client, roomId);
+        const session = await loadWhiteboardSession(client, restoreRoomId);
         if (session && !isCancelled) {
           if (session.pages && session.pages.length > 0) {
             setLoadedPages(session.pages);
@@ -207,7 +210,7 @@ export function ClassroomView({
           }
         }
       } catch (err) {
-        console.warn('Failed to load initial whiteboard session:', err);
+        console.warn('Failed to load requested whiteboard session:', err);
       }
     };
 
@@ -215,7 +218,7 @@ export function ClassroomView({
     return () => {
       isCancelled = true;
     };
-  }, [roomId, injectedSupabaseClient]);
+  }, [restoreRoomId, injectedSupabaseClient]);
 
   // Connect media session on mount
   useEffect(() => {
@@ -231,7 +234,7 @@ export function ClassroomView({
               : 'http://localhost:3000';
           const tokenUrl = `${origin}/api/livekit/token?room=${encodeURIComponent(roomId)}&username=${encodeURIComponent(
             localName || userId
-          )}&role=${activeRole}`;
+          )}&userId=${encodeURIComponent(userId)}&role=${activeRole}`;
           const res = await fetch(tokenUrl);
           if (res.ok) {
             const data = await res.json();
@@ -242,6 +245,15 @@ export function ClassroomView({
         }
       } catch (err) {
         console.warn('WebRTC/LiveKit session connect notice:', err);
+      }
+
+      // Hook up remote video stream listener from WebRTC / LiveKit
+      if (typeof activeMediaSession.onRemoteTrack === 'function') {
+        activeMediaSession.onRemoteTrack((_track: MediaStreamTrack, stream: MediaStream) => {
+          if (!isCancelled) {
+            setRemoteStream(stream);
+          }
+        });
       }
 
       // Wire LiveKit participant changes to classroom state
@@ -454,6 +466,7 @@ export function ClassroomView({
           whiteboardAdapter={activeWhiteboardAdapter || undefined}
           persistenceManager={activePersistenceManager || undefined}
           localStream={localStream}
+          remoteStream={remoteStream}
           initialPermissions={loadedPermissions || propInitialPermissions}
           initialPages={loadedPages || propInitialPages}
           initialMode={initialMode}

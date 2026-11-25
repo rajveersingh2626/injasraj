@@ -49,14 +49,28 @@ export class LiveKitMediaSession implements IMediaSession {
       });
 
       this.room.on(RoomEvent.TrackSubscribed, (track: any, publication: any, participant: any) => {
-        if (track.mediaStreamTrack) {
+        if (track.kind === 'audio' && typeof document !== 'undefined') {
+          try {
+            const audioElement = track.attach();
+            audioElement.style.display = 'none';
+            document.body.appendChild(audioElement);
+          } catch (err) {
+            console.warn('Audio track auto-attach notice:', err);
+          }
+        } else if (track.mediaStreamTrack) {
           const mediaStream = new MediaStream([track.mediaStreamTrack]);
           this.emitRemoteTrack(track.mediaStreamTrack, mediaStream);
         }
         this.emitParticipants();
       });
 
-      this.room.on(RoomEvent.TrackUnsubscribed, () => {
+      this.room.on(RoomEvent.TrackUnsubscribed, (track: any) => {
+        if (track && typeof track.detach === 'function') {
+          try {
+            const elements = track.detach();
+            elements.forEach((el: any) => el?.remove?.());
+          } catch {}
+        }
         this.emitParticipants();
       });
 

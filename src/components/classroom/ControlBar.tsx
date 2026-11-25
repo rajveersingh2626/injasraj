@@ -134,8 +134,8 @@ export const ControlBar: React.FC<ControlBarProps> = ({
       style={containerPositionStyle}
       className={
         isVertical
-          ? `fixed left-4 ${dragTop === null ? 'top-1/2 -translate-y-1/2' : ''} z-40 pointer-events-none ${className}`
-          : `fixed bottom-0 inset-x-0 z-40 flex justify-center px-4 pt-2 pointer-events-none ${className}`
+          ? `fixed right-5 ${dragTop === null ? 'bottom-5' : ''} z-40 pointer-events-none ${className}`
+          : `fixed bottom-5 right-5 z-40 flex items-center pointer-events-none ${className}`
       }
     >
       <div
