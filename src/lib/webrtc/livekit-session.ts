@@ -10,6 +10,7 @@ export class LiveKitMediaSession implements IMediaSession {
   private micEnabled = true;
   private cameraEnabled = true;
   private screenShareEnabled = false;
+  private publishedScreenTrack: MediaStreamTrack | null = null;
   private remoteTrackCallbacks: ((track: MediaStreamTrack, stream: MediaStream) => void)[] = [];
   private remoteScreenTrackCallbacks: ((track: MediaStreamTrack | null, stream: MediaStream | null) => void)[] = [];
   private qualityCallbacks: ((metrics: ConnectionQuality) => void)[] = [];
@@ -212,6 +213,7 @@ export class LiveKitMediaSession implements IMediaSession {
 
   async publishScreenShare(screenTrack: MediaStreamTrack): Promise<void> {
     this.screenShareEnabled = true;
+    this.publishedScreenTrack = screenTrack || null;
     if (this.room?.localParticipant) {
       try {
         if (screenTrack) {
@@ -232,9 +234,14 @@ export class LiveKitMediaSession implements IMediaSession {
     this.screenShareEnabled = false;
     if (this.room?.localParticipant) {
       try {
-        const screenPub = this.room.localParticipant.getTrackPublication?.('screen_share');
-        if (screenPub && typeof this.room.localParticipant.unpublishTrack === 'function') {
-          await this.room.localParticipant.unpublishTrack(screenPub.track);
+        if (this.publishedScreenTrack && typeof this.room.localParticipant.unpublishTrack === 'function') {
+          await this.room.localParticipant.unpublishTrack(this.publishedScreenTrack);
+          this.publishedScreenTrack = null;
+        } else {
+          const screenPub = this.room.localParticipant.getTrackPublication?.('screen_share');
+          if (screenPub && typeof this.room.localParticipant.unpublishTrack === 'function') {
+            await this.room.localParticipant.unpublishTrack(screenPub.track);
+          }
         }
         await this.room.localParticipant.setScreenShareEnabled(false);
       } catch (err) {

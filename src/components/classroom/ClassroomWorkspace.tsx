@@ -1276,9 +1276,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     ) {
       try {
         const stream = await navigator.mediaDevices.getDisplayMedia({
-          video: {
-            displaySurface: 'monitor',
-          } as any,
+          video: true,
           audio: true,
         });
 

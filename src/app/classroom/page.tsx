@@ -15,9 +15,6 @@ function ClassroomQueryContent(props: ClassroomQueryPageProps) {
   if (props.searchParams) {
     const sp = React.use(props.searchParams);
     const roomParam = sp?.room || sp?.roomId;
-    if (typeof roomParam === 'string' && roomParam.trim() !== '') {
-      resolvedRoomId = roomParam.trim();
-    }
     if (sp?.role === 'teacher') resolvedRole = 'teacher';
     else if (sp?.role === 'student') resolvedRole = 'student';
     if (typeof sp?.name === 'string') resolvedName = sp.name;
@@ -25,6 +22,7 @@ function ClassroomQueryContent(props: ClassroomQueryPageProps) {
 
     // If room is present, redirect to canonical path /classroom/[roomId]
     if (typeof roomParam === 'string' && roomParam.trim() !== '') {
+      resolvedRoomId = roomParam.trim();
       const qParams = new URLSearchParams();
       if (resolvedRole) qParams.set('role', resolvedRole);
       if (resolvedName) qParams.set('name', resolvedName);
