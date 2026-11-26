@@ -34,6 +34,7 @@ import {
   getTeacherSession,
   logoutTeacher,
   TeacherSession,
+  CANONICAL_TEACHER_ID,
 } from '@/lib/auth/teacher-auth';
 import {
   createManagedRoom,
@@ -41,16 +42,18 @@ import {
   deleteManagedRoom,
   recordRoomJoin,
   checkAndExpireRooms,
+  syncRoomsFromSupabase,
   ManagedRoom,
 } from '@/lib/classroom/room-manager';
 import {
   getPastClasses,
   deletePastClass,
   archiveClassToHistory,
+  syncPastClassesFromSupabase,
   PastClassRecord,
 } from '@/lib/classroom/past-classes';
 
-const DEFAULT_TEACHER_ID = 'teacher-1';
+const DEFAULT_TEACHER_ID = CANONICAL_TEACHER_ID;
 const DEFAULT_TEACHER_NAME = 'Inderjit Kaur';
 
 const INITIAL_AVAILABILITIES: TeacherAvailability[] = [1, 2, 3, 4, 5].map((day) => ({
@@ -112,6 +115,35 @@ export default function TeacherDashboardPage() {
       setOrigin(window.location.origin);
       setTeacherSession(getTeacherSession());
       refreshRoomsAndHistory();
+
+      // Load availability and sync rooms from Supabase
+      const loadSupabaseData = async () => {
+        try {
+          const supabase = createBrowserClient();
+          if (supabase && typeof supabase.from === 'function') {
+            const { data, error } = await supabase
+              .from('teacher_availability')
+              .select('*')
+              .eq('teacher_id', DEFAULT_TEACHER_ID)
+              .order('day_of_week', { ascending: true });
+
+            if (!error && Array.isArray(data) && data.length > 0) {
+              setAvailabilities(data);
+            }
+          }
+        } catch {}
+
+        try {
+          const [rooms, past] = await Promise.all([
+            syncRoomsFromSupabase(),
+            syncPastClassesFromSupabase(),
+          ]);
+          setActiveRooms(rooms);
+          setPastClasses(past);
+        } catch {}
+      };
+
+      loadSupabaseData();
     }
 
     const interval = setInterval(() => {
@@ -135,11 +167,20 @@ export default function TeacherDashboardPage() {
     try {
       const supabase = createBrowserClient();
       if (supabase && typeof supabase.from === 'function') {
+        const rowsToUpsert = updated.map((a) => ({
+          teacher_id: DEFAULT_TEACHER_ID,
+          day_of_week: a.day_of_week,
+          start_time: a.start_time,
+          end_time: a.end_time,
+          slot_duration_minutes: a.slot_duration_minutes || 60,
+        }));
         await supabase
           .from('teacher_availability')
-          .upsert(updated, { onConflict: 'teacher_id,day_of_week' });
+          .upsert(rowsToUpsert, { onConflict: 'teacher_id,day_of_week' });
       }
-    } catch {}
+    } catch (err) {
+      console.warn('Failed to save teacher availability to Supabase:', err);
+    }
   };
 
   // Generate instant room and add to active manager

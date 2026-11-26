@@ -7,9 +7,9 @@ import { GET } from '../src/app/api/livekit/token/route';
 
 describe('/api/livekit/token Route Handler', () => {
   beforeEach(() => {
-    process.env.LIVEKIT_API_KEY = 'APIHvFdBfBNLCmT';
-    process.env.LIVEKIT_API_SECRET = '2z1mWnTuBa9LJSxz8PddvbGmIiAAeD0rdJsyIwi9fgw';
-    process.env.NEXT_PUBLIC_LIVEKIT_URL = 'wss://injasraj-aosxldu2.livekit.cloud';
+    process.env.LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || 'mock_api_key_for_testing';
+    process.env.LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET || 'mock_secret_key_for_testing_1234567890';
+    process.env.NEXT_PUBLIC_LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://injasraj-aosxldu2.livekit.cloud';
   });
 
   it('returns 400 when room parameter is missing', async () => {

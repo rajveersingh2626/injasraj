@@ -10,12 +10,14 @@ import {
 
 describe('Teacher Authentication & Role Enforcement', () => {
   beforeEach(() => {
+    logoutTeacher();
     if (typeof localStorage !== 'undefined') {
       localStorage.clear();
     }
   });
 
   afterEach(() => {
+    logoutTeacher();
     if (typeof localStorage !== 'undefined') {
       localStorage.clear();
     }

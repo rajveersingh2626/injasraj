@@ -10,13 +10,11 @@ describe('LiveKit Cloud Production & WebRTC Verification', () => {
   beforeAll(() => {
     process.env.LIVEKIT_URL = process.env.LIVEKIT_URL || 'wss://injasraj-aosxldu2.livekit.cloud';
     process.env.NEXT_PUBLIC_LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://injasraj-aosxldu2.livekit.cloud';
-    process.env.LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || 'APIHvFdBfBNLCmT';
-    process.env.LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET || '2z1mWnTuBa9LJSxz8PddvbGmIiAAeD0rdJsyIwi9fgw';
   });
 
-  const wsUrl = 'wss://injasraj-aosxldu2.livekit.cloud';
-  const apiKey = 'APIHvFdBfBNLCmT';
-  const apiSecret = '2z1mWnTuBa9LJSxz8PddvbGmIiAAeD0rdJsyIwi9fgw';
+  const wsUrl = process.env.LIVEKIT_URL || process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://injasraj-aosxldu2.livekit.cloud';
+  const apiKey = process.env.LIVEKIT_API_KEY || '';
+  const apiSecret = process.env.LIVEKIT_API_SECRET || '';
   const httpUrl = wsUrl.replace('wss://', 'https://');
 
   it('authenticates and connects to LiveKit Cloud SFU via RoomServiceClient', async () => {

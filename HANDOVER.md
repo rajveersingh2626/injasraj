@@ -52,9 +52,9 @@ npm run lint
 | **Active Rooms Storage**| `injasraj_active_rooms` | LocalStorage JSON array of active room records. |
 | **Past Classes Storage**| `injasraj_past_classes` | LocalStorage JSON array of past classes & whiteboard snapshots. |
 | **Supabase URL / Key** | Configured in `.env.local` | Mock / production Supabase endpoint for signaling & Postgres persistence. |
-| **LiveKit URL** | `wss://injasraj-aosxldu2.livekit.cloud` | LiveKit Cloud WebSocket SFU endpoint. |
-| **LiveKit API Key** | `APIHvFdBfBNLCmT` | Server SDK API key for minting access tokens. |
-| **LiveKit API Secret** | `2z1mWnTuBa9LJSxz8PddvbGmIiAAeD0rdJsyIwi9fgw` | Server SDK API secret for signing JWT tokens. |
+| **LiveKit URL** | `process.env.LIVEKIT_URL` / `wss://injasraj-aosxldu2.livekit.cloud` | LiveKit Cloud WebSocket SFU endpoint. |
+| **LiveKit API Key** | `process.env.LIVEKIT_API_KEY` | Server SDK API key for minting access tokens. |
+| **LiveKit API Secret** | `process.env.LIVEKIT_API_SECRET` | Server SDK API secret (stored securely in Vercel & .env.local). |
 
 ---
 

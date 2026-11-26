@@ -230,9 +230,9 @@ export function ClassroomView({
       try {
         if (activeMediaSession instanceof LiveKitMediaSession) {
           const origin =
-            typeof window !== 'undefined' && window.location?.origin
-              ? window.location.origin
-              : 'http://localhost:3000';
+            (typeof window !== 'undefined' && window.location?.origin) ||
+            process.env.NEXT_PUBLIC_APP_URL ||
+            '';
           const tokenUrl = `${origin}/api/livekit/token?room=${encodeURIComponent(roomId)}&username=${encodeURIComponent(
             localName || userId
           )}&userId=${encodeURIComponent(userId)}&role=${activeRole}`;

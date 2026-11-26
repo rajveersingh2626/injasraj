@@ -21,7 +21,10 @@ export class LiveKitMediaSession implements IMediaSession {
     this.url =
       serverUrl ||
       (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_LIVEKIT_URL) ||
-      'wss://injasraj-aosxldu2.livekit.cloud';
+      '';
+    if (!this.url && typeof window !== 'undefined') {
+      console.warn('LiveKitMediaSession: NEXT_PUBLIC_LIVEKIT_URL is not configured.');
+    }
   }
 
   public isMicEnabled(): boolean {

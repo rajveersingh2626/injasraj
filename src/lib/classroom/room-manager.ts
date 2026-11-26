@@ -2,10 +2,13 @@
  * Active Room & Link Management Engine
  *
  * Tracks generated classroom links, active sessions, and instant room lifecycle:
+ * - Persists and queries state against Supabase public.lessons table (SSOT).
  * - Instant rooms expire after 15 minutes of joining.
  * - Scheduled rooms remain active until completed or manually deleted.
- * - Persists state in browser localStorage with Supabase sync compatibility.
  */
+
+import { createBrowserClient } from '../supabase/client';
+import { CANONICAL_TEACHER_ID } from '../auth/teacher-auth';
 
 export const ROOM_MANAGER_STORAGE_KEY = 'injasraj_managed_rooms_v1';
 export const INSTANT_ROOM_TTL_MS = 15 * 60 * 1000; // 15 minutes
@@ -42,7 +45,7 @@ function saveStoredRooms(rooms: ManagedRoom[]): void {
 }
 
 /**
- * Creates and registers a new managed room.
+ * Creates and registers a new managed room, syncing with Supabase lessons table.
  */
 export function createManagedRoom(
   roomId: string,
@@ -76,6 +79,30 @@ export function createManagedRoom(
   }
 
   saveStoredRooms(rooms);
+
+  // Sync to Supabase public.lessons asynchronously
+  try {
+    const supabase = createBrowserClient();
+    if (supabase && typeof supabase.from === 'function') {
+      Promise.resolve(
+        supabase
+          .from('lessons')
+          .upsert(
+            {
+              room_id: roomId,
+              teacher_id: CANONICAL_TEACHER_ID,
+              room_type: type,
+              title: defaultTitle,
+              status: 'live',
+              start_time_utc: now.toISOString(),
+              created_at: now.toISOString(),
+            },
+            { onConflict: 'room_id' }
+          )
+      ).catch((err: any) => console.warn('Supabase room upsert notice:', err));
+    }
+  } catch {}
+
   return newRoom;
 }
 
@@ -89,7 +116,6 @@ export function getRoomById(roomId: string): ManagedRoom | undefined {
 
 /**
  * Records when a teacher or student joins the room.
- * For instant rooms, this starts the 15-minute countdown timer.
  */
 export function recordRoomJoin(roomId: string): ManagedRoom | null {
   const rooms = loadStoredRooms();
@@ -104,6 +130,23 @@ export function recordRoomJoin(roomId: string): ManagedRoom | null {
   }
 
   saveStoredRooms(rooms);
+
+  // Sync join time to Supabase
+  try {
+    const supabase = createBrowserClient();
+    if (supabase && typeof supabase.from === 'function') {
+      Promise.resolve(
+        supabase
+          .from('lessons')
+          .update({
+            joined_at: room.joinedAt,
+            expires_at: room.expiresAt,
+          })
+          .eq('room_id', roomId)
+      ).catch(() => {});
+    }
+  } catch {}
+
   return room;
 }
 
@@ -157,7 +200,55 @@ export function deleteManagedRoom(roomId: string): boolean {
   const filtered = rooms.filter((r) => r.roomId !== roomId);
   if (filtered.length !== rooms.length) {
     saveStoredRooms(filtered);
+
+    // Sync status = 'completed' or delete in Supabase
+    try {
+      const supabase = createBrowserClient();
+      if (supabase && typeof supabase.from === 'function') {
+        Promise.resolve(
+          supabase
+            .from('lessons')
+            .update({ status: 'completed' })
+            .eq('room_id', roomId)
+        ).catch(() => {});
+      }
+    } catch {}
+
     return true;
   }
   return false;
+}
+
+/**
+ * Asynchronously synchronizes active rooms from Supabase public.lessons.
+ */
+export async function syncRoomsFromSupabase(): Promise<ManagedRoom[]> {
+  try {
+    const supabase = createBrowserClient();
+    if (supabase && typeof supabase.from === 'function') {
+      const { data, error } = await supabase
+        .from('lessons')
+        .select('*')
+        .in('status', ['live', 'scheduled'])
+        .order('created_at', { ascending: false });
+
+      if (!error && Array.isArray(data)) {
+        const synced: ManagedRoom[] = data.map((l: any) => ({
+          id: l.id,
+          roomId: l.room_id,
+          title: l.title || `Classroom (${l.room_id})`,
+          type: (l.room_type as any) || 'instant',
+          createdAt: l.created_at || new Date().toISOString(),
+          joinedAt: l.joined_at,
+          expiresAt: l.expires_at,
+          status: 'active',
+        }));
+        saveStoredRooms(synced);
+        return synced;
+      }
+    }
+  } catch (err) {
+    console.warn('Could not sync rooms from Supabase:', err);
+  }
+  return getActiveRooms();
 }

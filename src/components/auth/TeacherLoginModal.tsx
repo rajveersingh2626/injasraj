@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Lock, ShieldCheck, X, AlertCircle } from 'lucide-react';
-import { loginTeacher, DEFAULT_TEACHER_NAME } from '@/lib/auth/teacher-auth';
+import { loginTeacherAsync, DEFAULT_TEACHER_NAME } from '@/lib/auth/teacher-auth';
 
 export interface TeacherLoginModalProps {
   isOpen: boolean;
@@ -22,14 +22,14 @@ export const TeacherLoginModal: React.FC<TeacherLoginModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setIsSubmitting(true);
 
     try {
-      const success = loginTeacher(passcode, teacherName);
-      if (success) {
+      const session = await loginTeacherAsync(passcode, teacherName);
+      if (session && session.isAuthenticated) {
         onLoginSuccess(teacherName);
         onClose();
       } else {
