@@ -83,6 +83,8 @@ export class FabricWhiteboardEngine {
   private lockedObjectIds: Set<string> = new Set();
   private defaultRoughness: number = 0;
   private backgroundImage: any | null = null;
+  private isReadOnly: boolean = false;
+  private isScreenShareMode: boolean = false;
 
   // Active freehand drawing state
   private isDrawing: boolean = false;
@@ -248,6 +250,30 @@ export class FabricWhiteboardEngine {
 
   public getActiveTool(): WhiteboardToolType {
     return this.activeTool;
+  }
+
+  public setReadOnly(readOnly: boolean): void {
+    this.isReadOnly = Boolean(readOnly);
+    if (this.isReadOnly) {
+      this.deselectAll();
+      this.isDrawing = false;
+      this.isDrawingShape = false;
+      this.isDraggingObject = false;
+    }
+    this.requestRender();
+  }
+
+  public getReadOnly(): boolean {
+    return this.isReadOnly;
+  }
+
+  public setScreenShareMode(enabled: boolean): void {
+    this.isScreenShareMode = Boolean(enabled);
+    this.requestRender();
+  }
+
+  public getScreenShareMode(): boolean {
+    return this.isScreenShareMode;
   }
 
   public setStrokeProperties(props: Partial<StrokeProperties>): void {
@@ -1152,6 +1178,10 @@ export class FabricWhiteboardEngine {
       const pt = this.getEventVirtualPoint(e, canvas);
       if (!pt) return;
 
+      if (this.isReadOnly && this.activeTool !== 'pan' && this.activeTool !== 'laser') {
+        return;
+      }
+
       if (this.activeTool === 'pan') {
         return;
       }
@@ -1251,6 +1281,10 @@ export class FabricWhiteboardEngine {
     const handlePointerMove = (e: MouseEvent | PointerEvent) => {
       const pt = this.getEventVirtualPoint(e, canvas);
       if (!pt) return;
+
+      if (this.isReadOnly && this.activeTool !== 'pan' && this.activeTool !== 'laser') {
+        return;
+      }
 
       if (this.activeTool === 'pan') {
         return;
@@ -1558,8 +1592,10 @@ export class FabricWhiteboardEngine {
       context.scale(viewport.scale, viewport.scale);
 
       // 1. Draw infinite white canvas background (-∞ to +∞)
-      context.fillStyle = '#FFFFFF';
-      context.fillRect(-100000, -100000, 200000, 200000);
+      if (!this.isScreenShareMode) {
+        context.fillStyle = '#FFFFFF';
+        context.fillRect(-100000, -100000, 200000, 200000);
+      }
 
       // 2. Draw optional grid lines or dots
       this.drawVirtualGrid(context);

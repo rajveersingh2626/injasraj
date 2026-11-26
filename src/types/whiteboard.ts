@@ -49,10 +49,13 @@ export interface WhiteboardPage {
   canvasJson: any; // Serialized Fabric.js v6 canvas object graph
   thumbnailUrl?: string;
   pdfDocument?: PdfDocumentState;
+  isLocked?: boolean;
+  isScreenShareTab?: boolean;
 }
 
 export interface WhiteboardPermissions {
-  isLockedGlobally: boolean;
+  isLockedGlobally?: boolean;
+  tabLocks?: Record<string, boolean>; // pageId -> boolean (per-tab lock state)
   studentDrawingGranted: Record<string, boolean>; // studentId -> boolean
   preventDeletingTeacherContent: boolean;
   allowMovingOnlyOwnObjects: boolean;
@@ -170,7 +173,8 @@ export const DEFAULT_STUDENT_ALLOWED_TOOLS: WhiteboardToolType[] = [
  */
 export function defaultWhiteboardPermissions(): WhiteboardPermissions {
   return {
-    isLockedGlobally: true,
+    isLockedGlobally: false,
+    tabLocks: {},
     studentDrawingGranted: {},
     preventDeletingTeacherContent: true,
     allowMovingOnlyOwnObjects: true,
