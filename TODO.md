@@ -1,50 +1,32 @@
-# TODO: Production Polish & Architectural Fixes (GSD / Ralph Loop)
+# Ralph Loop Task Checklist: Production Polish & Real-Time Controls
 
-- [x] Task 1: Fix Broken Student Invite Link (404 Error)
-  - [x] 1.1 In `ClassroomWorkspace.tsx`, fix `handleCopyRoomLink` to use `/classroom/${encodeURIComponent(roomId)}?role=student`.
-  - [x] 1.2 In `src/app/classroom/page.tsx`, create route that extracts `room` and redirects or renders `ClassroomView` so `/classroom?room=...` never 404s.
-- [x] Task 2: Supabase, LiveKit & Default Profile Update
-  - [x] 2.1 Update default teacher profile name from "Injasraj" to "Inderjit Kaur" in `teacher-auth.ts`, `page.tsx`, `TeacherLoginModal.tsx`, and `HANDOVER.md`.
-  - [x] 2.2 Add graceful telemetry and error reporting in `ClassroomView.tsx` when LiveKit token endpoint is unreachable.
-  - [x] 2.3 Provide SQL migration script for public table grants (`anon`, `authenticated`).
-- [x] Task 3: Whiteboard Tool State Bug (Grab/Drag Tool Stuck Active)
-  - [x] 3.1 In `WhiteboardStage.tsx`, remove `isShiftPressed` from canvas grab/pan triggers. Add `window.blur` listener to reset modifier states.
-  - [x] 3.2 In `fabric-engine.ts`, ensure `setTool(newTool)` deselects all objects and resets dragging/resize handle states when switching away from `'select'`.
-- [x] Task 4: Default Whiteboard Initialization (Single Page Only)
-  - [x] 4.1 In `ClassroomWorkspace.tsx`, set `defaultInitialPages` to a single blank page (`[createDefaultWhiteboardPage('page-1', 1, 'Whiteboard')]`).
-- [x] Task 5: Camera/Mic Control Bar Repositioning & Teacher Remote Controls
-  - [x] 5.1 In `ControlBar.tsx` and `ClassroomWorkspace.tsx`, reposition the control dock to the bottom left, with its width matching the left panel width (`w-full md:w-[340px] lg:w-[400px] xl:w-[440px]`).
-  - [x] 5.2 Verify teacher remote controls toggle student mic/camera via signaling and LiveKit tracks.
-- [x] Task 6: Unified Page Navigation Bar at Top
-  - [x] 6.1 Move document sub-page navigation (`deck (1) < Page 7 of 8 >`) to the top unified navigation area and remove bottom floating bar.
-- [x] Task 7: Loaded PDF Disappearing Off-Screen Fix
-  - [x] 7.1 In `ClassroomWorkspace.tsx`, ensure `handleSelectPage`, `handleEngineReady`, and `delta.type === 'page-switch'` restore `backgroundImageUrl` and `pdfDocument` sub-page backgrounds instead of relying on `thumbnailUrl`.
-  - [x] 7.2 In `handlePdfSubPageChange`, persist current sub-page background URL to page manager.
-- [x] Task 8: Performance Lag & Asset Upload Optimization
-  - [x] 8.1 Optimize PDF and document rendering so on-demand single page rendering prevents freezing and gigantic base64 payloads over WebSocket deltas.
-  - [x] 8.2 Add downscaled/optimized bitmap caching in canvas engine.
-- [x] Task 9: High-Fidelity Whiteboard PDF Export
-  - [x] 9.1 In `handleExportPdf`, render all notebook pages and document sub-pages with all canvas annotations, text, sticky notes, formulas, and shapes.
-  - [x] 9.2 In `pdf-lib-export.ts`, support WebP and PNG backgrounds reliably.
-- [x] Task 10: Mechanical Verification
-  - [x] 10.1 Run full Vitest test suite (`npm test -- --run`).
-  - [x] 10.2 Run production build check (`npm run build`).
-- [x] Task 11: Git Commit & Handover Documentation
-  - [x] 11.1 Update `HANDOVER.md` and `CONTEXT.md`.
-  - [x] 11.2 Stage changes and commit cleanly on the branch.
-- [x] Task 12: Working Screen Share Rendered Directly on Whiteboard (Requirement 10)
-  - [x] 12.1 Implement `getDisplayMedia` capture with audio support, error/cancel handling, and `screenTrack.onended` auto-teardown.
-  - [x] 12.2 Publish screen share track via LiveKit SFU (`publishTrack({ source: 'screen_share' })`) and WebRTC P2P with `screen-share-state` broadcast.
-  - [x] 12.3 Render live screen share video inside `WhiteboardStage` (`canvas-stage-wrapper`) with transparent Fabric overlay for real-time pen/laser annotations.
-  - [x] 12.4 Add in-app and native browser Stop Sharing teardown with track cleanup and whiteboard restoration.
-  - [x] 12.5 Add dedicated test suite `tests/whiteboard/screen-share-whiteboard.test.tsx` (all 5 tests passing).
-- [x] Task 13: Enterprise TURN & Restrictive Firewall Traversal (Cellular & Corporate Network Routing)
-  - [x] 13.1 In `p2p-session.ts`, enhance `parseTurnServers` to support JSON arrays/objects, RFC 5766 `url` normalization, comma-delimited strings, and individual env vars (`NEXT_PUBLIC_TURN_URL`, `NEXT_PUBLIC_TURN_USERNAME`, `NEXT_PUBLIC_TURN_CREDENTIAL`).
-  - [x] 13.2 Add `expandTurnTransports` to provide TCP (`?transport=tcp`) and TLS (`turns:...:443?transport=tcp`) variants for strict corporate firewalls that block outbound UDP.
-  - [x] 13.3 Add `DEFAULT_FALLBACK_TURN_SERVERS` with port 443 / 80 TCP and TURNS relays for zero-config fallback.
-  - [x] 13.4 Support `iceTransportPolicy?: RTCIceTransportPolicy` in `P2PSessionOptions` and `NEXT_PUBLIC_ICE_TRANSPORT_POLICY` (allowing forced relay testing/policy).
-  - [x] 13.5 In `P2PWebRTCMediaSession`, handle both `disconnected` and `failed` on `iceconnectionstatechange` and `connectionstatechange` with debounced `restartIce()`.
-  - [x] 13.6 In `LiveKitMediaSession`, pass `rtcConfig` with resolved ICE servers and `iceTransportPolicy` to `room.connect(...)`, dynamically reporting `connectionType: 'relay'` and `isAudioPrioritized: true`.
-  - [x] 13.7 Add comprehensive unit test coverage in `tests/lib/webrtc/p2p-session.test.ts` and `tests/livekit-session.test.ts`.
-  - [x] 13.8 Run Vitest test suite and `npm run build` verification gates.
-
+- [x] Task 1: Uncropped Camera Feeds & Redesigned Teacher/Student Camera Layout (Items 6 & 7)
+  - [x] 1.1 In `VideoCard.tsx`, change video styling from `object-cover` to `object-contain bg-zinc-950` so camera feeds are 100% exact and never cropped.
+  - [x] 1.2 In `livekit-session.ts`, ensure `getUserMedia` / `VideoCaptureOptions` does not enforce rigid 16:9 crop constraints.
+  - [x] 1.3 In `ClassroomWorkspace.tsx`, restructure video tiles: Top primary full-width landscape tile for teacher / main presenter, Bottom 2-column grid (`grid grid-cols-2 gap-2`) for students/participants.
+- [x] Task 2: Waiting Room Student Camera Preview for Teacher (Item 5)
+  - [x] 2.1 In `livekit-session.ts`, map remote streams by participant identity (`remoteStreams: Map<string, MediaStream>`) and emit per-participant streams.
+  - [x] 2.2 In `ClassroomWorkspace.tsx`, allow the teacher to receive and render the student's live camera preview tile when `sessionStatus === 'waiting'`, while keeping teacher video/audio gated from student until started.
+- [x] Task 3: Per-Tab Lock/Unlock & Canvas Enforcement (Item 3)
+  - [x] 3.1 Update `WhiteboardPage` interface to include `isLocked?: boolean`, and `WhiteboardPermissions` to include `tabLocks?: Record<string, boolean>`.
+  - [x] 3.2 In `BrowserTabBar.tsx`, add interactive lock/unlock icon button on every tab for teacher, and lock indicator badge for students.
+  - [x] 3.3 In `FabricWhiteboardEngine` and `WhiteboardStage.tsx`, enforce lock state on student canvas (block pointer drawing, disable tools in toolbar, show locked banner).
+- [x] Task 4: Force-Sync Students to Teacher's Active Whiteboard Tab (Item 4)
+  - [x] 4.1 In `BrowserTabBar.tsx`, prevent students from navigating tabs independently (`if (!isTeacher) return;`).
+  - [x] 4.2 In `ClassroomWorkspace.tsx`, broadcast `page-switch` on teacher tab changes and enforce student auto-follow to active tab.
+- [x] Task 5: Screen Share Auto-Open in New Dedicated Whiteboard Tab (Item 1)
+  - [x] 5.1 When screen share is published or received, auto-create a dedicated screen share tab (`isScreenShareTab: true`) and auto-switch participants to it.
+  - [x] 5.2 Render screen share video inside the dedicated tab with unhindered visibility (`object-contain`) and transparent drawing layer for annotations.
+  - [x] 5.3 On stop screen share, auto-close the screen share tab and return to the previous active whiteboard page.
+- [x] Task 6: Expanded Teacher Meeting Controls on Studio Panel (Item 2)
+  - [x] 6.1 In `PeopleTab.tsx` and `StudioSidePanel.tsx`, add "Mute All" button for teacher.
+  - [x] 6.2 Add per-student remote mic and camera toggle buttons in student participant cards.
+  - [x] 6.3 Add toggles for Screen Share Permissions, Student Chat Permission, and End Class button.
+- [x] Task 7: Working Real-Time In-Class Chat & Relocated Chat Toggle (Item 8)
+  - [x] 7.1 In `ClassroomWorkspace.tsx`, broadcast chat messages via signaling / adapter (`chat-message` event) and handle incoming chat deltas.
+  - [x] 7.2 Add dedicated Chat Toggle Button in top navigation with unread badge counter that opens Studio Panel directly on the Chat tab.
+- [x] Task 8: Mechanical Verification, Documentation & Pull Request
+  - [x] 8.1 Run full Vitest test suite (`npm test -- --run`).
+  - [x] 8.2 Run Next.js production build (`npm run build`).
+  - [x] 8.3 Update `HANDOVER.md` and `CONTEXT.md`.
+  - [x] 8.4 Commit changes with atomic messages and push branch to open PR.

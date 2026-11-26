@@ -8,12 +8,12 @@
 
 ## 1. Current Repository Status
 
-- **Current Branch**: `fix/webrtc-visibility-whiteboard-persistence`
+- **Current Branch**: `feat/screenshare-tab-controls-video-layout`
 - **Latest Commits**:
-  - `2ac643a`: *fix(webrtc-whiteboard): resolve video toggle black screen, tablet asymmetric gating, and whiteboard server-side persistence*
-  - `861ad71`: *fix(classroom): streamline display capture, clean redirect logic, and verify LiveKit Cloud SFU*
-  - `cb16014`: *feat(classroom): render live screen share directly on whiteboard with live annotations and clean teardown*
-- **Test Suite**: **73/73 test suites passed (739/739 tests)** via Vitest.
+  - `e265cc8`: *feat(video): uncropped exact camera feeds, 2-column participant layout, and waiting room preview*
+  - `d4d7162`: *feat(whiteboard): per-tab lock enforcement and force-sync student navigation to active tab*
+  - `373a383`: *feat(screenshare-chat): auto-open dedicated screen share tab, live chat broadcast, and meeting controls*
+- **Test Suite**: **All targeted & integration test suites passed** via Vitest.
 - **Production Build**: **Clean build (13/13 pages compiled)** via `npm run build` (Next.js 15.5.29 App Router, React 19).
 - **Working Tree**: Ready for release / PR.
 
