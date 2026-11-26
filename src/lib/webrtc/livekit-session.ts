@@ -12,7 +12,8 @@ export class LiveKitMediaSession implements IMediaSession {
   private screenShareEnabled = false;
   private publishedScreenTrack: MediaStreamTrack | null = null;
   private localStreamCallbacks: ((stream: MediaStream | null) => void)[] = [];
-  private remoteTrackCallbacks: ((track: MediaStreamTrack, stream: MediaStream) => void)[] = [];
+  private remoteTrackCallbacks: ((track: MediaStreamTrack, stream: MediaStream, participantId?: string) => void)[] = [];
+  private remoteParticipantStreams = new Map<string, MediaStream>();
   private remoteScreenTrackCallbacks: ((track: MediaStreamTrack | null, stream: MediaStream | null) => void)[] = [];
   private qualityCallbacks: ((metrics: ConnectionQuality) => void)[] = [];
   private participantCallbacks: ((participants: any[]) => void)[] = [];
@@ -106,12 +107,16 @@ export class LiveKitMediaSession implements IMediaSession {
           this.emitRemoteScreenTrack(track.mediaStreamTrack, mediaStream);
         } else if (track.mediaStreamTrack) {
           const mediaStream = new MediaStream([track.mediaStreamTrack]);
-          this.emitRemoteTrack(track.mediaStreamTrack, mediaStream);
+          const pId = participant?.identity || participant?.sid;
+          if (pId) {
+            this.remoteParticipantStreams.set(pId, mediaStream);
+          }
+          this.emitRemoteTrack(track.mediaStreamTrack, mediaStream, pId);
         }
         this.emitParticipants();
       });
 
-      this.room.on(RoomEvent.TrackUnsubscribed, (track: any, publication: any) => {
+      this.room.on(RoomEvent.TrackUnsubscribed, (track: any, publication: any, participant: any) => {
         const isScreenShare =
           track?.source === Track.Source.ScreenShare ||
           publication?.source === Track.Source.ScreenShare ||
@@ -120,6 +125,13 @@ export class LiveKitMediaSession implements IMediaSession {
 
         if (isScreenShare) {
           this.emitRemoteScreenTrack(null, null);
+        }
+
+        if (participant?.identity) {
+          this.remoteParticipantStreams.delete(participant.identity);
+        }
+        if (participant?.sid) {
+          this.remoteParticipantStreams.delete(participant.sid);
         }
 
         if (track && typeof track.detach === 'function') {
@@ -191,7 +203,14 @@ export class LiveKitMediaSession implements IMediaSession {
       this.emitParticipants();
 
       try {
-        await this.room.localParticipant.enableCameraAndMicrophone();
+        await this.room.localParticipant.setCameraEnabled(true, {
+          resolution: {
+            width: 1280,
+            height: 720,
+            frameRate: 30,
+          },
+        });
+        await this.room.localParticipant.setMicrophoneEnabled(true);
       } catch (mediaErr) {
         console.warn('LiveKit local device auto-enable skipped:', mediaErr);
       }
@@ -401,14 +420,24 @@ export class LiveKitMediaSession implements IMediaSession {
   }
 
   // Exposed for tests or synthetic dispatches
-  emitRemoteTrack(track: MediaStreamTrack, stream: MediaStream): void {
+  emitRemoteTrack(track: MediaStreamTrack, stream: MediaStream, participantId?: string): void {
+    if (participantId) {
+      this.remoteParticipantStreams.set(participantId, stream);
+    }
     for (const cb of this.remoteTrackCallbacks) {
       try {
-        cb(track, stream);
+        (cb as any)(track, stream, participantId);
       } catch (e) {
         console.error(e);
       }
     }
+  }
+
+  getRemoteStream(participantId?: string): MediaStream | null {
+    if (participantId && this.remoteParticipantStreams.has(participantId)) {
+      return this.remoteParticipantStreams.get(participantId)!;
+    }
+    return this.remoteParticipantStreams.values().next().value || null;
   }
 
   emitQuality(metrics: ConnectionQuality): void {

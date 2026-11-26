@@ -25,6 +25,7 @@ export interface Participant {
   isDrawingAllowed?: boolean;
   avatarUrl?: string;
   isSelf?: boolean;
+  stream?: MediaStream | null;
 }
 
 export interface PeopleTabProps {

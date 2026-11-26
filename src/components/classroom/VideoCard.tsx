@@ -176,9 +176,9 @@ export const VideoCard: React.FC<VideoCardProps> = ({
         autoPlay
         playsInline
         muted={isLocal}
-        className={`w-full h-full transition-opacity duration-300 ${
-          isScreenSharing ? 'object-contain bg-black' : 'object-cover'
-        } ${isVideoDisabled ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+        className={`w-full h-full transition-opacity duration-300 object-contain bg-[#09090c] ${
+          isVideoDisabled ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        }`}
         style={isLocal && !isScreenSharing ? { transform: 'scaleX(-1)' } : undefined}
       />
 

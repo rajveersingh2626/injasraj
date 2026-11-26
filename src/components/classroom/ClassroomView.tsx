@@ -280,9 +280,14 @@ export function ClassroomView({
 
       // Hook up remote video stream listener from WebRTC / LiveKit
       if (typeof activeMediaSession.onRemoteTrack === 'function') {
-        activeMediaSession.onRemoteTrack((_track: MediaStreamTrack, stream: MediaStream) => {
+        activeMediaSession.onRemoteTrack((_track: MediaStreamTrack, stream: MediaStream, participantId?: string) => {
           if (!isCancelled) {
             setRemoteStream(stream);
+            if (participantId) {
+              setRemoteParticipants((prev) =>
+                prev.map((p) => (p.id === participantId ? { ...p, stream } : p))
+              );
+            }
           }
         });
       }

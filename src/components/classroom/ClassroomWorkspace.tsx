@@ -171,6 +171,14 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     return [];
   }, [propParticipants, userId]);
 
+  const teacherPeer = useMemo(() => {
+    return remotePeers.find((p) => p.role === 'teacher') || remotePeers[0];
+  }, [remotePeers]);
+
+  const studentPeers = useMemo(() => {
+    return remotePeers.filter((p) => p.role !== 'teacher');
+  }, [remotePeers]);
+
   // Media Streams & Devices State
   const [localStream, setLocalStream] = useState<MediaStream | null>(
     propLocalStream || null
@@ -2093,71 +2101,147 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
               : 'fixed bottom-20 right-4 z-30 flex flex-row gap-2 max-w-sm pointer-events-auto bg-transparent border-0 p-0'
           }`}
         >
-          {/* Local Participant Video Tile */}
-          <div
-            data-testid="local-video-wrapper"
-            className={`transition-all duration-300 ease-out overflow-hidden rounded-xl ${
-              mode === 'classroom'
-                ? 'w-full aspect-video shadow-lg border border-white/[0.08]'
-                : 'w-36 md:w-44 aspect-video shadow-2xl border border-white/20 backdrop-blur-md'
-            }`}
-          >
-            <VideoCard
-              participantName={localName}
-              roleBadge={localRoleBadge}
-              stream={localStream}
-              isLocal={true}
-              isCameraOff={isCameraOff}
-              isAudioMuted={isMicMuted}
-              starsCount={studentStars[userId] || 0}
-              onToggleMic={handleToggleMic}
-              onToggleCamera={handleToggleCamera}
-            />
-          </div>
-
-          {/* Remote Participant Video Tiles - Gated for students until class is started by teacher */}
-          {role === 'student' && sessionStatus === 'waiting' ? (
-            <div
-              data-testid="remote-video-waiting-placeholder"
-              className={`transition-all duration-300 ease-out overflow-hidden rounded-xl bg-stone-900 border border-stone-800 flex flex-col items-center justify-center p-4 text-center ${
-                mode === 'classroom'
-                  ? 'w-full aspect-video shadow-lg'
-                  : 'w-36 md:w-44 aspect-video shadow-2xl'
-              }`}
-            >
-              <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 mb-2">
-                <Clock className="w-5 h-5 animate-pulse" />
-              </div>
-              <p className="text-xs font-semibold text-stone-200">Teacher Video Feed Gated</p>
-              <p className="text-[10px] text-stone-400 mt-0.5">Media connects when class starts</p>
-            </div>
-          ) : (
-            remotePeers.map((peer, idx) => (
+          {/* Video Layout:
+              Top Primary Landscape Tile: Teacher / Main Presenter
+              Bottom Participant Grid: 2-column grid of landscape tiles for students
+          */}
+          {role === 'teacher' ? (
+            <>
+              {/* Top Primary Tile: Teacher */}
               <div
-                key={peer.id}
-                data-testid={idx === 0 ? "remote-video-wrapper" : `remote-student-tile-${peer.id}`}
-                className={`transition-all duration-300 ease-out overflow-hidden rounded-xl ${
+                data-testid="local-video-wrapper"
+                className={`transition-all duration-300 ease-out overflow-hidden rounded-xl bg-zinc-950 ${
                   mode === 'classroom'
                     ? 'w-full aspect-video shadow-lg border border-white/[0.08]'
                     : 'w-36 md:w-44 aspect-video shadow-2xl border border-white/20 backdrop-blur-md'
                 }`}
               >
                 <VideoCard
-                  participantName={peer.name}
-                  roleBadge={peer.role === 'teacher' ? 'Teacher' : 'Student'}
-                  stream={idx === 0 ? remoteStream : null}
-                  isLocal={false}
-                  isCameraOff={peer.isCameraOn !== undefined ? !peer.isCameraOn : (idx === 0 ? isRemoteCameraOff : true)}
-                  isAudioMuted={peer.isMicOn !== undefined ? !peer.isMicOn : (idx === 0 ? isRemoteAudioMuted : false)}
-                  starsCount={studentStars[peer.id] || 0}
-                  canAwardStar={role === 'teacher' && peer.role !== 'teacher'}
-                  onAwardStar={() => handleAwardStar(peer.id, peer.name)}
-                  canControlRemoteMedia={role === 'teacher' && peer.role !== 'teacher'}
-                  onRemoteToggleMic={() => handleRemoteToggleMic(peer.id)}
-                  onRemoteToggleCamera={() => handleRemoteToggleCamera(peer.id)}
+                  participantName={localName}
+                  roleBadge="Teacher"
+                  stream={localStream}
+                  isLocal={true}
+                  isCameraOff={isCameraOff}
+                  isAudioMuted={isMicMuted}
+                  starsCount={studentStars[userId] || 0}
+                  onToggleMic={handleToggleMic}
+                  onToggleCamera={handleToggleCamera}
                 />
               </div>
-            ))
+
+              {/* Bottom Participant Grid: 2-column grid for students */}
+              <div className={`w-full ${mode === 'classroom' ? 'grid grid-cols-2 gap-2' : 'flex flex-row gap-2'}`}>
+                {studentPeers.map((peer, idx) => (
+                  <div
+                    key={peer.id}
+                    data-testid={idx === 0 ? "remote-video-wrapper" : `remote-student-tile-${peer.id}`}
+                    className={`transition-all duration-300 ease-out overflow-hidden rounded-xl bg-zinc-950 ${
+                      mode === 'classroom'
+                        ? 'w-full aspect-video shadow-sm border border-white/[0.08]'
+                        : 'w-36 md:w-44 aspect-video shadow-2xl border border-white/20 backdrop-blur-md'
+                    }`}
+                  >
+                    <VideoCard
+                      participantName={peer.name}
+                      roleBadge="Student"
+                      stream={(peer as any).stream || (idx === 0 ? remoteStream : null) || (mediaSession as any)?.getRemoteStream?.(peer.id) || null}
+                      isLocal={false}
+                      isCameraOff={peer.isCameraOn !== undefined ? !peer.isCameraOn : false}
+                      isAudioMuted={peer.isMicOn !== undefined ? !peer.isMicOn : false}
+                      starsCount={studentStars[peer.id] || 0}
+                      canAwardStar={true}
+                      onAwardStar={() => handleAwardStar(peer.id, peer.name)}
+                      canControlRemoteMedia={true}
+                      onRemoteToggleMic={() => handleRemoteToggleMic(peer.id)}
+                      onRemoteToggleCamera={() => handleRemoteToggleCamera(peer.id)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Top Primary Tile: Teacher (or Gated placeholder if in waiting room) */}
+              {sessionStatus === 'waiting' ? (
+                <div
+                  data-testid="remote-video-waiting-placeholder"
+                  className={`transition-all duration-300 ease-out overflow-hidden rounded-xl bg-stone-900 border border-stone-800 flex flex-col items-center justify-center p-4 text-center ${
+                    mode === 'classroom'
+                      ? 'w-full aspect-video shadow-lg'
+                      : 'w-36 md:w-44 aspect-video shadow-2xl'
+                  }`}
+                >
+                  <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 mb-2">
+                    <Clock className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <p className="text-xs font-semibold text-stone-200">Teacher Video Feed Gated</p>
+                  <p className="text-[10px] text-stone-400 mt-0.5">Media connects when class starts</p>
+                </div>
+              ) : (
+                <div
+                  data-testid="remote-video-wrapper"
+                  className={`transition-all duration-300 ease-out overflow-hidden rounded-xl bg-zinc-950 ${
+                    mode === 'classroom'
+                      ? 'w-full aspect-video shadow-lg border border-white/[0.08]'
+                      : 'w-36 md:w-44 aspect-video shadow-2xl border border-white/20 backdrop-blur-md'
+                  }`}
+                >
+                  <VideoCard
+                    participantName={teacherPeer?.name || 'Teacher'}
+                    roleBadge="Teacher"
+                    stream={(teacherPeer as any)?.stream || remoteStream || (mediaSession as any)?.getRemoteStream?.(teacherPeer?.id) || null}
+                    isLocal={false}
+                    isCameraOff={teacherPeer?.isCameraOn !== undefined ? !teacherPeer.isCameraOn : isRemoteCameraOff}
+                    isAudioMuted={teacherPeer?.isMicOn !== undefined ? !teacherPeer.isMicOn : isRemoteAudioMuted}
+                  />
+                </div>
+              )}
+
+              {/* Bottom Participant Grid: 2-column grid containing local student self-preview + student peers */}
+              <div className={`w-full ${mode === 'classroom' ? 'grid grid-cols-2 gap-2' : 'flex flex-row gap-2'}`}>
+                <div
+                  data-testid="local-video-wrapper"
+                  className={`transition-all duration-300 ease-out overflow-hidden rounded-xl bg-zinc-950 ${
+                    mode === 'classroom'
+                      ? 'w-full aspect-video shadow-sm border border-white/[0.08]'
+                      : 'w-36 md:w-44 aspect-video shadow-2xl border border-white/20 backdrop-blur-md'
+                  }`}
+                >
+                  <VideoCard
+                    participantName={localName}
+                    roleBadge={localRoleBadge}
+                    stream={localStream}
+                    isLocal={true}
+                    isCameraOff={isCameraOff}
+                    isAudioMuted={isMicMuted}
+                    starsCount={studentStars[userId] || 0}
+                    onToggleMic={handleToggleMic}
+                    onToggleCamera={handleToggleCamera}
+                  />
+                </div>
+                {studentPeers.filter(p => p.id !== teacherPeer?.id).map((peer) => (
+                  <div
+                    key={peer.id}
+                    data-testid={`remote-student-tile-${peer.id}`}
+                    className={`transition-all duration-300 ease-out overflow-hidden rounded-xl bg-zinc-950 ${
+                      mode === 'classroom'
+                        ? 'w-full aspect-video shadow-sm border border-white/[0.08]'
+                        : 'w-36 md:w-44 aspect-video shadow-2xl border border-white/20 backdrop-blur-md'
+                    }`}
+                  >
+                    <VideoCard
+                      participantName={peer.name}
+                      roleBadge="Student"
+                      stream={(peer as any).stream || (mediaSession as any)?.getRemoteStream?.(peer.id) || null}
+                      isLocal={false}
+                      isCameraOff={peer.isCameraOn !== undefined ? !peer.isCameraOn : true}
+                      isAudioMuted={peer.isMicOn !== undefined ? !peer.isMicOn : false}
+                      starsCount={studentStars[peer.id] || 0}
+                    />
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
 
