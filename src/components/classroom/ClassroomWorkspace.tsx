@@ -17,6 +17,7 @@ import {
   Users,
   Star,
   Lock,
+  MessageSquare,
 } from 'lucide-react';
 import {
   IMediaSession,
@@ -44,7 +45,7 @@ import {
 } from './RewardCelebrationOverlay';
 import { WhiteboardStage } from '../whiteboard/WhiteboardStage';
 import { BrowserTabBar } from '../whiteboard/BrowserTabBar';
-import { StudioSidePanel } from '../whiteboard/StudioSidePanel';
+import { StudioSidePanel, StudioTabType } from '../whiteboard/StudioSidePanel';
 import { WhiteboardPageManager } from '../../lib/whiteboard/page-manager';
 import { WhiteboardRealtimeAdapter } from '../../lib/whiteboard/whiteboard-signaling';
 import {
@@ -217,10 +218,15 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   const [selectedAudioDeviceId, setSelectedAudioDeviceId] = useState<string>('');
   const [selectedVideoDeviceId, setSelectedVideoDeviceId] = useState<string>('');
 
-  // Side Panel State
+  // Side Panel & Meeting Controls State
   const [isSidePanelCollapsed, setIsSidePanelCollapsed] = useState<boolean>(
     initialSidePanelCollapsed
   );
+  const [studioActiveTab, setStudioActiveTab] = useState<StudioTabType>('people');
+  const [unreadChatCount, setUnreadChatCount] = useState<number>(0);
+  const [isScreenShareAllowedForStudents, setIsScreenShareAllowedForStudents] = useState<boolean>(false);
+  const [isChatEnabledForStudents, setIsChatEnabledForStudents] = useState<boolean>(true);
+  const previousTabBeforeScreenShareRef = useRef<string | null>(null);
 
   // Uploaded Document Library State
   const [uploadedDocuments, setUploadedDocuments] = useState<WorksheetMaterial[]>(
@@ -686,9 +692,9 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         const isTarget =
           payload?.targetUserId === userId ||
           payload?.targetUserId === localName ||
-          (role === 'student' && (!payload?.targetUserId || payload?.targetUserId === 'student'));
+          (role === 'student' && (!payload?.targetUserId || payload?.targetUserId === 'student' || payload?.targetUserId === 'all-students'));
         if (isTarget) {
-          if (payload.type === 'toggle-mic') {
+          if (payload.type === 'toggle-mic' || (payload.type === 'mute-mic' && !isMicMuted)) {
             handleToggleMic();
           } else if (payload.type === 'toggle-camera') {
             handleToggleCamera();
@@ -701,13 +707,41 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             if (payload.screenStream) {
               setRemoteScreenStream(payload.screenStream);
             }
+            openScreenShareTab(payload.sharerName || 'Participant');
           }
         } else {
           if (payload?.sharerId !== userId) {
             setRemoteScreenStream(null);
             setScreenSharerName(undefined);
+            closeScreenShareTab();
           }
         }
+      } else if (eventName === 'chat-message') {
+        if (payload && payload.id && payload.senderId !== userId) {
+          setMessages((prev) => [...prev, payload]);
+          if (isSidePanelCollapsed || studioActiveTab !== 'chat') {
+            setUnreadChatCount((prev) => prev + 1);
+          }
+        }
+      } else if (eventName === 'tab-lock-update') {
+        if (payload?.pageId) {
+          const targetPage = pageManagerRef.current.getPageById(payload.pageId);
+          if (targetPage) {
+            targetPage.isLocked = Boolean(payload.isLocked);
+            setPages([...pageManagerRef.current.getAllPages()]);
+          }
+          setPermissions((prev) => ({
+            ...prev,
+            tabLocks: {
+              ...prev.tabLocks,
+              [payload.pageId]: Boolean(payload.isLocked),
+            },
+          }));
+        }
+      } else if (eventName === 'screen-share-permission-update') {
+        setIsScreenShareAllowedForStudents(Boolean(payload?.allowed));
+      } else if (eventName === 'chat-permission-update') {
+        setIsChatEnabledForStudents(Boolean(payload?.enabled));
       } else if (eventName === 'timer-state') {
         setRemoteTimerState(payload);
       } else if (eventName === 'viewport-change') {
@@ -1284,6 +1318,57 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     setIsSidePanelCollapsed((prev) => !prev);
   };
 
+  // Dedicated Screen Share Whiteboard Tab Management
+  const openScreenShareTab = useCallback((sharer: string = 'Screen Share') => {
+    // Check if a screen share tab already exists
+    const allPages = pageManagerRef.current.getAllPages();
+    let screenSharePage = allPages.find((p) => p.isScreenShareTab || p.id === 'screen-share-tab');
+    if (!screenSharePage) {
+      // Remember previous tab before opening screen share
+      previousTabBeforeScreenShareRef.current = pageManagerRef.current.getActivePageId();
+      // Add dedicated screen share tab
+      const tabTitle = sharer === 'You' || sharer === 'Your' ? 'Your Screen Share' : `${sharer}'s Screen`;
+      screenSharePage = pageManagerRef.current.addPage(tabTitle);
+      screenSharePage.isScreenShareTab = true;
+      screenSharePage.id = 'screen-share-tab';
+      setPages([...pageManagerRef.current.getAllPages()]);
+    }
+    // Switch to the screen share tab
+    pageManagerRef.current.setActivePage(screenSharePage.id);
+    const idx = pageManagerRef.current.getActivePageIndex();
+    setCurrentPageIndex(idx + 1);
+    setPages([...pageManagerRef.current.getAllPages()]);
+    if (engineRef.current) {
+      engineRef.current.setScreenShareMode(true);
+      engineRef.current.clearCurrentPage(true);
+      engineRef.current.clearBackgroundImage();
+    }
+  }, []);
+
+  const closeScreenShareTab = useCallback(() => {
+    const allPages = pageManagerRef.current.getAllPages();
+    const screenSharePage = allPages.find((p) => p.isScreenShareTab || p.id === 'screen-share-tab');
+    if (screenSharePage) {
+      pageManagerRef.current.deletePage(screenSharePage.id);
+      if (engineRef.current) {
+        engineRef.current.setScreenShareMode(false);
+      }
+      // Revert to previous tab if it exists, otherwise active page
+      const prevId = previousTabBeforeScreenShareRef.current;
+      const targetPage = (prevId && pageManagerRef.current.getPageById(prevId)) || pageManagerRef.current.getActivePage();
+      if (targetPage) {
+        pageManagerRef.current.setActivePage(targetPage.id);
+        const idx = pageManagerRef.current.getActivePageIndex();
+        setCurrentPageIndex(idx + 1);
+        if (engineRef.current && targetPage.canvasJson) {
+          engineRef.current.loadJson(targetPage.canvasJson).catch(() => {});
+        }
+      }
+      setPages([...pageManagerRef.current.getAllPages()]);
+      previousTabBeforeScreenShareRef.current = null;
+    }
+  }, []);
+
   // Stop Screen Share (Clean teardown of local tracks, media session unpublishing, and canvas restoration)
   const handleStopScreenShare = useCallback(async () => {
     const stream = localScreenStreamRef.current || localScreenStream;
@@ -1300,6 +1385,8 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     setIsScreenSharing(false);
     setScreenSharerName(undefined);
 
+    closeScreenShareTab();
+
     if (mediaSession && typeof mediaSession.stopScreenShare === 'function') {
       try {
         await mediaSession.stopScreenShare();
@@ -1312,7 +1399,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       isSharing: false,
       sharerId: userId,
     });
-  }, [localScreenStream, mediaSession, whiteboardAdapter, userId]);
+  }, [localScreenStream, mediaSession, whiteboardAdapter, userId, closeScreenShareTab]);
 
   // Screen Share Control (Standard Native Browser getDisplayMedia capture)
   const handleToggleScreenShare = useCallback(async () => {
@@ -1352,6 +1439,9 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         setIsScreenSharing(true);
         setScreenSharerName('You');
 
+        // Automatically open dedicated screen share tab on local side
+        openScreenShareTab('Your');
+
         // Publish track to LiveKit SFU or WebRTC P2P
         if (mediaSession && typeof mediaSession.publishScreenShare === 'function') {
           await mediaSession.publishScreenShare(screenTrack);
@@ -1374,7 +1464,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     } else {
       console.warn('Screen sharing (getDisplayMedia) is not supported in this browser environment.');
     }
-  }, [isScreenSharing, localScreenStream, handleStopScreenShare, mediaSession, whiteboardAdapter, userId, localName]);
+  }, [isScreenSharing, localScreenStream, handleStopScreenShare, openScreenShareTab, mediaSession, whiteboardAdapter, userId, localName]);
 
   // Page Navigation Handlers
   const handlePageChange = (pageNum: number) => {
@@ -1512,6 +1602,58 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       propOnPageChange?.(idx + 1, pageId);
     }
   };
+
+  // Per-Tab Lock/Unlock Handler (Teacher Authoritative)
+  const handleToggleTabLock = useCallback((pageId: string) => {
+    if (role !== 'teacher') return;
+    const targetPage = pageManagerRef.current.getPageById(pageId);
+    if (!targetPage) return;
+
+    const nextLockState = !targetPage.isLocked;
+    targetPage.isLocked = nextLockState;
+    setPages([...pageManagerRef.current.getAllPages()]);
+
+    const nextTabLocks = {
+      ...(permissions.tabLocks || {}),
+      [pageId]: nextLockState,
+    };
+    const nextPerms = {
+      ...permissions,
+      tabLocks: nextTabLocks,
+    };
+    setPermissions(nextPerms);
+
+    whiteboardAdapter?.broadcastCustomEvent?.('tab-lock-update', {
+      pageId,
+      isLocked: nextLockState,
+    });
+    whiteboardAdapter?.broadcastPermissions(nextPerms).catch(() => {});
+    schedulePersist(nextPerms);
+  }, [role, permissions, schedulePersist, whiteboardAdapter]);
+
+  // Meeting Controls: Mute All Students
+  const handleMuteAll = useCallback(() => {
+    whiteboardAdapter?.broadcastCustomEvent?.('remote-media-control', {
+      targetUserId: 'all-students',
+      type: 'mute-mic',
+    });
+  }, [whiteboardAdapter]);
+
+  // Meeting Controls: Toggle Student Screen Share Permission
+  const handleToggleScreenShareAllowed = useCallback((allowed: boolean) => {
+    setIsScreenShareAllowedForStudents(allowed);
+    whiteboardAdapter?.broadcastCustomEvent?.('screen-share-permission-update', {
+      allowed,
+    });
+  }, [whiteboardAdapter]);
+
+  // Meeting Controls: Toggle Student Chat Permission
+  const handleToggleChatEnabled = useCallback((enabled: boolean) => {
+    setIsChatEnabledForStudents(enabled);
+    whiteboardAdapter?.broadcastCustomEvent?.('chat-permission-update', {
+      enabled,
+    });
+  }, [whiteboardAdapter]);
 
   // Permission Handlers (Authoritative Teacher)
   const handleToggleGlobalLock = (locked: boolean) => {
@@ -1774,6 +1916,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   // Chat Handler
   const handleSendMessage = (text: string) => {
     if (!text.trim()) return;
+    if (role === 'student' && !isChatEnabledForStudents) return;
     const newMsg: ChatMessage = {
       id: `m-${Date.now()}`,
       senderId: userId,
@@ -1782,6 +1925,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       timestamp: Date.now(),
     };
     setMessages((prev) => [...prev, newMsg]);
+    whiteboardAdapter?.broadcastCustomEvent?.('chat-message', newMsg);
   };
 
   // Participants list for PeopleTab
@@ -2064,6 +2208,41 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             <span className="hidden sm:inline">Video</span>
           </button>
 
+          {/* Relocated Working Chat Toggle Button with Unread Badge */}
+          <button
+            type="button"
+            data-testid="toggle-chat-btn"
+            aria-label="Toggle Chat"
+            onClick={() => {
+              if (isSidePanelCollapsed) {
+                setIsSidePanelCollapsed(false);
+                setStudioActiveTab('chat');
+                setUnreadChatCount(0);
+              } else if (studioActiveTab === 'chat') {
+                setIsSidePanelCollapsed(true);
+              } else {
+                setStudioActiveTab('chat');
+                setUnreadChatCount(0);
+              }
+            }}
+            className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-150 cursor-pointer active:scale-95 ${
+              !isSidePanelCollapsed && studioActiveTab === 'chat'
+                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                : 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200/60'
+            }`}
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Chat</span>
+            {unreadChatCount > 0 && (
+              <span
+                data-testid="unread-chat-badge"
+                className="ml-0.5 px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-bold animate-pulse leading-tight"
+              >
+                {unreadChatCount}
+              </span>
+            )}
+          </button>
+
           <button
             type="button"
             data-testid="toggle-studio-panel-btn"
@@ -2287,11 +2466,16 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             onAddTab={handleAddPage}
             onCloseTab={handleDeletePage}
             onRenameTab={handleRenamePage}
+            onToggleLockTab={handleToggleTabLock}
             isTeacher={role === 'teacher'}
           />
           <WhiteboardStage
             role={role}
-            readOnly={role === 'student' && sessionStatus === 'waiting'}
+            readOnly={
+              role === 'student' &&
+              (sessionStatus === 'waiting' ||
+                Boolean(activeWhiteboardPage?.isLocked || permissions.tabLocks?.[currentActivePageId]))
+            }
             userId={userId}
             userName={localName}
             activeTool={activeTool}
@@ -2330,12 +2514,37 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         <StudioSidePanel
           isCollapsed={isSidePanelCollapsed}
           onToggleCollapse={handleToggleSidePanel}
+          activeTab={studioActiveTab}
+          onTabChange={(tab) => {
+            setStudioActiveTab(tab);
+            if (tab === 'chat') {
+              setUnreadChatCount(0);
+            }
+          }}
           participants={propParticipants || participants}
           currentUserRole={role}
           permissions={permissions}
           onToggleGlobalLock={handleToggleGlobalLock}
           onToggleStudentDrawing={handleToggleStudentDrawing}
           onToggleLaserOnly={handleToggleLaserOnly}
+          onMuteAll={handleMuteAll}
+          onRemoteToggleMic={(studentId) => {
+            whiteboardAdapter?.broadcastCustomEvent?.('remote-media-control', {
+              targetUserId: studentId,
+              type: 'toggle-mic',
+            });
+          }}
+          onRemoteToggleCamera={(studentId) => {
+            whiteboardAdapter?.broadcastCustomEvent?.('remote-media-control', {
+              targetUserId: studentId,
+              type: 'toggle-camera',
+            });
+          }}
+          isScreenShareAllowedForStudents={isScreenShareAllowedForStudents}
+          onToggleScreenShareAllowed={handleToggleScreenShareAllowed}
+          isChatEnabledForStudents={isChatEnabledForStudents}
+          onToggleChatEnabled={handleToggleChatEnabled}
+          onEndClass={handleEndClass}
           messages={messages}
           onSendMessage={handleSendMessage}
           currentUserId={userId}

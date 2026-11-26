@@ -249,6 +249,20 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
     };
   }, []);
 
+  // Sync read-only lock state to Fabric engine
+  useEffect(() => {
+    if (activeEngine && typeof activeEngine.setReadOnly === 'function') {
+      activeEngine.setReadOnly(readOnly);
+    }
+  }, [readOnly, activeEngine]);
+
+  // Sync screen share transparent rendering mode to Fabric engine
+  useEffect(() => {
+    if (activeEngine && typeof activeEngine.setScreenShareMode === 'function') {
+      activeEngine.setScreenShareMode(Boolean(isScreenSharingActive || screenStream));
+    }
+  }, [isScreenSharingActive, screenStream, activeEngine]);
+
   // Viewport bounds for stage calculation (portrait or 16:9)
   const [viewportBounds, setViewportBounds] = useState<ViewportBounds>({
     scale: 1,
@@ -953,8 +967,18 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
           >
             <video
               ref={(el) => {
-                if (el && el.srcObject !== screenStream) {
-                  el.srcObject = screenStream;
+                if (el) {
+                  if (el.srcObject !== screenStream) {
+                    el.srcObject = screenStream;
+                  }
+                  if (screenStream && el.paused && typeof el.play === 'function') {
+                    try {
+                      const promise = el.play();
+                      if (promise && typeof promise.catch === 'function') {
+                        promise.catch(() => {});
+                      }
+                    } catch {}
+                  }
                 }
               }}
               data-testid="whiteboard-screenshare-video"

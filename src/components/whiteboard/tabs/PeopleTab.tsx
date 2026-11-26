@@ -12,6 +12,9 @@ import {
   Check,
   X,
   Edit3,
+  Monitor,
+  MessageSquare,
+  LogOut,
 } from 'lucide-react';
 import { WhiteboardPermissions, defaultWhiteboardPermissions } from '../../../types/whiteboard';
 import { GlassCard } from '../../ui/GlassCard';
@@ -35,6 +38,14 @@ export interface PeopleTabProps {
   onToggleGlobalLock?: (locked: boolean) => void;
   onToggleStudentDrawing?: (studentId: string, allowed: boolean) => void;
   onToggleLaserOnly?: (laserOnly: boolean) => void;
+  onMuteAll?: () => void;
+  onRemoteToggleMic?: (studentId: string) => void;
+  onRemoteToggleCamera?: (studentId: string) => void;
+  isScreenShareAllowedForStudents?: boolean;
+  onToggleScreenShareAllowed?: (allowed: boolean) => void;
+  isChatEnabledForStudents?: boolean;
+  onToggleChatEnabled?: (enabled: boolean) => void;
+  onEndClass?: () => void;
   className?: string;
 }
 
@@ -45,6 +56,14 @@ export const PeopleTab: React.FC<PeopleTabProps> = ({
   onToggleGlobalLock,
   onToggleStudentDrawing,
   onToggleLaserOnly,
+  onMuteAll,
+  onRemoteToggleMic,
+  onRemoteToggleCamera,
+  isScreenShareAllowedForStudents = false,
+  onToggleScreenShareAllowed,
+  isChatEnabledForStudents = true,
+  onToggleChatEnabled,
+  onEndClass,
   className = '',
 }) => {
   const isTeacher = currentUserRole === 'teacher';
@@ -90,7 +109,96 @@ export const PeopleTab: React.FC<PeopleTabProps> = ({
             <span>Classroom Authority</span>
           </div>
 
-          {/* Global Lock Switch */}
+          {/* Mute All Students Button */}
+          <button
+            type="button"
+            data-testid="mute-all-btn"
+            onClick={onMuteAll}
+            className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold border border-rose-200 transition-colors shadow-sm active:scale-[0.98] cursor-pointer"
+          >
+            <MicOff className="w-4 h-4 text-rose-600" />
+            <span>Mute All Students</span>
+          </button>
+
+          {/* Student Screen Share Permission Switch */}
+          <div
+            className="flex items-center justify-between p-3 rounded-xl border border-stone-200 bg-white text-stone-900 shadow-sm"
+          >
+            <div className="flex items-center gap-2.5 pr-2">
+              <div
+                className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                  isScreenShareAllowedForStudents
+                    ? 'bg-sky-50 text-sky-600 border border-sky-200'
+                    : 'bg-stone-100 text-stone-400'
+                }`}
+              >
+                <Monitor className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-stone-900">Student Screen Share</div>
+                <div className="text-xs text-stone-500">Allow students to share screen</div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isScreenShareAllowedForStudents}
+              data-testid="toggle-screen-share-allowed"
+              aria-label="Student Screen Share Permission"
+              onClick={() => onToggleScreenShareAllowed?.(!isScreenShareAllowedForStudents)}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                isScreenShareAllowedForStudents ? 'bg-sky-600' : 'bg-stone-200'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  isScreenShareAllowedForStudents ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* In-Class Chat Switch */}
+          <div
+            className="flex items-center justify-between p-3 rounded-xl border border-stone-200 bg-white text-stone-900 shadow-sm"
+          >
+            <div className="flex items-center gap-2.5 pr-2">
+              <div
+                className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                  isChatEnabledForStudents
+                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                    : 'bg-stone-100 text-stone-400'
+                }`}
+              >
+                <MessageSquare className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-stone-900">In-Class Chat</div>
+                <div className="text-xs text-stone-500">Enable student messaging</div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isChatEnabledForStudents}
+              data-testid="toggle-chat-enabled"
+              aria-label="In-Class Chat Permission"
+              onClick={() => onToggleChatEnabled?.(!isChatEnabledForStudents)}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                isChatEnabledForStudents ? 'bg-emerald-600' : 'bg-stone-200'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  isChatEnabledForStudents ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Global Lock Switch (Optional / Backward-compatible) */}
           <div
             className="flex items-center justify-between p-3 rounded-xl border border-stone-200 bg-white text-stone-900 shadow-sm"
           >
@@ -171,6 +279,19 @@ export const PeopleTab: React.FC<PeopleTabProps> = ({
               />
             </button>
           </div>
+
+          {/* End Class Quick Action */}
+          {onEndClass && (
+            <button
+              type="button"
+              data-testid="studio-end-class-btn"
+              onClick={onEndClass}
+              className="flex items-center justify-center gap-2 w-full py-2 px-3 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold transition-colors mt-1 cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5 text-stone-600" />
+              <span>Wrap Up & End Class</span>
+            </button>
+          )}
         </section>
       )}
 
@@ -227,41 +348,78 @@ export const PeopleTab: React.FC<PeopleTabProps> = ({
                     </div>
                   </div>
 
-                  {/* Mic / Video Status Indicators */}
+                  {/* Mic / Video Status Indicators & Remote Controls */}
                   <div
                     data-testid={`media-indicators-${participant.id}`}
-                    className="flex items-center gap-1.5 flex-shrink-0 text-stone-400"
+                    className="flex items-center gap-1.5 flex-shrink-0"
                   >
-                    <span
-                      title={participant.isMicOn ? 'Microphone on' : 'Microphone muted'}
-                      data-testid={`mic-status-${participant.id}`}
-                      className={`p-1 rounded-md ${
-                        participant.isMicOn
-                          ? 'text-emerald-600 bg-emerald-50'
-                          : 'text-stone-400 bg-stone-100'
-                      }`}
-                    >
-                      {participant.isMicOn ? (
-                        <Mic className="w-3.5 h-3.5" />
-                      ) : (
-                        <MicOff className="w-3.5 h-3.5" />
-                      )}
-                    </span>
-                    <span
-                      title={participant.isCameraOn ? 'Camera on' : 'Camera off'}
-                      data-testid={`camera-status-${participant.id}`}
-                      className={`p-1 rounded-md ${
-                        participant.isCameraOn
-                          ? 'text-emerald-600 bg-emerald-50'
-                          : 'text-stone-400 bg-stone-100'
-                      }`}
-                    >
-                      {participant.isCameraOn ? (
-                        <Video className="w-3.5 h-3.5" />
-                      ) : (
-                        <VideoOff className="w-3.5 h-3.5" />
-                      )}
-                    </span>
+                    {isTeacher && isStudent && onRemoteToggleMic ? (
+                      <button
+                        type="button"
+                        data-testid={`remote-mic-btn-${participant.id}`}
+                        title={participant.isMicOn ? 'Mute student microphone' : 'Unmute student microphone'}
+                        onClick={() => onRemoteToggleMic(participant.id)}
+                        className={`p-1 rounded-md border transition-colors cursor-pointer ${
+                          participant.isMicOn
+                            ? 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+                            : 'text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100'
+                        }`}
+                      >
+                        <span data-testid={`mic-status-${participant.id}`}>
+                          {participant.isMicOn ? <Mic className="w-3.5 h-3.5" /> : <MicOff className="w-3.5 h-3.5" />}
+                        </span>
+                      </button>
+                    ) : (
+                      <span
+                        title={participant.isMicOn ? 'Microphone on' : 'Microphone muted'}
+                        data-testid={`mic-status-${participant.id}`}
+                        className={`p-1 rounded-md ${
+                          participant.isMicOn
+                            ? 'text-emerald-600 bg-emerald-50'
+                            : 'text-stone-400 bg-stone-100'
+                        }`}
+                      >
+                        {participant.isMicOn ? (
+                          <Mic className="w-3.5 h-3.5" />
+                        ) : (
+                          <MicOff className="w-3.5 h-3.5" />
+                        )}
+                      </span>
+                    )}
+
+                    {isTeacher && isStudent && onRemoteToggleCamera ? (
+                      <button
+                        type="button"
+                        data-testid={`remote-camera-btn-${participant.id}`}
+                        title={participant.isCameraOn ? 'Turn off student camera' : 'Turn on student camera'}
+                        onClick={() => onRemoteToggleCamera(participant.id)}
+                        className={`p-1 rounded-md border transition-colors cursor-pointer ${
+                          participant.isCameraOn
+                            ? 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+                            : 'text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100'
+                        }`}
+                      >
+                        <span data-testid={`camera-status-${participant.id}`}>
+                          {participant.isCameraOn ? <Video className="w-3.5 h-3.5" /> : <VideoOff className="w-3.5 h-3.5" />}
+                        </span>
+                      </button>
+                    ) : (
+                      <span
+                        title={participant.isCameraOn ? 'Camera on' : 'Camera off'}
+                        data-testid={`camera-status-${participant.id}`}
+                        className={`p-1 rounded-md ${
+                          participant.isCameraOn
+                            ? 'text-emerald-600 bg-emerald-50'
+                            : 'text-stone-400 bg-stone-100'
+                        }`}
+                      >
+                        {participant.isCameraOn ? (
+                          <Video className="w-3.5 h-3.5" />
+                        ) : (
+                          <VideoOff className="w-3.5 h-3.5" />
+                        )}
+                      </span>
+                    )}
                   </div>
                 </div>
 

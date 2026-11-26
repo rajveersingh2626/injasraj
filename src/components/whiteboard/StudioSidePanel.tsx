@@ -36,6 +36,14 @@ export interface StudioSidePanelProps {
   onToggleGlobalLock?: (locked: boolean) => void;
   onToggleStudentDrawing?: (studentId: string, allowed: boolean) => void;
   onToggleLaserOnly?: (laserOnly: boolean) => void;
+  onMuteAll?: () => void;
+  onRemoteToggleMic?: (studentId: string) => void;
+  onRemoteToggleCamera?: (studentId: string) => void;
+  isScreenShareAllowedForStudents?: boolean;
+  onToggleScreenShareAllowed?: (allowed: boolean) => void;
+  isChatEnabledForStudents?: boolean;
+  onToggleChatEnabled?: (enabled: boolean) => void;
+  onEndClass?: () => void;
 
   // Chat Tab Props
   messages?: ChatMessage[];
@@ -80,6 +88,14 @@ export const StudioSidePanel: React.FC<StudioSidePanelProps> = ({
   onToggleGlobalLock,
   onToggleStudentDrawing,
   onToggleLaserOnly,
+  onMuteAll,
+  onRemoteToggleMic,
+  onRemoteToggleCamera,
+  isScreenShareAllowedForStudents,
+  onToggleScreenShareAllowed,
+  isChatEnabledForStudents,
+  onToggleChatEnabled,
+  onEndClass,
   // Chat props
   messages = [],
   onSendMessage,
@@ -272,6 +288,14 @@ export const StudioSidePanel: React.FC<StudioSidePanelProps> = ({
               onToggleGlobalLock={onToggleGlobalLock}
               onToggleStudentDrawing={onToggleStudentDrawing}
               onToggleLaserOnly={onToggleLaserOnly}
+              onMuteAll={onMuteAll}
+              onRemoteToggleMic={onRemoteToggleMic}
+              onRemoteToggleCamera={onRemoteToggleCamera}
+              isScreenShareAllowedForStudents={isScreenShareAllowedForStudents}
+              onToggleScreenShareAllowed={onToggleScreenShareAllowed}
+              isChatEnabledForStudents={isChatEnabledForStudents}
+              onToggleChatEnabled={onToggleChatEnabled}
+              onEndClass={onEndClass}
             />
           </div>
 
