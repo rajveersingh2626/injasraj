@@ -74,7 +74,18 @@ export class LiveKitMediaSession implements IMediaSession {
           try {
             const audioElement = track.attach();
             audioElement.style.display = 'none';
+            audioElement.setAttribute('data-livekit-audio', participant?.identity || 'remote');
             document.body.appendChild(audioElement);
+            // Attempt playback with fallback for mobile browser autoplay policy
+            audioElement.play().catch(() => {
+              const resumeAudio = () => {
+                audioElement.play().catch(() => {});
+                document.removeEventListener('click', resumeAudio);
+                document.removeEventListener('touchstart', resumeAudio);
+              };
+              document.addEventListener('click', resumeAudio, { once: true });
+              document.addEventListener('touchstart', resumeAudio, { once: true });
+            });
           } catch (err) {
             console.warn('Audio track auto-attach notice:', err);
           }

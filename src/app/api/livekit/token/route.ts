@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AccessToken, RoomServiceClient } from 'livekit-server-sdk';
 
+// In-memory set of rooms whose 15-minute lifecycle has already been verified/declared
+const configuredRooms = new Set<string>();
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -32,7 +35,7 @@ export async function GET(request: NextRequest) {
     const httpUrl = wsUrl.replace('wss://', 'https://').replace('ws://', 'http://');
 
     // Automatically configure/ensure room lifecycle with 15-minute (900s) timeout on abandonment
-    if (httpUrl && httpUrl.startsWith('http')) {
+    if (httpUrl && httpUrl.startsWith('http') && !configuredRooms.has(trimmedRoom)) {
       try {
         const roomService = new RoomServiceClient(httpUrl, apiKey, apiSecret);
         await roomService.createRoom({
@@ -41,8 +44,10 @@ export async function GET(request: NextRequest) {
           departureTimeout: 900,  // 15 minutes = 900 seconds
           maxParticipants: 10,
         });
+        configuredRooms.add(trimmedRoom);
       } catch (roomErr: any) {
         // Room already exists or non-fatal room creation notice
+        configuredRooms.add(trimmedRoom);
       }
     }
 
