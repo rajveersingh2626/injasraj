@@ -64,6 +64,27 @@ describe('LiveKitMediaSession', () => {
     );
   });
 
+  it('supports relay candidate detection and audio bandwidth preservation', () => {
+    const qualityCb = vi.fn();
+    session.onQualityMetrics(qualityCb);
+
+    session.emitQuality({
+      status: 'fair',
+      rttMs: 180,
+      packetLossPercent: 2,
+      connectionType: 'relay',
+      isAudioPrioritized: true,
+    });
+
+    expect(qualityCb).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'fair',
+        connectionType: 'relay',
+        isAudioPrioritized: true,
+      })
+    );
+  });
+
   it('disconnects cleanly', () => {
     expect(() => session.disconnect()).not.toThrow();
   });

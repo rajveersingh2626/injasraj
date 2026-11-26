@@ -150,7 +150,11 @@ export function ClassroomView({
 
     const signaling = new SupabaseSignalingAdapter(undefined, userId);
     const polite = activeRole !== 'teacher';
-    return new P2PWebRTCMediaSession(signaling, { polite });
+    return new P2PWebRTCMediaSession(signaling, {
+      polite,
+      includeFallbackTurn: true,
+      expandTransports: true,
+    });
   }, [injectedMediaSession, activeRole, userId]);
 
   const activeMediaSession = injectedMediaSession || internalMediaSession;

@@ -38,3 +38,13 @@
   - [x] 12.3 Render live screen share video inside `WhiteboardStage` (`canvas-stage-wrapper`) with transparent Fabric overlay for real-time pen/laser annotations.
   - [x] 12.4 Add in-app and native browser Stop Sharing teardown with track cleanup and whiteboard restoration.
   - [x] 12.5 Add dedicated test suite `tests/whiteboard/screen-share-whiteboard.test.tsx` (all 5 tests passing).
+- [x] Task 13: Enterprise TURN & Restrictive Firewall Traversal (Cellular & Corporate Network Routing)
+  - [x] 13.1 In `p2p-session.ts`, enhance `parseTurnServers` to support JSON arrays/objects, RFC 5766 `url` normalization, comma-delimited strings, and individual env vars (`NEXT_PUBLIC_TURN_URL`, `NEXT_PUBLIC_TURN_USERNAME`, `NEXT_PUBLIC_TURN_CREDENTIAL`).
+  - [x] 13.2 Add `expandTurnTransports` to provide TCP (`?transport=tcp`) and TLS (`turns:...:443?transport=tcp`) variants for strict corporate firewalls that block outbound UDP.
+  - [x] 13.3 Add `DEFAULT_FALLBACK_TURN_SERVERS` with port 443 / 80 TCP and TURNS relays for zero-config fallback.
+  - [x] 13.4 Support `iceTransportPolicy?: RTCIceTransportPolicy` in `P2PSessionOptions` and `NEXT_PUBLIC_ICE_TRANSPORT_POLICY` (allowing forced relay testing/policy).
+  - [x] 13.5 In `P2PWebRTCMediaSession`, handle both `disconnected` and `failed` on `iceconnectionstatechange` and `connectionstatechange` with debounced `restartIce()`.
+  - [x] 13.6 In `LiveKitMediaSession`, pass `rtcConfig` with resolved ICE servers and `iceTransportPolicy` to `room.connect(...)`, dynamically reporting `connectionType: 'relay'` and `isAudioPrioritized: true`.
+  - [x] 13.7 Add comprehensive unit test coverage in `tests/lib/webrtc/p2p-session.test.ts` and `tests/livekit-session.test.ts`.
+  - [x] 13.8 Run Vitest test suite and `npm run build` verification gates.
+

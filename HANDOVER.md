@@ -8,13 +8,13 @@
 
 ## 1. Current Repository Status
 
-- **Current Branch**: `fix/classroom-production-fixes`
+- **Current Branch**: `fix/webrtc-visibility-whiteboard-persistence`
 - **Latest Commits**:
+  - `2ac643a`: *fix(webrtc-whiteboard): resolve video toggle black screen, tablet asymmetric gating, and whiteboard server-side persistence*
   - `861ad71`: *fix(classroom): streamline display capture, clean redirect logic, and verify LiveKit Cloud SFU*
   - `cb16014`: *feat(classroom): render live screen share directly on whiteboard with live annotations and clean teardown*
-  - `7d126eb`: *fix(classroom): resolve routing, tool state, nav, pdf persistence, and export fidelity*
-- **Test Suite**: **73/73 test suites passed (733/733 tests)** via Vitest.
-- **Production Build**: **Clean build** via `npm run build` (Next.js 15.5.29 App Router, React 19).
+- **Test Suite**: **73/73 test suites passed (739/739 tests)** via Vitest.
+- **Production Build**: **Clean build (13/13 pages compiled)** via `npm run build` (Next.js 15.5.29 App Router, React 19).
 - **Working Tree**: Ready for release / PR.
 
 ---

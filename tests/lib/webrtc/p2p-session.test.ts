@@ -4,8 +4,10 @@ import {
   ISignalingAdapter,
   DEFAULT_ICE_SERVERS,
   BASE_STUN_SERVERS,
+  DEFAULT_FALLBACK_TURN_SERVERS,
   resolveIceServers,
   parseTurnServers,
+  expandTurnTransports,
 } from '../../../src/lib/webrtc/p2p-session';
 import { ConnectionQuality } from '../../../src/types/media';
 
@@ -76,6 +78,7 @@ describe('P2P WebRTC Session Engine & Screen Sharing', () => {
       onicecandidate: null as any,
       ontrack: null as any,
       oniceconnectionstatechange: null as any,
+      onconnectionstatechange: null as any,
       onnegotiationneeded: null as any,
       addTrack: vi.fn((track: any) => {
         const sender = {
@@ -216,17 +219,66 @@ describe('P2P WebRTC Session Engine & Screen Sharing', () => {
       expect(servers[3].urls).toBe('turn:coturn.cloud:3478');
     });
 
-    it('initializes RTCPeerConnection with discovered ICE servers', async () => {
-      const session = new P2PWebRTCMediaSession(mockSignaling);
-      await session.connect('room-101', 'token-abc');
+    it('normalizes RFC 5766 legacy url key to urls in parseTurnServers', () => {
+      const legacyTurn = JSON.stringify([
+        { url: 'turn:legacy.coturn.org:3478', username: 'u2', credential: 'p2' },
+      ]);
+      const result = parseTurnServers(legacyTurn);
+      expect(result).toHaveLength(1);
+      expect(result[0].urls).toBe('turn:legacy.coturn.org:3478');
+      expect(result[0].username).toBe('u2');
+    });
+
+    it('parses individual NEXT_PUBLIC_TURN_URL, USERNAME, and CREDENTIAL env vars', () => {
+      process.env.NEXT_PUBLIC_TURN_URL = 'turn:relay.enterprise.com:3478,turns:relay.enterprise.com:443';
+      process.env.NEXT_PUBLIC_TURN_USERNAME = 'user_corp';
+      process.env.NEXT_PUBLIC_TURN_CREDENTIAL = 'cred_corp';
+
+      const result = parseTurnServers();
+      expect(result).toHaveLength(1);
+      expect(result[0].urls).toEqual([
+        'turn:relay.enterprise.com:3478',
+        'turns:relay.enterprise.com:443',
+      ]);
+      expect(result[0].username).toBe('user_corp');
+      expect(result[0].credential).toBe('cred_corp');
+
+      delete process.env.NEXT_PUBLIC_TURN_URL;
+      delete process.env.NEXT_PUBLIC_TURN_USERNAME;
+      delete process.env.NEXT_PUBLIC_TURN_CREDENTIAL;
+    });
+
+    it('expands TURN server transports with expandTurnTransports for firewall traversal', () => {
+      const server = {
+        urls: 'turn:coturn.domain.com:3478',
+        username: 'student',
+        credential: 'pwd',
+      };
+      const expanded = expandTurnTransports(server);
+      expect(Array.isArray(expanded.urls)).toBe(true);
+      expect(expanded.urls).toContain('turn:coturn.domain.com:3478');
+      expect(expanded.urls).toContain('turn:coturn.domain.com:3478?transport=udp');
+      expect(expanded.urls).toContain('turn:coturn.domain.com:3478?transport=tcp');
+    });
+
+    it('includes default fallback TURN servers when includeFallbackTurn is enabled', () => {
+      const servers = resolveIceServers(undefined, { includeFallbackTurn: true });
+      expect(servers.length).toBeGreaterThan(BASE_STUN_SERVERS.length);
+      const turnServer = servers.find((s) =>
+        Array.isArray(s.urls) && s.urls.some((u) => u.includes('turn:openrelay.metered.ca'))
+      );
+      expect(turnServer).toBeDefined();
+    });
+
+    it('initializes RTCPeerConnection with configured iceTransportPolicy (relay mode for restrictive firewalls)', async () => {
+      const session = new P2PWebRTCMediaSession(mockSignaling, {
+        iceTransportPolicy: 'relay',
+      });
+      await session.connect('room-relay-test', 'token-123');
 
       expect(RTCPeerConnection).toHaveBeenCalledWith(
         expect.objectContaining({
-          iceServers: expect.arrayContaining([
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun.cloudflare.com:3478' },
-          ]),
+          iceTransportPolicy: 'relay',
         })
       );
     });
@@ -648,6 +700,44 @@ describe('P2P WebRTC Session Engine & Screen Sharing', () => {
       mockPeerConnection.oniceconnectionstatechange();
 
       expect(mockPeerConnection.restartIce).toHaveBeenCalled();
+    });
+
+    it('initiates ICE restart when iceConnectionState transitions to failed (restrictive firewall traversal)', async () => {
+      const session = new P2PWebRTCMediaSession(mockSignaling, {
+        peerConnection: mockPeerConnection,
+      });
+      await session.connect('room-1', 'token-1');
+
+      mockPeerConnection.iceConnectionState = 'failed';
+      mockPeerConnection.oniceconnectionstatechange();
+
+      expect(mockPeerConnection.restartIce).toHaveBeenCalled();
+    });
+
+    it('initiates ICE restart when connectionState transitions to failed', async () => {
+      const session = new P2PWebRTCMediaSession(mockSignaling, {
+        peerConnection: mockPeerConnection,
+      });
+      await session.connect('room-1', 'token-1');
+
+      mockPeerConnection.connectionState = 'failed';
+      mockPeerConnection.onconnectionstatechange();
+
+      expect(mockPeerConnection.restartIce).toHaveBeenCalled();
+    });
+
+    it('debounces rapid ICE restart triggers to avoid storming signaling channel', async () => {
+      const session = new P2PWebRTCMediaSession(mockSignaling, {
+        peerConnection: mockPeerConnection,
+      });
+      await session.connect('room-1', 'token-1');
+
+      mockPeerConnection.restartIce.mockClear();
+      session.restartIce();
+      session.restartIce();
+      session.restartIce();
+
+      expect(mockPeerConnection.restartIce).toHaveBeenCalledTimes(1);
     });
   });
 

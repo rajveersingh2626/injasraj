@@ -23,27 +23,117 @@ export const BASE_STUN_SERVERS: RTCIceServer[] = [
   { urls: 'stun:stun.cloudflare.com:3478' },
 ];
 
-export function parseTurnServers(envVar?: string): RTCIceServer[] {
-  if (!envVar) return [];
-  try {
-    const parsed = JSON.parse(envVar);
-    if (Array.isArray(parsed)) {
-      return parsed;
-    } else if (parsed && typeof parsed === 'object') {
-      return [parsed];
+export const DEFAULT_FALLBACK_TURN_SERVERS: RTCIceServer[] = [
+  // Multi-transport fallback TURN covering UDP, TCP port 80/443, and TURNS over TLS port 443/5349
+  {
+    urls: [
+      'turn:openrelay.metered.ca:80',
+      'turn:openrelay.metered.ca:443',
+      'turn:openrelay.metered.ca:443?transport=tcp',
+      'turns:openrelay.metered.ca:443?transport=tcp',
+      'turns:openrelay.metered.ca:5349?transport=tcp',
+    ],
+    username: 'openrelay',
+    credential: 'openrelay',
+  },
+];
+
+/**
+ * Expands a TURN server definition with TCP and TLS variants if not already specified,
+ * ensuring seamless traversal across restrictive corporate firewalls that block outbound UDP.
+ */
+export function expandTurnTransports(server: RTCIceServer): RTCIceServer {
+  const currentUrls = Array.isArray(server.urls) ? server.urls : [server.urls];
+  const expandedUrls: string[] = [];
+
+  for (const url of currentUrls) {
+    if (!url) continue;
+    if (!expandedUrls.includes(url)) {
+      expandedUrls.push(url);
     }
+    // If it's a standard TURN URL without explicit transport, generate UDP and TCP variants
+    if (url.startsWith('turn:') && !url.includes('?transport=')) {
+      const udp = `${url}?transport=udp`;
+      const tcp = `${url}?transport=tcp`;
+      if (!expandedUrls.includes(udp)) expandedUrls.push(udp);
+      if (!expandedUrls.includes(tcp)) expandedUrls.push(tcp);
+    } else if (url.startsWith('turns:') && !url.includes('?transport=')) {
+      const tcp = `${url}?transport=tcp`;
+      if (!expandedUrls.includes(tcp)) expandedUrls.push(tcp);
+    }
+  }
+
+  return {
+    ...server,
+    urls: expandedUrls.length === 1 ? expandedUrls[0] : expandedUrls,
+  };
+}
+
+export function parseTurnServers(envVar?: string): RTCIceServer[] {
+  const raw =
+    envVar !== undefined
+      ? envVar
+      : typeof process !== 'undefined' && process.env
+        ? process.env.NEXT_PUBLIC_TURN_SERVERS || process.env.NEXT_PUBLIC_ICE_SERVERS
+        : undefined;
+
+  if (!raw) {
+    if (
+      typeof process !== 'undefined' &&
+      process.env &&
+      process.env.NEXT_PUBLIC_TURN_URL
+    ) {
+      const urls = process.env.NEXT_PUBLIC_TURN_URL.split(',').map((u) => u.trim()).filter(Boolean);
+      return [
+        {
+          urls: urls.length === 1 ? urls[0] : urls,
+          username: process.env.NEXT_PUBLIC_TURN_USERNAME || '',
+          credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL || '',
+        },
+      ];
+    }
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    const list = Array.isArray(parsed) ? parsed : [parsed];
+    return list
+      .map((item: any) => {
+        if (!item || typeof item !== 'object') return null;
+        // Normalize RFC 5766 'url' or WebRTC standard 'urls'
+        const rawUrls = item.urls !== undefined ? item.urls : item.url;
+        if (!rawUrls) return null;
+        const server: RTCIceServer = {
+          urls: rawUrls,
+        };
+        if (item.username !== undefined) server.username = item.username;
+        if (item.credential !== undefined) server.credential = item.credential;
+        return server;
+      })
+      .filter((s): s is RTCIceServer => s !== null);
   } catch {
-    const urls = envVar.split(',').map((u) => u.trim()).filter(Boolean);
+    const urls = raw.split(',').map((u) => u.trim()).filter(Boolean);
     if (urls.length > 0) {
-      return [{ urls }];
+      return [{ urls: urls.length === 1 ? urls[0] : urls }];
     }
   }
   return [];
 }
 
-export function resolveIceServers(customServers?: RTCIceServer[]): RTCIceServer[] {
+export interface ResolveIceServersOptions {
+  includeFallbackTurn?: boolean;
+  expandTransports?: boolean;
+}
+
+export function resolveIceServers(
+  customServers?: RTCIceServer[],
+  options?: ResolveIceServersOptions
+): RTCIceServer[] {
   if (customServers && customServers.length > 0) {
-    return customServers;
+    return options?.expandTransports
+      ? customServers.map(expandTurnTransports)
+      : customServers;
   }
 
   const servers: RTCIceServer[] = [...BASE_STUN_SERVERS];
@@ -52,7 +142,22 @@ export function resolveIceServers(customServers?: RTCIceServer[]): RTCIceServer[
       ? process.env.NEXT_PUBLIC_TURN_SERVERS
       : undefined;
 
-  const turnServers = parseTurnServers(turnEnv);
+  let turnServers = parseTurnServers(turnEnv);
+
+  if (turnServers.length === 0) {
+    const enableFallback =
+      options?.includeFallbackTurn ||
+      (typeof process !== 'undefined' &&
+        process.env?.NEXT_PUBLIC_ENABLE_FALLBACK_TURN === 'true');
+    if (enableFallback) {
+      turnServers = [...DEFAULT_FALLBACK_TURN_SERVERS];
+    }
+  }
+
+  if (options?.expandTransports && turnServers.length > 0) {
+    turnServers = turnServers.map(expandTurnTransports);
+  }
+
   return [...servers, ...turnServers];
 }
 
@@ -106,8 +211,11 @@ export async function acquireOptimizedUserMedia(
 
 export interface P2PSessionOptions {
   iceServers?: RTCIceServer[];
+  iceTransportPolicy?: RTCIceTransportPolicy;
   polite?: boolean;
   peerConnection?: RTCPeerConnection;
+  includeFallbackTurn?: boolean;
+  expandTransports?: boolean;
 }
 
 export class P2PWebRTCMediaSession implements IMediaSession {
@@ -115,6 +223,8 @@ export class P2PWebRTCMediaSession implements IMediaSession {
   private signaling: ISignalingAdapter;
   private options: P2PSessionOptions;
   public iceServers: RTCIceServer[];
+  public iceTransportPolicy: RTCIceTransportPolicy;
+  private isRestartingIce: boolean = false;
 
   // Perfect Negotiation state
   public polite: boolean;
@@ -149,7 +259,15 @@ export class P2PWebRTCMediaSession implements IMediaSession {
     this.signaling = signaling;
     this.options = options;
     this.polite = options.polite ?? true;
-    this.iceServers = resolveIceServers(options.iceServers);
+    this.iceTransportPolicy =
+      options.iceTransportPolicy ||
+      (typeof process !== 'undefined' &&
+        (process.env?.NEXT_PUBLIC_ICE_TRANSPORT_POLICY as RTCIceTransportPolicy)) ||
+      'all';
+    this.iceServers = resolveIceServers(options.iceServers, {
+      includeFallbackTurn: options.includeFallbackTurn,
+      expandTransports: options.expandTransports,
+    });
     if (options.peerConnection) {
       this.peerConnection = options.peerConnection;
     }
@@ -173,6 +291,7 @@ export class P2PWebRTCMediaSession implements IMediaSession {
         this.peerConnection = new RTCPeerConnection({
           iceServers: this.iceServers,
           iceCandidatePoolSize: 2,
+          iceTransportPolicy: this.iceTransportPolicy,
         });
       } else {
         throw new Error('RTCPeerConnection is not supported in this runtime environment');
@@ -243,10 +362,19 @@ export class P2PWebRTCMediaSession implements IMediaSession {
       }
     };
 
-    // ICE connection state changes: restart ICE on disconnection
+    // ICE connection state changes: restart ICE on disconnection or failure (e.g. restrictive firewall blocking direct path)
     this.peerConnection.oniceconnectionstatechange = () => {
       if (!this.peerConnection) return;
-      if (this.peerConnection.iceConnectionState === 'disconnected') {
+      const state = this.peerConnection.iceConnectionState;
+      if (state === 'disconnected' || state === 'failed') {
+        this.restartIce();
+      }
+    };
+
+    // Connection state changes: restart ICE if overall peer connection fails
+    this.peerConnection.onconnectionstatechange = () => {
+      if (!this.peerConnection) return;
+      if (this.peerConnection.connectionState === 'failed') {
         this.restartIce();
       }
     };
@@ -378,15 +506,22 @@ export class P2PWebRTCMediaSession implements IMediaSession {
   }
 
   public restartIce(): void {
-    if (!this.peerConnection) return;
-    if (typeof this.peerConnection.restartIce === 'function') {
-      this.peerConnection.restartIce();
-    }
-    // Also trigger offer with iceRestart flag if signaling state is stable
-    if (this.peerConnection.signalingState === 'stable') {
-      this.initiateOffer({ iceRestart: true }).catch((err) => {
-        console.warn('ICE restart offer initiation failed:', err);
-      });
+    if (!this.peerConnection || this.isRestartingIce) return;
+    this.isRestartingIce = true;
+    try {
+      if (typeof this.peerConnection.restartIce === 'function') {
+        this.peerConnection.restartIce();
+      }
+      // Also trigger offer with iceRestart flag if signaling state is stable
+      if (this.peerConnection.signalingState === 'stable') {
+        this.initiateOffer({ iceRestart: true }).catch((err) => {
+          console.warn('ICE restart offer initiation failed:', err);
+        });
+      }
+    } finally {
+      setTimeout(() => {
+        this.isRestartingIce = false;
+      }, 1000);
     }
   }
 

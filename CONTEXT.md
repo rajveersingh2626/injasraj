@@ -293,3 +293,11 @@ To prevent glare when both peers create offers simultaneously or renegotiate in 
 - To solve toolbar collision where bottom-docked camera/mic menus overlapped the whiteboard tools and PDF navigator, `ControlBar` is docked vertically on the left edge (`orientation: 'vertical'`).
 - Includes a vertical drag handle (`GripVertical`) for tactile user adjustment and rightward-facing popovers.
 - The interface employs Emil Kowalski design engineering principles: warm, airy light palette (`zinc-50` / `stone-50`), crisp 1px borders, subtle drop shadows, and zero neon glare.
+
+### G. Enterprise TURN & Restrictive Firewall Traversal
+- **Firewall Traversal Transports (`expandTurnTransports`)**: Automatically expands configured TURN URLs into UDP, TCP (`?transport=tcp`), and TLS (`turns:...:443?transport=tcp`) endpoints to bypass strict enterprise firewalls, university proxies, and cellular CGNAT networks that block outbound UDP.
+- **Robust Multi-Source Parsing (`parseTurnServers`)**: Ingests JSON arrays/objects, comma-delimited strings, legacy RFC 5766 `url` properties, and dedicated environment variables (`NEXT_PUBLIC_TURN_URL`, `NEXT_PUBLIC_TURN_USERNAME`, `NEXT_PUBLIC_TURN_CREDENTIAL`).
+- **Zero-Config Fallback Relays (`DEFAULT_FALLBACK_TURN_SERVERS`)**: Provides high-availability multi-transport TURN/TURNS fallback on ports 443/80/5349 when fallback is requested or `NEXT_PUBLIC_ENABLE_FALLBACK_TURN` is set.
+- **Configurable ICE Policy (`iceTransportPolicy`)**: Supports `NEXT_PUBLIC_ICE_TRANSPORT_POLICY` and `P2PSessionOptions.iceTransportPolicy` (`all` vs `relay`), enabling instant forced-relay testing and compliance with enterprise security policies.
+- **LiveKit Cloud SFU Traversal (`LiveKitMediaSession`)**: Passes `rtcConfig` with resolved multi-transport ICE servers and `iceTransportPolicy` directly into `room.connect()`, dynamically flagging `connectionType: 'relay'` and `isAudioPrioritized: true`.
+- **Self-Healing Connection Recovery (`restartIce`)**: Automatically traps `disconnected` and `failed` on both `iceconnectionstatechange` and `connectionstatechange`, triggering debounced ICE restarts with `{ iceRestart: true }` to switch from blocked direct paths to relay servers.

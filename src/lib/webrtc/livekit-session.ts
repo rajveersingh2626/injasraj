@@ -49,6 +49,16 @@ export class LiveKitMediaSession implements IMediaSession {
       const { Room, RoomEvent, ConnectionQuality: LKQuality, Track } = await import(
         'livekit-client'
       );
+      const { resolveIceServers } = await import('./p2p-session');
+      const customIceServers = resolveIceServers(undefined, {
+        includeFallbackTurn: true,
+        expandTransports: true,
+      });
+      const iceTransportPolicy =
+        (typeof process !== 'undefined' &&
+          (process.env?.NEXT_PUBLIC_ICE_TRANSPORT_POLICY as RTCIceTransportPolicy)) ||
+        'all';
+
       this.room = new Room({
         adaptiveStream: true,
         dynacast: true,
@@ -159,19 +169,25 @@ export class LiveKitMediaSession implements IMediaSession {
             if (quality === LKQuality.Poor) status = 'poor';
             else if (quality === LKQuality.Lost) status = 'failed';
 
+            const isRelay = iceTransportPolicy === 'relay' || quality === LKQuality.Poor;
             const metrics: ConnectionQuality = {
               status,
               rttMs: 50,
               packetLossPercent: quality === LKQuality.Poor ? 5 : 0,
-              connectionType: 'direct',
-              isAudioPrioritized: quality === LKQuality.Poor,
+              connectionType: isRelay ? 'relay' : 'direct',
+              isAudioPrioritized: quality === LKQuality.Poor || isRelay,
             };
             this.emitQuality(metrics);
           }
         }
       );
 
-      await this.room.connect(this.url, token);
+      await this.room.connect(this.url, token, {
+        rtcConfig: {
+          iceServers: customIceServers.length > 0 ? customIceServers : undefined,
+          iceTransportPolicy,
+        },
+      });
       this.emitParticipants();
 
       try {
