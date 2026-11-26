@@ -134,15 +134,15 @@ export const ControlBar: React.FC<ControlBarProps> = ({
       style={containerPositionStyle}
       className={
         isVertical
-          ? `fixed right-5 ${dragTop === null ? 'bottom-5' : ''} z-40 pointer-events-none ${className}`
-          : `fixed bottom-5 right-5 z-40 flex items-center pointer-events-none ${className}`
+          ? `fixed left-4 ${dragTop === null ? 'top-1/2 -translate-y-1/2' : ''} z-40 pointer-events-none ${className}`
+          : `fixed bottom-0 md:bottom-3 left-4 md:left-3 z-40 flex items-center pointer-events-none w-[calc(100vw-1.5rem)] md:w-[calc(340px-1.5rem)] lg:w-[calc(400px-1.5rem)] xl:w-[calc(440px-1.5rem)] max-w-full ${className}`
       }
     >
       <div
         data-testid="control-bar"
-        className={`pointer-events-auto relative flex ${
+        className={`pointer-events-auto relative w-full flex ${
           isVertical ? 'flex-col' : 'flex-row'
-        } items-center gap-2 sm:gap-2.5 p-2 sm:p-2.5 rounded-2xl bg-white/90 border border-zinc-200/90 shadow-[0_8px_30px_rgb(0,0,0,0.08)] backdrop-blur-xl text-zinc-800 transition-shadow duration-200`}
+        } items-center justify-around gap-1.5 sm:gap-2 p-2 sm:p-2.5 rounded-2xl bg-white/95 border border-zinc-200/90 shadow-[0_8px_30px_rgb(0,0,0,0.08)] backdrop-blur-xl text-zinc-800 transition-shadow duration-200`}
       >
         {/* Drag Grip Handle */}
         {isVertical && (

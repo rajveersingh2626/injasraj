@@ -32,6 +32,7 @@ import { TouchGestureHandler } from '../../lib/whiteboard/touch-gesture-handler'
 import { WhiteboardToolbar } from './WhiteboardToolbar';
 import { ZoomControls } from './ZoomControls';
 import { PageNavigationBar } from './PageNavigationBar';
+import { PdfSubPageNavigator } from './PdfSubPageNavigator';
 import { MathEquationModal } from './MathEquationModal';
 
 export interface WhiteboardStageProps {
@@ -69,6 +70,10 @@ export interface WhiteboardStageProps {
   onToggleThumbnails?: () => void;
   isThumbnailsOpen?: boolean;
   canAddPage?: boolean;
+  documentTitle?: string;
+  documentCurrentPage?: number;
+  documentTotalPages?: number;
+  onDocumentPageChange?: (page: number) => void;
 
   // User & Permissions
   role?: 'teacher' | 'student';
@@ -131,6 +136,10 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
   onToggleThumbnails,
   isThumbnailsOpen = false,
   canAddPage = true,
+  documentTitle,
+  documentCurrentPage,
+  documentTotalPages,
+  onDocumentPageChange,
   // User & Permissions
   role = 'teacher',
   userId = 'user-1',
@@ -195,7 +204,7 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
   const [isSpacePressed, setIsSpacePressed] = useState<boolean>(false);
   const [isShiftPressed, setIsShiftPressed] = useState<boolean>(false);
 
-  // Global Keyboard listener for Spacebar & Shift Panning
+  // Global Keyboard listener for Spacebar Panning and focus safety
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
@@ -208,23 +217,24 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
       if (e.code === 'Space' && !e.repeat) {
         setIsSpacePressed(true);
       }
-      if (e.key === 'Shift') {
-        setIsShiftPressed(true);
-      }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         setIsSpacePressed(false);
       }
-      if (e.key === 'Shift') {
-        setIsShiftPressed(false);
-      }
+    };
+    const handleBlur = () => {
+      setIsSpacePressed(false);
+      setIsShiftPressed(false);
+      isPanningRef.current = false;
     };
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
     };
   }, []);
 
@@ -602,12 +612,11 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
       return (
         activeTool === 'pan' ||
         isSpacePressed ||
-        isShiftPressed ||
         e.button === 1 ||
         (typeof e.buttons === 'number' && (e.buttons & 4) === 4)
       );
     },
-    [activeTool, isSpacePressed, isShiftPressed]
+    [activeTool, isSpacePressed]
   );
 
   // Pointer & Touch handlers on canvas
@@ -820,7 +829,7 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
     if (isPanningRef.current) {
       return 'cursor-grabbing';
     }
-    if (tool === 'pan' || isSpacePressed || isShiftPressed) {
+    if (tool === 'pan' || isSpacePressed) {
       return 'cursor-grab';
     }
     switch (tool) {
@@ -969,8 +978,15 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
         </aside>
       )}
 
-      {/* Floating Page Navigation Bar - Only shown for multi-page boards or documents */}
-      {totalPages > 1 && (
+      {/* Floating Unified Navigation Bar: Replaces top whiteboard bar with document navigation when a document is loaded */}
+      {documentTotalPages && documentTotalPages > 1 ? (
+        <PdfSubPageNavigator
+          currentPage={documentCurrentPage || 1}
+          totalPages={documentTotalPages}
+          documentTitle={documentTitle}
+          onPageChange={onDocumentPageChange || (() => {})}
+        />
+      ) : totalPages > 1 ? (
         <PageNavigationBar
           currentPage={currentPage}
           totalPages={totalPages}
@@ -980,7 +996,7 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
           isThumbnailsOpen={isThumbnailsOpen}
           canAddPage={canAddPage && isTeacher}
         />
-      )}
+      ) : null}
 
       {/* Floating Zoom Controls (removed by default for uncluttered canvas, enabled when showZoomControls=true) */}
       {showZoomControls && (

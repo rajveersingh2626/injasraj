@@ -332,8 +332,8 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   const handleCopyRoomLink = useCallback(() => {
     const url =
       typeof window !== 'undefined'
-        ? `${window.location.origin}/classroom?room=${encodeURIComponent(roomId)}&role=student`
-        : `room=${roomId}`;
+        ? `${window.location.origin}/classroom/${encodeURIComponent(roomId)}?role=student`
+        : `/classroom/${roomId}?role=student`;
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(url).catch(() => {});
     }
@@ -401,8 +401,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       initialPages && initialPages.length > 0
         ? initialPages
         : [
-            createDefaultWhiteboardPage('page-1', 1, 'Lesson Intro'),
-            createDefaultWhiteboardPage('page-2', 2, 'Worksheet Exercises'),
+            createDefaultWhiteboardPage('page-1', 1, 'Whiteboard'),
           ],
     [initialPages]
   );
@@ -439,8 +438,12 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           if (activePage.canvasJson) {
             engineRef.current.loadJson(activePage.canvasJson).catch(() => {});
           }
-          if (activePage.thumbnailUrl) {
-            engineRef.current.setBackgroundImage(activePage.thumbnailUrl).catch(() => {});
+          const resolvedBg =
+            activePage.backgroundImageUrl ||
+            (activePage.pdfDocument?.pages ? activePage.pdfDocument.pages[(activePage.pdfDocument.currentPage || 1) - 1] : undefined) ||
+            activePage.thumbnailUrl;
+          if (resolvedBg) {
+            engineRef.current.setBackgroundImage(resolvedBg).catch(() => {});
           }
         }
       }
@@ -557,8 +560,12 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             if (target.canvasJson) {
               engineRef.current.loadJson(target.canvasJson);
             }
-            if (target.thumbnailUrl) {
-              engineRef.current.setBackgroundImage(target.thumbnailUrl).catch(() => {});
+            const resolvedBg =
+              target.backgroundImageUrl ||
+              (target.pdfDocument?.pages ? target.pdfDocument.pages[(target.pdfDocument.currentPage || 1) - 1] : undefined) ||
+              target.thumbnailUrl;
+            if (resolvedBg) {
+              engineRef.current.setBackgroundImage(resolvedBg).catch(() => {});
             }
           }
         }
@@ -608,7 +615,11 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         }
         setStarsAwarded((prev) => prev + 1);
       } else if (eventName === 'remote-media-control') {
-        if (payload?.targetUserId === userId) {
+        const isTarget =
+          payload?.targetUserId === userId ||
+          payload?.targetUserId === localName ||
+          (role === 'student' && (!payload?.targetUserId || payload?.targetUserId === 'student'));
+        if (isTarget) {
           if (payload.type === 'toggle-mic') {
             handleToggleMic();
           } else if (payload.type === 'toggle-camera') {
@@ -936,8 +947,12 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         if (activePage.canvasJson) {
           engine.loadJson(activePage.canvasJson).catch(() => {});
         }
-        if (activePage.thumbnailUrl) {
-          engine.setBackgroundImage(activePage.thumbnailUrl).catch(() => {});
+        const resolvedBg =
+          activePage.backgroundImageUrl ||
+          (activePage.pdfDocument?.pages ? activePage.pdfDocument.pages[(activePage.pdfDocument.currentPage || 1) - 1] : undefined) ||
+          activePage.thumbnailUrl;
+        if (resolvedBg) {
+          engine.setBackgroundImage(resolvedBg).catch(() => {});
         }
       }
 
@@ -1017,7 +1032,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
 
   const handleExportPdf = useCallback(async () => {
     try {
-      const { exportAnnotatedPdf, downloadPdfBlob } = await import(
+      const { exportAnnotatedPdf, downloadPdfBlob, renderCanvasJsonToDataUrl } = await import(
         '../../lib/whiteboard/pdf-lib-export'
       );
 
@@ -1037,16 +1052,25 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       for (const p of allPages) {
         if (p.pdfDocument && p.pdfDocument.pages && p.pdfDocument.pages.length > 0) {
           for (let subIdx = 0; subIdx < p.pdfDocument.pages.length; subIdx++) {
+            const subPageNum = subIdx + 1;
             const bgUrl = p.pdfDocument.pages[subIdx];
             let annotationDataUrl: string | undefined;
+
             if (
               p.id === currentActiveId &&
               engineRef.current &&
-              (p.pdfDocument.currentPage || 1) === subIdx + 1
+              (p.pdfDocument.currentPage || 1) === subPageNum
             ) {
               const exported = engineRef.current.exportDataUrl();
               if (exported) annotationDataUrl = exported;
+            } else {
+              const subStrokes = p.pdfDocument.pageStrokes?.[subPageNum];
+              if (subStrokes && Array.isArray(subStrokes.objects) && subStrokes.objects.length > 0) {
+                const rendered = renderCanvasJsonToDataUrl(subStrokes, 1920, 1080);
+                if (rendered) annotationDataUrl = rendered;
+              }
             }
+
             exportPages.push({
               pageNumber: pageNum++,
               backgroundImageUrl: bgUrl,
@@ -1060,10 +1084,14 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
           if (p.id === currentActiveId && engineRef.current) {
             const exported = engineRef.current.exportDataUrl();
             if (exported) annotationDataUrl = exported;
+          } else if (p.canvasJson && Array.isArray(p.canvasJson.objects) && p.canvasJson.objects.length > 0) {
+            const rendered = renderCanvasJsonToDataUrl(p.canvasJson, 1920, 1080);
+            if (rendered) annotationDataUrl = rendered;
           }
+
           exportPages.push({
             pageNumber: pageNum++,
-            backgroundImageUrl: p.backgroundImageUrl,
+            backgroundImageUrl: p.backgroundImageUrl || p.thumbnailUrl,
             annotationDataUrl,
             width: 1200,
             height: 1600,
@@ -1203,8 +1231,12 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         } else {
           engineRef.current.clearCurrentPage(true);
         }
-        if (target.thumbnailUrl) {
-          engineRef.current.setBackgroundImage(target.thumbnailUrl).catch(() => {});
+        const resolvedBg =
+          target.backgroundImageUrl ||
+          (target.pdfDocument?.pages ? target.pdfDocument.pages[(target.pdfDocument.currentPage || 1) - 1] : undefined) ||
+          target.thumbnailUrl;
+        if (resolvedBg) {
+          engineRef.current.setBackgroundImage(resolvedBg).catch(() => {});
         } else {
           engineRef.current.clearBackgroundImage();
         }
@@ -1301,8 +1333,12 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         } else {
           engineRef.current.clearCurrentPage(true);
         }
-        if (target.thumbnailUrl) {
-          engineRef.current.setBackgroundImage(target.thumbnailUrl).catch(() => {});
+        const resolvedBg =
+          target.backgroundImageUrl ||
+          (target.pdfDocument?.pages ? target.pdfDocument.pages[(target.pdfDocument.currentPage || 1) - 1] : undefined) ||
+          target.thumbnailUrl;
+        if (resolvedBg) {
+          engineRef.current.setBackgroundImage(resolvedBg).catch(() => {});
         } else {
           engineRef.current.clearBackgroundImage();
         }
@@ -1362,6 +1398,8 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
 
     doc.currentPage = targetPage;
     const newBg = doc.pages[targetPage - 1];
+    activePage.backgroundImageUrl = newBg;
+    pageManagerRef.current.updatePageBackground(activePage.id, undefined, targetPage, newBg);
 
     if (engineRef.current) {
       if (newBg) {
@@ -2021,18 +2059,12 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             onToggleFollowTeacher={setIsFollowTeacherEnabled}
             onViewportChange={handleViewportChange}
             remoteViewport={remoteViewport}
+            documentTitle={activeWhiteboardPage?.pdfDocument?.title}
+            documentCurrentPage={activeWhiteboardPage?.pdfDocument?.currentPage || 1}
+            documentTotalPages={activeWhiteboardPage?.pdfDocument?.totalPages}
+            onDocumentPageChange={handlePdfSubPageChange}
             className="w-full flex-1 min-h-0"
           />
-
-          {/* In-Tab PDF Sub-Page Navigation: strictly isolated to active multi-page documents only */}
-          {hasActiveMultiPageDocument && activeWhiteboardPage?.pdfDocument && (
-            <PdfSubPageNavigator
-              currentPage={activeWhiteboardPage.pdfDocument.currentPage || 1}
-              totalPages={activeWhiteboardPage.pdfDocument.totalPages}
-              documentTitle={activeWhiteboardPage.pdfDocument.title}
-              onPageChange={handlePdfSubPageChange}
-            />
-          )}
         </main>
 
         {/* Collapsible Studio Side Panel (Tabs: People, Chat, Materials, Tools) */}

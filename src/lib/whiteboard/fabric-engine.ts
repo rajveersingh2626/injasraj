@@ -198,6 +198,16 @@ export class FabricWhiteboardEngine {
     const prevTool = this.activeTool;
     this.activeTool = tool;
 
+    // Cleanly disable object selection and dragging when moving away from 'select' mode
+    if (tool !== 'select') {
+      this.deselectAll();
+      this.isDraggingObject = false;
+      this.draggedObject = null;
+      this.dragHandleType = null;
+      this.dragStartPoint = null;
+      this.dragInitialBounds = null;
+    }
+
     if (tool === 'highlighter') {
       // Remember previous opacity if not already in highlighter mode
       if (prevTool !== 'highlighter') {

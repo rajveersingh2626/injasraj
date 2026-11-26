@@ -28,7 +28,7 @@ export const PdfSubPageNavigator: React.FC<PdfSubPageNavigatorProps> = ({
       role="navigation"
       aria-label="PDF Document Page Navigation"
       data-testid="pdf-subpage-navigator"
-      className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-3 py-2 rounded-2xl bg-white/90 border border-zinc-200/90 shadow-[0_8px_30px_rgb(0,0,0,0.08)] backdrop-blur-xl text-zinc-800 transition-all duration-200 select-none ${className}`}
+      className={`absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/95 border border-zinc-200/90 shadow-[0_8px_30px_rgb(0,0,0,0.08)] backdrop-blur-xl text-zinc-800 transition-all duration-200 select-none ${className}`}
     >
       <div className="flex items-center gap-1.5 px-2 py-0.5 border-r border-zinc-200 text-xs font-medium text-zinc-500 max-w-[160px] truncate">
         <FileText className="w-3.5 h-3.5 text-zinc-600 shrink-0" />

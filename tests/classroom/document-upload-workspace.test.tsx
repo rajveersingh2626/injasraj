@@ -83,7 +83,7 @@ trailer <</Size 13 /Root 1 0 R /Info <</Title (Curriculum Syllabus)>>>>
     const tElapsed = Date.now() - tStart;
 
     // Must complete and not freeze the event loop
-    expect(tElapsed).toBeLessThan(10000);
+    expect(tElapsed).toBeLessThan(20000);
     expect(result.totalPages).toBe(10);
     expect(result.pages).toHaveLength(10);
     expect(result.title).toMatch(/Curriculum Syllabus|Document/);

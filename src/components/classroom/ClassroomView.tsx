@@ -239,6 +239,8 @@ export function ClassroomView({
           if (res.ok) {
             const data = await res.json();
             await (activeMediaSession as any).connect(roomId, data.token, data.url);
+          } else {
+            console.warn(`LiveKit token request returned status ${res.status}. Video conferencing requires LIVEKIT_API_KEY and LIVEKIT_API_SECRET in server environment variables.`);
           }
         } else if (typeof activeMediaSession.connect === 'function') {
           await activeMediaSession.connect(roomId, userId);

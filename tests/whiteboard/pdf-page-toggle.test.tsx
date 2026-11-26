@@ -124,9 +124,8 @@ describe('PDF Multi-Page Ingestion, Page Toggling, and Tool Fixes Suite', () => 
       />
     );
 
-    // Initial page indicator
-    const pageIndicator = screen.getByTestId('page-indicator');
-    expect(pageIndicator.textContent).toContain('Page 1 of 2');
+    // Initial single page default (page indicator hidden until multi-page)
+    expect(screen.queryByTestId('page-indicator')).toBeNull();
 
     // Find file input and simulate uploading a 3-page PDF
     const fileInput = screen.getByTestId('pdf-file-input') as HTMLInputElement;

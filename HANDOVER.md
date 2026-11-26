@@ -8,7 +8,7 @@
 
 ## 1. Current Repository Status
 
-- **Current Branch**: `main`
+- **Current Branch**: `fix/classroom-production-fixes`
 - **Latest Commits**:
   - `9eca2b6`: *style(studio-panel): eliminate glassmorphism contrast failure with solid surface and high-contrast typography*
   - `df9cece`: *fix(livekit): resolve session connection, server URL routing, and track subscription*
@@ -17,7 +17,7 @@
   - `500ac16`: *fix(pdf): resolve worker version mismatch and serve local worker for high-dpi rendering*
   - `977767c`: *fix(toolbar): resolve color picker popover clipping by setting overflow-visible*
   - `06fd02f`: *fix(whiteboard): make viewport an infinite seamless white canvas*
-- **Test Suite**: **64/64 test suites passed (687/687 tests)** via Vitest.
+- **Test Suite**: **71/71 test suites passed (724/724 tests)** via Vitest.
 - **Production Build**: **Clean build** via `npm run build` (Next.js 15.5.29 App Router, React 19).
 - **Working Tree**: Ready for release.
 
@@ -50,7 +50,7 @@ npm run lint
 | :--- | :--- | :--- |
 | **Teacher Passcode** | `injasraj123` | Unlocks teacher controls in login modal. |
 | **Default Teacher ID** | `teacher-1` | Teacher user identifier for booking and routing. |
-| **Default Teacher Name**| `Injasraj` | Display name for teacher badge. |
+| **Default Teacher Name**| `Inderjit Kaur` | Display name for teacher badge. |
 | **Teacher Storage Key** | `injasraj_teacher_session` | LocalStorage JSON session for teacher auth. |
 | **Teacher Auth Cookie** | `injasraj_teacher_auth=1` | Session cookie for SSR & route protection. |
 | **Active Rooms Storage**| `injasraj_active_rooms` | LocalStorage JSON array of active room records. |
@@ -113,6 +113,31 @@ npm run lint
 - **Studio Panel Contrast Overhaul (/ask-emil)**:
   - Eliminated translucent glassmorphism washed-out text over white canvas (`9eca2b6`).
   - Implemented crisp solid dark surface (`#141210`), subtle 1px border (`#272522`), and high-contrast typography (`zinc-100`, `zinc-300`) across People, Chat, Materials, and Tools tabs.
+
+### Milestone 8: Production Polish & Architectural Fixes (GSD / Ralph Loop)
+- **404 Invite Link Resolution**:
+  - In `ClassroomWorkspace.tsx`, updated `handleCopyRoomLink` to construct canonical `/classroom/${roomId}?role=student`.
+  - Added `src/app/classroom/page.tsx` with query parameter extraction and auto-redirect/fallback to `/classroom/${room}` so `/classroom?room=...` never 404s.
+- **Supabase, LiveKit & Default Profile Update**:
+  - Updated default teacher profile name to `"Inderjit Kaur"` in `teacher-auth.ts`, `page.tsx`, and session configs.
+  - Added `supabase/migrations/20261126000000_grant_permissions.sql` granting `SELECT, INSERT, UPDATE, DELETE` to `anon` and `authenticated` roles, unblocking Supabase persistence from silent 42501 permission errors.
+  - Added clear telemetry warnings when LiveKit token endpoint is unreachable.
+- **Whiteboard Tool State Fix**:
+  - Removed `isShiftPressed` from canvas pan triggers in `WhiteboardStage.tsx`.
+  - Added global `window.blur` listener to clear stuck key and drag states on focus loss.
+  - Updated `fabric-engine.ts:setTool` to deselect active objects and clear drag handles when switching away from `'select'`.
+- **Single Page Default**:
+  - Initialized whiteboard with a single blank page (`createDefaultWhiteboardPage('page-1', 1, 'Whiteboard')`).
+- **Control Bar Repositioning & Remote Controls**:
+  - Moved media control bar to bottom left (`fixed bottom-0 md:bottom-3 left-4 md:left-3`), matching the left panel's exact width.
+  - Enhanced teacher remote controls to toggle student mic/camera via signaling and LiveKit tracks.
+- **Unified Navigation Bar at Top**:
+  - Moved document sub-page navigation (`< Page 1 of N >`) to the top unified navigation area in `WhiteboardStage.tsx`, replacing the whiteboard page bar when a multi-page document is loaded.
+  - Removed duplicate bottom floating bar.
+- **Loaded PDF Disappearing Fix**:
+  - In `ClassroomWorkspace.tsx`, resolved canvas backgrounds from Single Source of Truth (`target.backgroundImageUrl || target.pdfDocument?.pages[...] || target.thumbnailUrl`), preventing `clearBackgroundImage()` from erasing PDFs on page switch or viewport change.
+- **High-Fidelity PDF Export**:
+  - Multi-page PDF export renders all pages and document sub-pages with canvas objects, WebP/PNG backgrounds, shapes, and formulas via `pdf-lib-export.ts`.
 
 ---
 
