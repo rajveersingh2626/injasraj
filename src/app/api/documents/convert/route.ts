@@ -5,6 +5,15 @@ import { isPdfBuffer } from '@/lib/whiteboard/pdf-renderer';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
+const MAX_PDF_BYTES = 25 * 1024 * 1024; // 25 MB
+const MIN_SCALE = 0.5;
+const MAX_SCALE = 3;
+
+function clampScale(value: number): number {
+  if (!Number.isFinite(value) || value <= 0) return 1.5;
+  return Math.min(MAX_SCALE, Math.max(MIN_SCALE, value));
+}
+
 export async function POST(request: NextRequest) {
   try {
     const contentType = request.headers.get('content-type') || '';
@@ -89,6 +98,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (pdfBytes.length > MAX_PDF_BYTES) {
+      return NextResponse.json(
+        { error: 'PDF document exceeds maximum allowed size of 25 MB' },
+        { status: 413 }
+      );
+    }
+
     if (!isPdfBuffer(pdfBytes)) {
       return NextResponse.json(
         { error: 'Invalid document: Uploaded file is not a valid PDF (%PDF- header missing)' },
@@ -98,7 +114,7 @@ export async function POST(request: NextRequest) {
 
     const docTitle = fileName ? fileName.replace(/\.[^/.]+$/, '') : undefined;
     const result = await convertPdfServerSide(pdfBytes, {
-      scale,
+      scale: clampScale(scale),
       format,
       title: docTitle,
     });

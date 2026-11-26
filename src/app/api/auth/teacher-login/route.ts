@@ -4,6 +4,7 @@ import {
   DEFAULT_TEACHER_NAME,
   TEACHER_COOKIE_NAME,
 } from '@/lib/auth/teacher-auth';
+import { signTeacherSessionCookie } from '@/lib/auth/teacher-session-server';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,8 +13,14 @@ export async function POST(request: NextRequest) {
 
     const validPasscode =
       process.env.TEACHER_PASSCODE ||
-      process.env.NEXT_PUBLIC_TEACHER_PASSCODE ||
-      'injasraj123';
+      (process.env.NODE_ENV !== 'production' ? 'injasraj123' : '');
+
+    if (!validPasscode) {
+      return NextResponse.json(
+        { error: 'Teacher passcode is not configured on server' },
+        { status: 500 }
+      );
+    }
 
     if (!passcode || typeof passcode !== 'string' || passcode.trim() !== validPasscode.trim()) {
       return NextResponse.json({ error: 'Invalid teacher passcode' }, { status: 401 });
@@ -31,8 +38,8 @@ export async function POST(request: NextRequest) {
     const res = NextResponse.json({ success: true, session });
     const isProduction = process.env.NODE_ENV === 'production';
 
-    res.cookies.set(TEACHER_COOKIE_NAME, JSON.stringify(session), {
-      httpOnly: false, // Accessible to client-side role check while remaining synced
+    res.cookies.set(TEACHER_COOKIE_NAME, signTeacherSessionCookie(session), {
+      httpOnly: true,
       secure: isProduction,
       sameSite: 'lax',
       path: '/',

@@ -125,13 +125,13 @@ export class LiveKitMediaSession implements IMediaSession {
 
         if (isScreenShare) {
           this.emitRemoteScreenTrack(null, null);
-        }
-
-        if (participant?.identity) {
-          this.remoteParticipantStreams.delete(participant.identity);
-        }
-        if (participant?.sid) {
-          this.remoteParticipantStreams.delete(participant.sid);
+        } else if (track?.kind === 'video' || publication?.kind === 'video') {
+          if (participant?.identity) {
+            this.remoteParticipantStreams.delete(participant.identity);
+          }
+          if (participant?.sid) {
+            this.remoteParticipantStreams.delete(participant.sid);
+          }
         }
 
         if (track && typeof track.detach === 'function') {
@@ -430,7 +430,11 @@ export class LiveKitMediaSession implements IMediaSession {
     }
     for (const cb of this.remoteTrackCallbacks) {
       try {
-        (cb as any)(track, stream, participantId);
+        if (participantId !== undefined) {
+          (cb as any)(track, stream, participantId);
+        } else {
+          (cb as any)(track, stream);
+        }
       } catch (e) {
         console.error(e);
       }

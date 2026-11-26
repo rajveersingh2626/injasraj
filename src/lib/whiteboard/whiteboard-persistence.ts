@@ -124,6 +124,8 @@ export function deserializeWhiteboardSession(
           : { version: '6.0', objects: [] },
       thumbnailUrl: p.thumbnailUrl,
       pdfDocument: p.pdfDocument ? deepClone(p.pdfDocument) : undefined,
+      isLocked: typeof p.isLocked === 'boolean' ? p.isLocked : undefined,
+      isScreenShareTab: typeof p.isScreenShareTab === 'boolean' ? p.isScreenShareTab : undefined,
     }));
   } else {
     parsedPages = [createDefaultWhiteboardPage('default-page', 1)];
@@ -160,6 +162,11 @@ export function deserializeWhiteboardSession(
             typeof rawPermissions.isLockedGlobally === 'boolean'
               ? rawPermissions.isLockedGlobally
               : defaultPerms.isLockedGlobally,
+          tabLocks:
+            rawPermissions.tabLocks &&
+            typeof rawPermissions.tabLocks === 'object'
+              ? { ...rawPermissions.tabLocks }
+              : { ...(defaultPerms.tabLocks || {}) },
           studentDrawingGranted:
             rawPermissions.studentDrawingGranted &&
             typeof rawPermissions.studentDrawingGranted === 'object'
@@ -217,6 +224,7 @@ export class DebouncedPersistenceManager {
   private pendingData: WhiteboardSessionRecord | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private isSaving: boolean = false;
+  private activeFlush: Promise<boolean> | null = null;
 
   constructor(
     saveFn: (data: WhiteboardSessionRecord) => Promise<boolean>,
@@ -250,6 +258,10 @@ export class DebouncedPersistenceManager {
       this.timer = null;
     }
 
+    if (this.activeFlush) {
+      await this.activeFlush;
+    }
+
     if (!this.pendingData) {
       return true;
     }
@@ -258,15 +270,27 @@ export class DebouncedPersistenceManager {
     this.pendingData = null;
 
     this.isSaving = true;
-    try {
-      const result = await this.saveFn(dataToSave);
-      return result;
-    } catch (err) {
-      console.error('DebouncedPersistenceManager.flush error:', err);
-      return false;
-    } finally {
-      this.isSaving = false;
-    }
+    const runFlush = (async () => {
+      try {
+        const result = await this.saveFn(dataToSave);
+        if (!result && !this.pendingData) {
+          this.pendingData = dataToSave;
+        }
+        return result;
+      } catch (err) {
+        console.error('DebouncedPersistenceManager.flush error:', err);
+        if (!this.pendingData) {
+          this.pendingData = dataToSave;
+        }
+        return false;
+      } finally {
+        this.isSaving = false;
+        this.activeFlush = null;
+      }
+    })();
+
+    this.activeFlush = runFlush;
+    return runFlush;
   }
 
   /**

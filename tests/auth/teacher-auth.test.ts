@@ -10,6 +10,7 @@ import {
 
 describe('Teacher Authentication & Role Enforcement', () => {
   beforeEach(() => {
+    process.env.TEACHER_PASSCODE = 'injasraj123';
     logoutTeacher();
     if (typeof localStorage !== 'undefined') {
       localStorage.clear();

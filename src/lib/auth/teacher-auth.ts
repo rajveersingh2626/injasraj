@@ -27,9 +27,8 @@ export interface TeacherSession {
 export function verifyTeacherPasscode(passcode: string): boolean {
   if (!passcode) return false;
   const configured =
-    (typeof process !== 'undefined' &&
-      (process.env.NEXT_PUBLIC_TEACHER_PASSCODE || process.env.TEACHER_PASSCODE)) ||
-    'injasraj123';
+    typeof process !== 'undefined' ? process.env.TEACHER_PASSCODE : undefined;
+  if (!configured) return false;
   return passcode.trim() === configured.trim();
 }
 
@@ -96,9 +95,7 @@ export async function loginTeacherAsync(
     console.warn('Server login request notice:', err);
   }
 
-  // Fallback to synchronous validation if network/server is unavailable (e.g. offline tests)
-  const isOk = loginTeacher(passcode, teacherName);
-  return isOk ? getTeacherSession() : null;
+  return null;
 }
 
 /**

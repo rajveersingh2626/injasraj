@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AccessToken, RoomServiceClient } from 'livekit-server-sdk';
+import { TEACHER_COOKIE_NAME } from '@/lib/auth/teacher-auth';
+import { verifyTeacherSessionCookie } from '@/lib/auth/teacher-session-server';
 
-// In-memory set of rooms whose 15-minute lifecycle has already been verified/declared
+// Bounded in-memory set of rooms whose 15-minute lifecycle has already been verified/declared
+const MAX_CONFIGURED_ROOMS = 500;
 const configuredRooms = new Set<string>();
 
 export async function GET(request: NextRequest) {
@@ -44,9 +47,15 @@ export async function GET(request: NextRequest) {
           departureTimeout: 900,  // 15 minutes = 900 seconds
           maxParticipants: 10,
         });
+        if (configuredRooms.size >= MAX_CONFIGURED_ROOMS) {
+          configuredRooms.clear();
+        }
         configuredRooms.add(trimmedRoom);
       } catch (roomErr: any) {
         // Room already exists or non-fatal room creation notice
+        if (configuredRooms.size >= MAX_CONFIGURED_ROOMS) {
+          configuredRooms.clear();
+        }
         configuredRooms.add(trimmedRoom);
       }
     }
@@ -61,7 +70,10 @@ export async function GET(request: NextRequest) {
       name: username.trim(),
     });
 
-    const isTeacher = role.toLowerCase() === 'teacher';
+    const teacherSession = verifyTeacherSessionCookie(
+      request.cookies.get(TEACHER_COOKIE_NAME)?.value
+    );
+    const isTeacher = role.toLowerCase() === 'teacher' && Boolean(teacherSession);
 
     at.addGrant({
       room: trimmedRoom,

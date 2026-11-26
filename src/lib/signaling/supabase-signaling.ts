@@ -92,25 +92,46 @@ export class SupabaseSignalingAdapter implements ISignalingAdapter {
       return;
     }
 
-    let syncPeerJoinedPromise: Promise<void> | null = null;
+    let resolvedByCallback = false;
+    const subscribedPromise = new Promise<void>((resolve) => {
+      const subscribeCallback = (status: string) => {
+        if (status === 'SUBSCRIBED') {
+          const p = this.broadcastPeerJoined().catch((broadcastErr) => {
+            console.error('Failed to broadcast peer-joined on subscription:', broadcastErr);
+          });
+          if (!resolvedByCallback) {
+            resolvedByCallback = true;
+            p.finally(resolve);
+          }
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          if (!resolvedByCallback) {
+            resolvedByCallback = true;
+            resolve();
+          }
+        }
+      };
 
-    const subscribeCallback = (status: string, err?: any) => {
-      if (status === 'SUBSCRIBED') {
-        syncPeerJoinedPromise = this.broadcastPeerJoined().catch((broadcastErr) => {
-          console.error('Failed to broadcast peer-joined on subscription:', broadcastErr);
+      const subscribeResult = this.channel.subscribe(subscribeCallback);
+      if (subscribeResult && typeof subscribeResult.then === 'function') {
+        subscribeResult.then(() => {
+          if (!resolvedByCallback) {
+            resolvedByCallback = true;
+            resolve();
+          }
+        }).catch(() => {
+          if (!resolvedByCallback) {
+            resolvedByCallback = true;
+            resolve();
+          }
         });
+      } else if (!resolvedByCallback) {
+        // Synchronous mock that did not invoke subscribeCallback immediately
+        resolvedByCallback = true;
+        resolve();
       }
-    };
+    });
 
-    const subscribeResult = this.channel.subscribe(subscribeCallback);
-
-    if (syncPeerJoinedPromise) {
-      await syncPeerJoinedPromise;
-    }
-
-    if (subscribeResult && typeof subscribeResult.then === 'function') {
-      await subscribeResult;
-    }
+    await subscribedPromise;
   }
 
   private setupChannelListeners(): void {

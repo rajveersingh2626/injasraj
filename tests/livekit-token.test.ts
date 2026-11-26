@@ -4,6 +4,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import { GET } from '../src/app/api/livekit/token/route';
+import { CANONICAL_TEACHER_ID, TEACHER_COOKIE_NAME } from '../src/lib/auth/teacher-auth';
+import { signTeacherSessionCookie } from '../src/lib/auth/teacher-session-server';
 
 describe('/api/livekit/token Route Handler', () => {
   beforeEach(() => {
@@ -28,7 +30,7 @@ describe('/api/livekit/token Route Handler', () => {
     expect(data.error).toMatch(/username.*required/i);
   });
 
-  it('mints a valid LiveKit token for teacher role', async () => {
+  it('downgrades unauthenticated ?role=teacher to non-admin student grant', async () => {
     const req = new NextRequest(
       'http://localhost:3000/api/livekit/token?room=room-123&username=Jasraj&role=teacher'
     );
@@ -36,10 +38,28 @@ describe('/api/livekit/token Route Handler', () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.token).toBeDefined();
-    expect(typeof data.token).toBe('string');
-    expect(data.url).toBe('wss://injasraj-aosxldu2.livekit.cloud');
-    // JWT format has 3 parts separated by dots
     expect(data.token.split('.').length).toBe(3);
+    const payload = JSON.parse(Buffer.from(data.token.split('.')[1], 'base64url').toString('utf8'));
+    expect(payload.video?.roomAdmin).toBe(false);
+  });
+
+  it('grants roomAdmin for authenticated teacher cookie', async () => {
+    const signed = signTeacherSessionCookie({
+      isAuthenticated: true,
+      teacherId: CANONICAL_TEACHER_ID,
+      teacherName: 'Inderjit Kaur',
+      role: 'teacher',
+      loginTime: new Date().toISOString(),
+    });
+    const req = new NextRequest(
+      'http://localhost:3000/api/livekit/token?room=room-123&username=Jasraj&role=teacher',
+      { headers: { cookie: `${TEACHER_COOKIE_NAME}=${signed}` } }
+    );
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    const payload = JSON.parse(Buffer.from(data.token.split('.')[1], 'base64url').toString('utf8'));
+    expect(payload.video?.roomAdmin).toBe(true);
   });
 
   it('mints a valid LiveKit token for student role', async () => {

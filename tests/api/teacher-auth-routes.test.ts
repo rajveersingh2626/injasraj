@@ -7,6 +7,7 @@ import { POST as loginPOST } from '@/app/api/auth/teacher-login/route';
 import { GET as sessionGET } from '@/app/api/auth/teacher-session/route';
 import { POST as logoutPOST } from '@/app/api/auth/teacher-logout/route';
 import { CANONICAL_TEACHER_ID, TEACHER_COOKIE_NAME } from '@/lib/auth/teacher-auth';
+import { signTeacherSessionCookie } from '@/lib/auth/teacher-session-server';
 
 describe('Teacher Authentication Server API Routes', () => {
   beforeEach(() => {
@@ -37,10 +38,31 @@ describe('Teacher Authentication Server API Routes', () => {
     expect(data.session.teacherName).toBe('Inderjit Kaur');
     expect(data.session.role).toBe('teacher');
 
-    // Cookie set
+    // Cookie set (signed & httpOnly)
     const cookie = res.cookies.get(TEACHER_COOKIE_NAME);
     expect(cookie).toBeDefined();
-    expect(cookie?.value).toContain(CANONICAL_TEACHER_ID);
+    expect(cookie?.httpOnly).toBe(true);
+    expect(cookie?.value).toContain('.');
+  });
+
+  it('rejects unsigned/forged session cookie', async () => {
+    const forgedObj = {
+      isAuthenticated: true,
+      teacherId: CANONICAL_TEACHER_ID,
+      teacherName: 'Forged',
+      role: 'teacher',
+      loginTime: new Date().toISOString(),
+    };
+    const req = new NextRequest('http://localhost:3000/api/auth/teacher-session', {
+      headers: {
+        cookie: `${TEACHER_COOKIE_NAME}=${JSON.stringify(forgedObj)}`,
+      },
+    });
+    const res = await sessionGET(req);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.isAuthenticated).toBe(false);
+    expect(data.session).toBeNull();
   });
 
   it('returns unauthenticated when session cookie is absent', async () => {
@@ -53,16 +75,16 @@ describe('Teacher Authentication Server API Routes', () => {
   });
 
   it('returns valid session when session cookie is present', async () => {
-    const sessionObj = {
+    const signed = signTeacherSessionCookie({
       isAuthenticated: true,
       teacherId: CANONICAL_TEACHER_ID,
       teacherName: 'Inderjit Kaur',
       role: 'teacher',
       loginTime: new Date().toISOString(),
-    };
+    });
     const req = new NextRequest('http://localhost:3000/api/auth/teacher-session', {
       headers: {
-        cookie: `${TEACHER_COOKIE_NAME}=${JSON.stringify(sessionObj)}`,
+        cookie: `${TEACHER_COOKIE_NAME}=${signed}`,
       },
     });
     const res = await sessionGET(req);

@@ -56,7 +56,8 @@ export interface ValidationResult {
 export function validateWhiteboardAction(
   action: WhiteboardAction,
   permissions: WhiteboardPermissions,
-  user: UserIdentity
+  user: UserIdentity,
+  activePageId?: string
 ): ValidationResult {
   // 1. Authoritative Teacher Override: teachers have unrestricted access to all tools & actions
   if (user.role === 'teacher') {
@@ -89,9 +90,10 @@ export function validateWhiteboardAction(
     return { allowed: true };
   }
 
-  // 4. Global Lock Check: if globally locked, students require an explicit grant for interactive actions
+  // 4. Global or Per-Tab Lock Check: if locked, students require an explicit grant for interactive actions
   const isGranted = Boolean(permissions.studentDrawingGranted?.[user.id]);
-  if (permissions.isLockedGlobally && !isGranted) {
+  const isTabLocked = Boolean(activePageId && permissions.tabLocks?.[activePageId]);
+  if ((permissions.isLockedGlobally || isTabLocked) && !isGranted) {
     const interactiveActions = ['draw', 'modify', 'move', 'delete'];
     if (interactiveActions.includes(action.type)) {
       return { allowed: false, reason: 'Whiteboard is locked by teacher' };
@@ -165,15 +167,17 @@ export function canUserDeleteObject(
  */
 export function getStudentStatusMessage(
   permissions: WhiteboardPermissions,
-  studentId: string
+  studentId: string,
+  activePageId?: string
 ): string {
   if (permissions.laserPointerOnly) {
     return 'Laser pointer only';
   }
 
   const isGranted = Boolean(permissions.studentDrawingGranted?.[studentId]);
+  const isTabLocked = Boolean(activePageId && permissions.tabLocks?.[activePageId]);
 
-  if (permissions.isLockedGlobally) {
+  if (permissions.isLockedGlobally || isTabLocked) {
     if (isGranted) {
       return 'Drawing permission granted';
     }
