@@ -10,16 +10,12 @@
 
 - **Current Branch**: `fix/classroom-production-fixes`
 - **Latest Commits**:
-  - `9eca2b6`: *style(studio-panel): eliminate glassmorphism contrast failure with solid surface and high-contrast typography*
-  - `df9cece`: *fix(livekit): resolve session connection, server URL routing, and track subscription*
-  - `5da7f80`: *perf(whiteboard): optimize pointer move handlers with RAF coalescing to eliminate INP lag*
-  - `b720cbd`: *refactor(whiteboard): modularize fabric engine into geometry and shape renderers*
-  - `500ac16`: *fix(pdf): resolve worker version mismatch and serve local worker for high-dpi rendering*
-  - `977767c`: *fix(toolbar): resolve color picker popover clipping by setting overflow-visible*
-  - `06fd02f`: *fix(whiteboard): make viewport an infinite seamless white canvas*
-- **Test Suite**: **72/72 test suites passed (729/729 tests)** via Vitest.
+  - `861ad71`: *fix(classroom): streamline display capture, clean redirect logic, and verify LiveKit Cloud SFU*
+  - `cb16014`: *feat(classroom): render live screen share directly on whiteboard with live annotations and clean teardown*
+  - `7d126eb`: *fix(classroom): resolve routing, tool state, nav, pdf persistence, and export fidelity*
+- **Test Suite**: **73/73 test suites passed (733/733 tests)** via Vitest.
 - **Production Build**: **Clean build** via `npm run build` (Next.js 15.5.29 App Router, React 19).
-- **Working Tree**: Ready for release.
+- **Working Tree**: Ready for release / PR.
 
 ---
 
