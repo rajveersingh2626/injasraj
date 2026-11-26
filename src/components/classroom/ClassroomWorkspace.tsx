@@ -707,7 +707,11 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             if (payload.screenStream) {
               setRemoteScreenStream(payload.screenStream);
             }
-            openScreenShareTab(payload.sharerName || 'Participant');
+            // Idempotent guard: only trigger openScreenShareTab if not already open
+            const hasScreenShareTab = pageManagerRef.current.getAllPages().some((p) => p.isScreenShareTab);
+            if (!hasScreenShareTab) {
+              openScreenShareTab(payload.sharerName || 'Participant');
+            }
           }
         } else {
           if (payload?.sharerId !== userId) {
@@ -1322,7 +1326,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   const openScreenShareTab = useCallback((sharer: string = 'Screen Share') => {
     // Check if a screen share tab already exists
     const allPages = pageManagerRef.current.getAllPages();
-    let screenSharePage = allPages.find((p) => p.isScreenShareTab || p.id === 'screen-share-tab');
+    let screenSharePage = allPages.find((p) => p.isScreenShareTab);
     if (!screenSharePage) {
       // Remember previous tab before opening screen share
       previousTabBeforeScreenShareRef.current = pageManagerRef.current.getActivePageId();
@@ -1330,7 +1334,11 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       const tabTitle = sharer === 'You' || sharer === 'Your' ? 'Your Screen Share' : `${sharer}'s Screen`;
       screenSharePage = pageManagerRef.current.addPage(tabTitle);
       screenSharePage.isScreenShareTab = true;
-      screenSharePage.id = 'screen-share-tab';
+      // Keep Manager and state in perfect sync
+      const targetInManager = pageManagerRef.current.getPageById(screenSharePage.id);
+      if (targetInManager) {
+        targetInManager.isScreenShareTab = true;
+      }
       setPages([...pageManagerRef.current.getAllPages()]);
     }
     // Switch to the screen share tab
@@ -1347,7 +1355,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
 
   const closeScreenShareTab = useCallback(() => {
     const allPages = pageManagerRef.current.getAllPages();
-    const screenSharePage = allPages.find((p) => p.isScreenShareTab || p.id === 'screen-share-tab');
+    const screenSharePage = allPages.find((p) => p.isScreenShareTab);
     if (screenSharePage) {
       pageManagerRef.current.deletePage(screenSharePage.id);
       if (engineRef.current) {

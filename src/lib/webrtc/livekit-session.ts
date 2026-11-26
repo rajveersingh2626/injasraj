@@ -155,10 +155,14 @@ export class LiveKitMediaSession implements IMediaSession {
         this.emitParticipants();
       });
 
-      this.room.on(RoomEvent.TrackUnmuted, (pub: any, _participant: any) => {
+      this.room.on(RoomEvent.TrackUnmuted, (pub: any, participant: any) => {
         if (pub?.track?.mediaStreamTrack && (pub?.kind === 'video' || pub?.track?.kind === 'video')) {
           const mediaStream = new MediaStream([pub.track.mediaStreamTrack]);
-          this.emitRemoteTrack(pub.track.mediaStreamTrack, mediaStream);
+          const pId = participant?.identity || participant?.sid;
+          if (pId) {
+            this.remoteParticipantStreams.set(pId, mediaStream);
+          }
+          this.emitRemoteTrack(pub.track.mediaStreamTrack, mediaStream, pId);
         }
         this.emitParticipants();
       });
