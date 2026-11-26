@@ -23,6 +23,7 @@ export interface WhiteboardSessionRecord {
   pages: WhiteboardPage[];
   active_page_id: string;
   permissions: WhiteboardPermissions;
+  session_status?: 'waiting' | 'in_progress' | 'completed';
   viewport?: {
     zoom: number;
     panX: number;
@@ -49,7 +50,8 @@ export function serializeWhiteboardSession(
   pages: WhiteboardPage[],
   activePageId: string,
   permissions: WhiteboardPermissions,
-  viewport?: { zoom: number; panX: number; panY: number }
+  viewport?: { zoom: number; panX: number; panY: number },
+  sessionStatus?: 'waiting' | 'in_progress' | 'completed'
 ): WhiteboardSessionRecord {
   const safePages: WhiteboardPage[] =
     Array.isArray(pages) && pages.length > 0
@@ -70,6 +72,7 @@ export function serializeWhiteboardSession(
     pages: safePages,
     active_page_id: resolvedActivePageId,
     permissions: safePermissions,
+    session_status: sessionStatus,
     viewport: viewport ? deepClone(viewport) : undefined,
     updated_at: new Date().toISOString(),
   };
@@ -84,6 +87,7 @@ export function deserializeWhiteboardSession(
   pages: WhiteboardPage[];
   activePageId: string;
   permissions: WhiteboardPermissions;
+  session_status?: 'waiting' | 'in_progress' | 'completed';
   viewport?: { zoom: number; panX: number; panY: number };
 } {
   if (!record || typeof record !== 'object') {
@@ -188,10 +192,17 @@ export function deserializeWhiteboardSession(
     };
   }
 
+  const rawSessionStatus = record.session_status || record.sessionStatus;
+  const session_status =
+    rawSessionStatus === 'in_progress' || rawSessionStatus === 'completed' || rawSessionStatus === 'waiting'
+      ? rawSessionStatus
+      : undefined;
+
   return {
     pages: parsedPages,
     activePageId,
     permissions,
+    session_status,
     viewport,
   };
 }
@@ -303,13 +314,16 @@ export async function saveWhiteboardSession(
       return false;
     }
 
-    const payload = {
+    const payload: any = {
       room_id: sessionData.room_id,
       pages: sessionData.pages ?? [],
       active_page_id: sessionData.active_page_id,
       permissions: sessionData.permissions ?? defaultWhiteboardPermissions(),
       updated_at: sessionData.updated_at ?? new Date().toISOString(),
     };
+    if (sessionData.session_status) {
+      payload.session_status = sessionData.session_status;
+    }
 
     const { error } = await client
       .from('whiteboard_sessions')
@@ -337,7 +351,12 @@ export async function saveWhiteboardSession(
 export async function loadWhiteboardSession(
   supabaseClient: any,
   roomId: string
-): Promise<{ pages: WhiteboardPage[]; activePageId: string; permissions: WhiteboardPermissions } | null> {
+): Promise<{
+  pages: WhiteboardPage[];
+  activePageId: string;
+  permissions: WhiteboardPermissions;
+  session_status?: 'waiting' | 'in_progress' | 'completed';
+} | null> {
   try {
     const client = supabaseClient || createBrowserClient();
     if (!client || typeof client.from !== 'function') {

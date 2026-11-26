@@ -48,6 +48,8 @@ export interface IMediaSession {
   stopScreenShare(): Promise<void>;
   toggleMic(enabled?: boolean): boolean;
   toggleCamera(enabled?: boolean): boolean;
+  getLocalStream?(): MediaStream | null;
+  onLocalStream?(callback: (stream: MediaStream | null) => void): void;
   onRemoteTrack(callback: (track: MediaStreamTrack, stream: MediaStream) => void): void;
   onRemoteScreenTrack?(callback: (track: MediaStreamTrack | null, stream: MediaStream | null) => void): void;
   onQualityMetrics(callback: (metrics: ConnectionQuality) => void): void;

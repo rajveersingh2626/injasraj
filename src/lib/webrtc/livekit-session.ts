@@ -11,6 +11,7 @@ export class LiveKitMediaSession implements IMediaSession {
   private cameraEnabled = true;
   private screenShareEnabled = false;
   private publishedScreenTrack: MediaStreamTrack | null = null;
+  private localStreamCallbacks: ((stream: MediaStream | null) => void)[] = [];
   private remoteTrackCallbacks: ((track: MediaStreamTrack, stream: MediaStream) => void)[] = [];
   private remoteScreenTrackCallbacks: ((track: MediaStreamTrack | null, stream: MediaStream | null) => void)[] = [];
   private qualityCallbacks: ((metrics: ConnectionQuality) => void)[] = [];
@@ -54,6 +55,7 @@ export class LiveKitMediaSession implements IMediaSession {
         publishDefaults: {
           simulcast: true,
           videoCodec: 'vp8',
+          backupCodec: { codec: 'h264' },
           videoEncoding: {
             maxBitrate: 1_200_000,
             maxFramerate: 30,
@@ -131,15 +133,21 @@ export class LiveKitMediaSession implements IMediaSession {
         this.emitParticipants();
       });
 
-      this.room.on(RoomEvent.TrackUnmuted, (_pub: any, _participant: any) => {
+      this.room.on(RoomEvent.TrackUnmuted, (pub: any, _participant: any) => {
+        if (pub?.track?.mediaStreamTrack && (pub?.kind === 'video' || pub?.track?.kind === 'video')) {
+          const mediaStream = new MediaStream([pub.track.mediaStreamTrack]);
+          this.emitRemoteTrack(pub.track.mediaStreamTrack, mediaStream);
+        }
         this.emitParticipants();
       });
 
       this.room.on(RoomEvent.LocalTrackPublished, () => {
+        this.emitLocalStream();
         this.emitParticipants();
       });
 
       this.room.on(RoomEvent.LocalTrackUnpublished, () => {
+        this.emitLocalStream();
         this.emitParticipants();
       });
 
@@ -181,12 +189,28 @@ export class LiveKitMediaSession implements IMediaSession {
     const tracks: MediaStreamTrack[] = [];
     try {
       this.room.localParticipant.trackPublications?.forEach?.((pub: any) => {
-        if (pub.track?.mediaStreamTrack) {
+        if (pub.track?.mediaStreamTrack && pub.track.mediaStreamTrack.readyState !== 'ended') {
           tracks.push(pub.track.mediaStreamTrack);
         }
       });
     } catch {}
     return tracks.length > 0 ? new MediaStream(tracks) : null;
+  }
+
+  public onLocalStream(callback: (stream: MediaStream | null) => void): void {
+    this.localStreamCallbacks.push(callback);
+    callback(this.getLocalStream());
+  }
+
+  public emitLocalStream(): void {
+    const stream = this.getLocalStream();
+    for (const cb of this.localStreamCallbacks) {
+      try {
+        cb(stream);
+      } catch (e) {
+        console.error('Error in localStreamCallback:', e);
+      }
+    }
   }
 
   public getParticipants(): any[] {
@@ -314,7 +338,12 @@ export class LiveKitMediaSession implements IMediaSession {
     const next = enabled !== undefined ? enabled : !this.cameraEnabled;
     this.cameraEnabled = next;
     if (this.room?.localParticipant) {
-      this.room.localParticipant.setCameraEnabled(next).catch(() => {});
+      this.room.localParticipant.setCameraEnabled(next).then(() => {
+        this.emitLocalStream();
+        this.emitParticipants();
+      }).catch((err: any) => {
+        console.warn('LiveKit toggleCamera notice:', err);
+      });
     }
     return this.cameraEnabled;
   }

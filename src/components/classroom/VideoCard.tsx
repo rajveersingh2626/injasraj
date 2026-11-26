@@ -65,6 +65,24 @@ export const VideoCard: React.FC<VideoCardProps> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  const safePlay = (el: HTMLVideoElement | null) => {
+    if (!el) return;
+    try {
+      const res = el.play();
+      if (res && typeof res.catch === 'function') {
+        res.catch(() => {
+          if (el && !el.muted) {
+            el.muted = true;
+            const retry = el.play();
+            if (retry && typeof retry.catch === 'function') {
+              retry.catch(() => {});
+            }
+          }
+        });
+      }
+    } catch {}
+  };
+
   // Determine if video is disabled/off
   // Explicit props take precedence; fallback to track enabled state or stream video tracks
   const isVideoDisabled =
@@ -78,32 +96,75 @@ export const VideoCard: React.FC<VideoCardProps> = ({
       ? !stream || !stream.getVideoTracks().some((t) => t.enabled)
       : true;
 
-  // Attach stream or track to video element
+  // Attach stream or track to video element and handle tablet autoplay unlock
   useEffect(() => {
     const videoEl = videoRef.current;
     if (!videoEl) return;
 
+    let activeStream: MediaStream | null = null;
     if (stream) {
-      videoEl.srcObject = stream;
+      activeStream = stream;
     } else if (track) {
       if (typeof MediaStream !== 'undefined') {
         try {
-          videoEl.srcObject = new MediaStream([track]);
+          activeStream = new MediaStream([track]);
         } catch {
-          videoEl.srcObject = { getTracks: () => [track], getVideoTracks: () => [track] } as any;
+          activeStream = { getTracks: () => [track], getVideoTracks: () => [track] } as any;
         }
       } else {
-        videoEl.srcObject = { getTracks: () => [track], getVideoTracks: () => [track] } as any;
+        activeStream = { getTracks: () => [track], getVideoTracks: () => [track] } as any;
+      }
+    }
+
+    if (activeStream) {
+      videoEl.srcObject = activeStream;
+      if (!isVideoDisabled) {
+        safePlay(videoEl);
       }
     } else {
       videoEl.srcObject = null;
     }
-  }, [stream, track]);
+
+    // Attach onunmute listener so video resumes automatically when unmuted/re-enabled
+    const videoTracks = activeStream?.getVideoTracks?.() || [];
+    const handleTrackUnmute = () => {
+      if (videoEl && !isVideoDisabled) {
+        safePlay(videoEl);
+      }
+    };
+
+    videoTracks.forEach((t) => {
+      if (t && typeof t.addEventListener === 'function') {
+        t.addEventListener('unmute', handleTrackUnmute);
+      }
+    });
+
+    return () => {
+      videoTracks.forEach((t) => {
+        if (t && typeof t.removeEventListener === 'function') {
+          t.removeEventListener('unmute', handleTrackUnmute);
+        }
+      });
+    };
+  }, [stream, track, isVideoDisabled]);
+
+  // Re-trigger play when isVideoDisabled toggles from true to false (Camera off -> on)
+  useEffect(() => {
+    const videoEl = videoRef.current;
+    if (!isVideoDisabled && videoEl && videoEl.srcObject) {
+      safePlay(videoEl);
+    }
+  }, [isVideoDisabled]);
 
   return (
     <div
       data-testid="video-card"
-      onClick={onClick}
+      onClick={(e) => {
+        if (videoRef.current && videoRef.current.paused && !isVideoDisabled) {
+          safePlay(videoRef.current);
+        }
+        onClick?.();
+      }}
       className={`relative overflow-hidden rounded-2xl bg-[#09090c] border border-white/10 shadow-lg select-none transition-all duration-200 ${
         isAudioActive && !isAudioMuted ? 'ring-2 ring-emerald-500/50 border-emerald-400/40' : ''
       } ${className}`}

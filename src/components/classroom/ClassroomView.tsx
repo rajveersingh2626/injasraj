@@ -200,6 +200,9 @@ export function ClassroomView({
   const [loadedPermissions, setLoadedPermissions] = useState<
     WhiteboardPermissions | undefined
   >(propInitialPermissions);
+  const [loadedSessionStatus, setLoadedSessionStatus] = useState<
+    'waiting' | 'in_progress' | 'completed' | undefined
+  >(undefined);
 
   // Subscribe to Realtime Whiteboard Broadcast Channel
   useEffect(() => {
@@ -210,15 +213,16 @@ export function ClassroomView({
     };
   }, [activeWhiteboardAdapter]);
 
-  // Load existing whiteboard session ONLY if restoreRoomId is explicitly requested (keeps a clean 'new page' whiteboard by default)
+  // Load existing whiteboard session: automatically load for the active roomId, or restoreRoomId if explicitly requested
   useEffect(() => {
-    if (!restoreRoomId) return;
+    const targetRoomId = restoreRoomId || roomId;
+    if (!targetRoomId) return;
 
     let isCancelled = false;
     const loadSession = async () => {
       try {
         const client = injectedSupabaseClient || createBrowserClient();
-        const session = await loadWhiteboardSession(client, restoreRoomId);
+        const session = await loadWhiteboardSession(client, targetRoomId);
         if (session && !isCancelled) {
           if (session.pages && session.pages.length > 0) {
             setLoadedPages(session.pages);
@@ -226,9 +230,12 @@ export function ClassroomView({
           if (session.permissions) {
             setLoadedPermissions(session.permissions);
           }
+          if (session.session_status) {
+            setLoadedSessionStatus(session.session_status);
+          }
         }
       } catch (err) {
-        console.warn('Failed to load requested whiteboard session:', err);
+        console.warn('Failed to load whiteboard session:', err);
       }
     };
 
@@ -236,7 +243,7 @@ export function ClassroomView({
     return () => {
       isCancelled = true;
     };
-  }, [restoreRoomId, injectedSupabaseClient]);
+  }, [restoreRoomId, roomId, injectedSupabaseClient]);
 
   // Connect media session on mount
   useEffect(() => {
@@ -322,6 +329,15 @@ export function ClassroomView({
         if (lkStream && !isCancelled) {
           setLocalStream(lkStream);
         }
+      }
+
+      // Listen for local stream changes on track republishes / camera re-enables
+      if (typeof (activeMediaSession as any).onLocalStream === 'function') {
+        (activeMediaSession as any).onLocalStream((stream: MediaStream | null) => {
+          if (!isCancelled && stream) {
+            setLocalStream(stream);
+          }
+        });
       }
 
       // Try acquiring local media if LiveKit did not already acquire or if using P2P fallback
@@ -507,6 +523,7 @@ export function ClassroomView({
           remoteScreenStream={remoteScreenStream}
           initialPermissions={loadedPermissions || propInitialPermissions}
           initialPages={loadedPages || propInitialPages}
+          initialSessionStatus={loadedSessionStatus}
           initialMode={initialMode}
           onModeChange={onModeChange}
           onLeave={handleLeave}

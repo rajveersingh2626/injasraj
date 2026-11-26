@@ -104,6 +104,7 @@ export interface ClassroomWorkspaceProps {
   participants?: Participant[];
   initialSidePanelCollapsed?: boolean;
   restoreRoomId?: string;
+  initialSessionStatus?: ClassSessionStatus;
   className?: string;
 }
 
@@ -136,6 +137,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   participants: propParticipants,
   initialSidePanelCollapsed = true,
   restoreRoomId,
+  initialSessionStatus,
   className = '',
 }) => {
   // Mode State: 'classroom' (balanced grid) vs 'whiteboard' (maximized canvas)
@@ -249,10 +251,28 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   const [pastClasses, setPastClasses] = useState<PastClassRecord[]>(() => getPastClasses());
 
   // Session Lifecycle State
-  const [sessionStatus, setSessionStatus] = useState<ClassSessionStatus>('waiting');
+  const [sessionStatus, setSessionStatus] = useState<ClassSessionStatus>(
+    initialSessionStatus || 'waiting'
+  );
   const [lessonDurationSeconds, setLessonDurationSeconds] = useState<number>(0);
   const [starsAwarded, setStarsAwarded] = useState<number>(0);
   const [isEndClassModalOpen, setIsEndClassModalOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (initialSessionStatus) {
+      setSessionStatus(initialSessionStatus);
+    }
+  }, [initialSessionStatus]);
+
+  // Audio gating: silence remote audio for students until class is started
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const isStudentWaiting = role === 'student' && sessionStatus === 'waiting';
+    const audioElements = document.querySelectorAll<HTMLAudioElement>('audio[data-livekit-audio]');
+    audioElements.forEach((el) => {
+      el.muted = isStudentWaiting;
+    });
+  }, [role, sessionStatus]);
 
   // Synchronized Lesson Video State
   const [isVideoSyncOpen, setIsVideoSyncOpen] = useState<boolean>(false);
@@ -269,6 +289,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   const handleStartClass = () => {
     setSessionStatus('in_progress');
     whiteboardAdapter?.broadcastCustomEvent?.('session-status-update', { status: 'in_progress' });
+    schedulePersist(undefined, 'in_progress');
   };
 
   const handleEndClass = () => {
@@ -310,11 +331,6 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   }, [localStream, mediaSession]);
 
   const handleToggleCamera = useCallback(() => {
-    if (localStream) {
-      localStream.getVideoTracks().forEach((track) => {
-        track.enabled = !track.enabled;
-      });
-    }
     if (mediaSession && typeof mediaSession.toggleCamera === 'function') {
       const result = mediaSession.toggleCamera();
       if (typeof result === 'boolean') {
@@ -322,7 +338,18 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
       } else {
         setIsCameraOff((prev) => !prev);
       }
+      if (typeof (mediaSession as any).getLocalStream === 'function') {
+        const refreshed = (mediaSession as any).getLocalStream();
+        if (refreshed) {
+          setLocalStream(refreshed);
+        }
+      }
     } else {
+      if (localStream) {
+        localStream.getVideoTracks().forEach((track) => {
+          track.enabled = !track.enabled;
+        });
+      }
       setIsCameraOff((prev) => !prev);
     }
   }, [localStream, mediaSession]);
@@ -466,10 +493,11 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
 
   // Persistence Helper
   const schedulePersist = useCallback(
-    (updatedPermissions?: WhiteboardPermissions) => {
+    (updatedPermissions?: WhiteboardPermissions, updatedStatus?: ClassSessionStatus) => {
       if (!persistenceManager) return;
       const currentPerms = updatedPermissions || permissions;
       const activeId = pageManagerRef.current.getActivePageId();
+      const currentStatus = updatedStatus || sessionStatus;
 
       // Synchronize latest canvas state from engine before saving
       if (engineRef.current) {
@@ -491,13 +519,31 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
         currentPages,
         activeId,
         currentPerms,
-        currentViewportRef.current
+        currentViewportRef.current,
+        currentStatus
       );
       persistenceManager.scheduleSave(sessionRecord);
       onSave?.(sessionRecord);
     },
-    [persistenceManager, permissions, roomId, onSave]
+    [persistenceManager, permissions, roomId, onSave, sessionStatus]
   );
+
+  // Guard against reload data loss: synchronously schedule and flush on window unload/pagehide
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (persistenceManager) {
+        schedulePersist();
+        persistenceManager.flush().catch(() => {});
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handleBeforeUnload);
+    };
+  }, [persistenceManager, schedulePersist]);
 
   // Subscribe to real-time adapter deltas
   useEffect(() => {
