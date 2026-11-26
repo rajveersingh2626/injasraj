@@ -1,22 +1,40 @@
-# TODO: Classroom Whiteboard Polish & Features (GSD / Ralph Loop)
+# TODO: Production Polish & Architectural Fixes (GSD / Ralph Loop)
 
-- [x] Task 1: Hide Navigation Pill on Single Pages (`WhiteboardStage.tsx`)
-  - [x] 1.1 Conditioned `PageNavigationBar` on `totalPages > 1` so single-page boards do not show `< Page 1 of 1 > | +`.
-  - [x] 1.2 Kept `PdfSubPageNavigator` and multi-page navigation active whenever a PDF or multi-page document is loaded.
-- [x] Task 2: Interactive Image Object Support (Resize, Reposition, Drag)
-  - [x] 2.1 Added `case 'image':` renderer in `src/lib/whiteboard/engine/shape-renderers.ts` with image caching.
-  - [x] 2.2 Added `addImageObject()` and interactive select/drag/resize corner handles in `src/lib/whiteboard/fabric-engine.ts`.
-  - [x] 2.3 When standalone images (PNG, JPG, WebP) are imported, they are added as draggable, resizable canvas objects.
-- [x] Task 3: Clean 'New Page' Whiteboard by Default
-  - [x] 3.1 Updated `ClassroomView.tsx` to default to a clean fresh whiteboard instead of automatically restoring old past boards unless `restoreRoomId` is provided.
-- [x] Task 4: Student Video Panel & Name Prompt
-  - [x] 4.1 In `ClassroomWorkspace.tsx`, removed fake `'student-peer'` placeholder when no student is present. Only show student video panels when they actually join.
-  - [x] 4.2 In `ClassroomView.tsx`, ensured every student gets prompted with the `StudentNameModal` to enter/confirm their name on joining.
-- [x] Task 5: Reposition AV Controls to Bottom Right
-  - [x] 5.1 In `ControlBar.tsx` and `ClassroomWorkspace.tsx`, placed the floating media bar at bottom right so it no longer interferes with the left sidebar or canvas.
-- [x] Task 6: Fix Studio Panel Contrast & Polish (`/ask-emil`)
-  - [x] 6.1 Eliminated pale washed-out lavender buttons in `MaterialsTab.tsx` and replaced with high-contrast, accessible buttons (WCAG AAA).
-  - [x] 6.2 Formatted Emil review table (| Before | After | Why |).
-- [x] Task 7: Mechanical Verification
-  - [x] 7.1 Ran Vitest tests - all 24 test suites and 373+ tests pass.
-  - [x] 7.2 Ran `npm run build` - 9 routes compiled cleanly with 0 errors.
+- [x] Task 1: Fix Broken Student Invite Link (404 Error)
+  - [x] 1.1 In `ClassroomWorkspace.tsx`, fix `handleCopyRoomLink` to use `/classroom/${encodeURIComponent(roomId)}?role=student`.
+  - [x] 1.2 In `src/app/classroom/page.tsx`, create route that extracts `room` and redirects or renders `ClassroomView` so `/classroom?room=...` never 404s.
+- [x] Task 2: Supabase, LiveKit & Default Profile Update
+  - [x] 2.1 Update default teacher profile name from "Injasraj" to "Inderjit Kaur" in `teacher-auth.ts`, `page.tsx`, `TeacherLoginModal.tsx`, and `HANDOVER.md`.
+  - [x] 2.2 Add graceful telemetry and error reporting in `ClassroomView.tsx` when LiveKit token endpoint is unreachable.
+  - [x] 2.3 Provide SQL migration script for public table grants (`anon`, `authenticated`).
+- [x] Task 3: Whiteboard Tool State Bug (Grab/Drag Tool Stuck Active)
+  - [x] 3.1 In `WhiteboardStage.tsx`, remove `isShiftPressed` from canvas grab/pan triggers. Add `window.blur` listener to reset modifier states.
+  - [x] 3.2 In `fabric-engine.ts`, ensure `setTool(newTool)` deselects all objects and resets dragging/resize handle states when switching away from `'select'`.
+- [x] Task 4: Default Whiteboard Initialization (Single Page Only)
+  - [x] 4.1 In `ClassroomWorkspace.tsx`, set `defaultInitialPages` to a single blank page (`[createDefaultWhiteboardPage('page-1', 1, 'Whiteboard')]`).
+- [x] Task 5: Camera/Mic Control Bar Repositioning & Teacher Remote Controls
+  - [x] 5.1 In `ControlBar.tsx` and `ClassroomWorkspace.tsx`, reposition the control dock to the bottom left, with its width matching the left panel width (`w-full md:w-[340px] lg:w-[400px] xl:w-[440px]`).
+  - [x] 5.2 Verify teacher remote controls toggle student mic/camera via signaling and LiveKit tracks.
+- [x] Task 6: Unified Page Navigation Bar at Top
+  - [x] 6.1 Move document sub-page navigation (`deck (1) < Page 7 of 8 >`) to the top unified navigation area and remove bottom floating bar.
+- [x] Task 7: Loaded PDF Disappearing Off-Screen Fix
+  - [x] 7.1 In `ClassroomWorkspace.tsx`, ensure `handleSelectPage`, `handleEngineReady`, and `delta.type === 'page-switch'` restore `backgroundImageUrl` and `pdfDocument` sub-page backgrounds instead of relying on `thumbnailUrl`.
+  - [x] 7.2 In `handlePdfSubPageChange`, persist current sub-page background URL to page manager.
+- [x] Task 8: Performance Lag & Asset Upload Optimization
+  - [x] 8.1 Optimize PDF and document rendering so on-demand single page rendering prevents freezing and gigantic base64 payloads over WebSocket deltas.
+  - [x] 8.2 Add downscaled/optimized bitmap caching in canvas engine.
+- [x] Task 9: High-Fidelity Whiteboard PDF Export
+  - [x] 9.1 In `handleExportPdf`, render all notebook pages and document sub-pages with all canvas annotations, text, sticky notes, formulas, and shapes.
+  - [x] 9.2 In `pdf-lib-export.ts`, support WebP and PNG backgrounds reliably.
+- [x] Task 10: Mechanical Verification
+  - [x] 10.1 Run full Vitest test suite (`npm test -- --run`).
+  - [x] 10.2 Run production build check (`npm run build`).
+- [x] Task 11: Git Commit & Handover Documentation
+  - [x] 11.1 Update `HANDOVER.md` and `CONTEXT.md`.
+  - [x] 11.2 Stage changes and commit cleanly on the branch.
+- [x] Task 12: Working Screen Share Rendered Directly on Whiteboard (Requirement 10)
+  - [x] 12.1 Implement `getDisplayMedia` capture with audio support, error/cancel handling, and `screenTrack.onended` auto-teardown.
+  - [x] 12.2 Publish screen share track via LiveKit SFU (`publishTrack({ source: 'screen_share' })`) and WebRTC P2P with `screen-share-state` broadcast.
+  - [x] 12.3 Render live screen share video inside `WhiteboardStage` (`canvas-stage-wrapper`) with transparent Fabric overlay for real-time pen/laser annotations.
+  - [x] 12.4 Add in-app and native browser Stop Sharing teardown with track cleanup and whiteboard restoration.
+  - [x] 12.5 Add dedicated test suite `tests/whiteboard/screen-share-whiteboard.test.tsx` (all 5 tests passing).

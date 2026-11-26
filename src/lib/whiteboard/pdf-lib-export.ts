@@ -6,6 +6,7 @@
  */
 
 import { PDFDocument } from 'pdf-lib';
+import { renderCanvasObject } from './engine/shape-renderers';
 
 export interface PageAnnotationExport {
   pageNumber: number; // 1-based
@@ -44,6 +45,66 @@ export function dataUrlToUint8Array(dataUrl: string): Uint8Array {
     bytes[i] = binaryString.charCodeAt(i);
   }
   return bytes;
+}
+
+/**
+ * Converts a WebP or non-PNG data URL to PNG using offscreen canvas for pdf-lib compatibility.
+ */
+export async function convertWebpToPng(dataUrl: string): Promise<string> {
+  if (!dataUrl || typeof document === 'undefined') return dataUrl;
+  if (dataUrl.startsWith('data:image/png') || dataUrl.startsWith('data:image/jpeg')) {
+    return dataUrl;
+  }
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || 1200;
+        canvas.height = img.naturalHeight || 1600;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+          return;
+        }
+      } catch {}
+      resolve(dataUrl);
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+/**
+ * Renders serialized canvas JSON objects into a high-fidelity PNG data URL offscreen.
+ */
+export function renderCanvasJsonToDataUrl(
+  canvasJson: any,
+  width: number = 1920,
+  height: number = 1080
+): string | null {
+  if (typeof document === 'undefined' || !canvasJson) return null;
+  const objects = Array.isArray(canvasJson.objects) ? canvasJson.objects : [];
+  if (objects.length === 0) return null;
+
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    for (const obj of objects) {
+      try {
+        renderCanvasObject(ctx, obj);
+      } catch {}
+    }
+    return canvas.toDataURL('image/png');
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -98,38 +159,48 @@ export async function exportAnnotatedPdf(
     const { width: pageWidth, height: pageHeight } = page.getSize();
 
     // 1. Draw page background image if provided
-    if (
-      ann.backgroundImageUrl &&
-      (ann.backgroundImageUrl.startsWith('data:image/png') ||
-        ann.backgroundImageUrl.startsWith('data:image/jpeg'))
-    ) {
+    if (ann.backgroundImageUrl) {
       try {
-        const bgBytes = dataUrlToUint8Array(ann.backgroundImageUrl);
-        const embeddedBg = ann.backgroundImageUrl.startsWith('data:image/png')
-          ? await pdfDoc.embedPng(bgBytes)
-          : await pdfDoc.embedJpg(bgBytes);
-        page.drawImage(embeddedBg, {
-          x: 0,
-          y: 0,
-          width: pageWidth,
-          height: pageHeight,
-        });
+        let bgUrl = ann.backgroundImageUrl;
+        if (bgUrl.startsWith('data:image/webp')) {
+          bgUrl = await convertWebpToPng(bgUrl);
+        }
+        if (bgUrl.startsWith('data:image/png') || bgUrl.startsWith('data:image/jpeg')) {
+          const bgBytes = dataUrlToUint8Array(bgUrl);
+          const embeddedBg = bgUrl.startsWith('data:image/png')
+            ? await pdfDoc.embedPng(bgBytes)
+            : await pdfDoc.embedJpg(bgBytes);
+          page.drawImage(embeddedBg, {
+            x: 0,
+            y: 0,
+            width: pageWidth,
+            height: pageHeight,
+          });
+        }
       } catch (err) {
         console.warn(`Failed to embed background for page ${ann.pageNumber}:`, err);
       }
     }
 
     // 2. Stamp drawing annotation layer on top
-    if (ann.annotationDataUrl && ann.annotationDataUrl.startsWith('data:image/png')) {
+    if (ann.annotationDataUrl) {
       try {
-        const pngBytes = dataUrlToUint8Array(ann.annotationDataUrl);
-        const embeddedPng = await pdfDoc.embedPng(pngBytes);
-        page.drawImage(embeddedPng, {
-          x: 0,
-          y: 0,
-          width: pageWidth,
-          height: pageHeight,
-        });
+        let annUrl = ann.annotationDataUrl;
+        if (annUrl.startsWith('data:image/webp')) {
+          annUrl = await convertWebpToPng(annUrl);
+        }
+        if (annUrl.startsWith('data:image/png') || annUrl.startsWith('data:image/jpeg')) {
+          const pngBytes = dataUrlToUint8Array(annUrl);
+          const embeddedPng = annUrl.startsWith('data:image/png')
+            ? await pdfDoc.embedPng(pngBytes)
+            : await pdfDoc.embedJpg(pngBytes);
+          page.drawImage(embeddedPng, {
+            x: 0,
+            y: 0,
+            width: pageWidth,
+            height: pageHeight,
+          });
+        }
       } catch (err) {
         console.warn(`Failed to embed annotation for page ${ann.pageNumber}:`, err);
       }

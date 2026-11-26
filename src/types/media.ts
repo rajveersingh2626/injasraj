@@ -49,6 +49,7 @@ export interface IMediaSession {
   toggleMic(enabled?: boolean): boolean;
   toggleCamera(enabled?: boolean): boolean;
   onRemoteTrack(callback: (track: MediaStreamTrack, stream: MediaStream) => void): void;
+  onRemoteScreenTrack?(callback: (track: MediaStreamTrack | null, stream: MediaStream | null) => void): void;
   onQualityMetrics(callback: (metrics: ConnectionQuality) => void): void;
   switchDevice(kind: 'audioinput' | 'videoinput', deviceId: string): Promise<void>;
 }

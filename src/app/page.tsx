@@ -51,7 +51,7 @@ import {
 } from '@/lib/classroom/past-classes';
 
 const DEFAULT_TEACHER_ID = 'teacher-1';
-const DEFAULT_TEACHER_NAME = 'Injasraj';
+const DEFAULT_TEACHER_NAME = 'Inderjit Kaur';
 
 const INITIAL_AVAILABILITIES: TeacherAvailability[] = [1, 2, 3, 4, 5].map((day) => ({
   id: `avail-${day}`,

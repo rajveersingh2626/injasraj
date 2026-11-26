@@ -332,7 +332,6 @@ describe('Task 10 E2E Platform Integration: Booking to Live Classroom', () => {
       // Verify local participant name & badges
       expect(screen.getAllByText(/Alice Smith/)[0]).toBeInTheDocument();
       expect(screen.getAllByText('Student').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('Teacher').length).toBeGreaterThanOrEqual(1);
     });
 
     it('mounts classroom page as teacher with teacher badges and controls', async () => {

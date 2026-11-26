@@ -12,7 +12,7 @@ export const TEACHER_COOKIE_NAME = 'injasraj_teacher_session';
 export const DEFAULT_TEACHER_PASSCODE =
   process.env.NEXT_PUBLIC_TEACHER_PASSCODE || 'injasraj123';
 export const DEFAULT_TEACHER_ID = 'teacher-injasraj';
-export const DEFAULT_TEACHER_NAME = 'Injasraj';
+export const DEFAULT_TEACHER_NAME = 'Inderjit Kaur';
 
 export interface TeacherSession {
   isAuthenticated: boolean;

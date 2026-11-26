@@ -881,6 +881,10 @@ export async function convertPdfToPageImages(
           const rendered = await renderPageWithPdfInstance(pdf, i, effectiveScale, title);
           pages.push(rendered.dataUrl);
           onProgress?.(i, totalPages);
+          // Yield to event loop for multi-page documents to prevent main thread lag
+          if (totalPages > 1 && typeof setTimeout !== 'undefined') {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+          }
         }
 
         return {

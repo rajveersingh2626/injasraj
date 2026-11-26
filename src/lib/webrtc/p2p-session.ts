@@ -142,6 +142,7 @@ export class P2PWebRTCMediaSession implements IMediaSession {
 
   // Callback registries
   private remoteTrackCallbacks: Array<(track: MediaStreamTrack, stream: MediaStream) => void> = [];
+  private remoteScreenTrackCallbacks: Array<(track: MediaStreamTrack | null, stream: MediaStream | null) => void> = [];
   private qualityCallbacks: Array<(metrics: ConnectionQuality) => void> = [];
 
   constructor(signaling: ISignalingAdapter, options: P2PSessionOptions = {}) {
@@ -595,6 +596,25 @@ export class P2PWebRTCMediaSession implements IMediaSession {
     callback: (track: MediaStreamTrack, stream: MediaStream) => void
   ): void {
     this.remoteTrackCallbacks.push(callback);
+  }
+
+  onRemoteScreenTrack(
+    callback: (track: MediaStreamTrack | null, stream: MediaStream | null) => void
+  ): void {
+    this.remoteScreenTrackCallbacks.push(callback);
+  }
+
+  emitRemoteScreenTrack(
+    track: MediaStreamTrack | null,
+    stream: MediaStream | null
+  ): void {
+    for (const cb of this.remoteScreenTrackCallbacks) {
+      try {
+        cb(track, stream);
+      } catch (err) {
+        console.error('Error in onRemoteScreenTrack callback:', err);
+      }
+    }
   }
 
   onQualityMetrics(callback: (metrics: ConnectionQuality) => void): void {

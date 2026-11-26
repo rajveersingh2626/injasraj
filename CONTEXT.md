@@ -64,6 +64,8 @@
 - [`src/app/classroom/[roomId]/page.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/app/classroom/[roomId]/page.tsx): **Live Classroom Route Entry**.
   - Next.js 15 App Router component handling Promise-based `params` and `searchParams`.
   - Enforces `student` role by default unless explicitly authenticated. Renders `<ClassroomView />`.
+- [`src/app/classroom/page.tsx`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/app/classroom/page.tsx): **Legacy & Query-Style Classroom Entry Route**.
+  - Catches queries like `/classroom?room=room-xxx&role=student`, extracts the `room` param, and redirects or renders `<ClassroomView />` directly, completely eliminating 404 invite link errors.
 - [`src/app/api/livekit/token/route.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/app/api/livekit/token/route.ts): **LiveKit SFU JWT Token API**.
   - Generates secure `AccessToken` signed with `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET`.
   - Grants room permissions (`roomJoin`, `canPublish`, `canSubscribe`) keyed to participant identity and role (`teacher` or `student`).

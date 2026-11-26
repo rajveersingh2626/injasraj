@@ -174,6 +174,7 @@ export function ClassroomView({
   // Local media stream state
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [remoteScreenStream, setRemoteScreenStream] = useState<MediaStream | null>(null);
 
   // Whiteboard initial loaded state
   const [loadedPages, setLoadedPages] = useState<WhiteboardPage[] | undefined>(
@@ -239,6 +240,8 @@ export function ClassroomView({
           if (res.ok) {
             const data = await res.json();
             await (activeMediaSession as any).connect(roomId, data.token, data.url);
+          } else {
+            console.warn(`LiveKit token request returned status ${res.status}. Video conferencing requires LIVEKIT_API_KEY and LIVEKIT_API_SECRET in server environment variables.`);
           }
         } else if (typeof activeMediaSession.connect === 'function') {
           await activeMediaSession.connect(roomId, userId);
@@ -252,6 +255,15 @@ export function ClassroomView({
         activeMediaSession.onRemoteTrack((_track: MediaStreamTrack, stream: MediaStream) => {
           if (!isCancelled) {
             setRemoteStream(stream);
+          }
+        });
+      }
+
+      // Hook up remote screen share stream listener from WebRTC / LiveKit
+      if (typeof (activeMediaSession as any).onRemoteScreenTrack === 'function') {
+        (activeMediaSession as any).onRemoteScreenTrack((_track: MediaStreamTrack | null, stream: MediaStream | null) => {
+          if (!isCancelled) {
+            setRemoteScreenStream(stream);
           }
         });
       }
@@ -467,6 +479,7 @@ export function ClassroomView({
           persistenceManager={activePersistenceManager || undefined}
           localStream={localStream}
           remoteStream={remoteStream}
+          remoteScreenStream={remoteScreenStream}
           initialPermissions={loadedPermissions || propInitialPermissions}
           initialPages={loadedPages || propInitialPages}
           initialMode={initialMode}
