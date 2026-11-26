@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AccessToken } from 'livekit-server-sdk';
+import { AccessToken, RoomServiceClient } from 'livekit-server-sdk';
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,6 +28,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const trimmedRoom = room.trim();
+    const httpUrl = wsUrl.replace('wss://', 'https://').replace('ws://', 'http://');
+
+    // Automatically configure/ensure room lifecycle with 15-minute (900s) timeout on abandonment
+    if (httpUrl && httpUrl.startsWith('http')) {
+      try {
+        const roomService = new RoomServiceClient(httpUrl, apiKey, apiSecret);
+        await roomService.createRoom({
+          name: trimmedRoom,
+          emptyTimeout: 900,      // 15 minutes = 900 seconds
+          departureTimeout: 900,  // 15 minutes = 900 seconds
+          maxParticipants: 10,
+        });
+      } catch (roomErr: any) {
+        // Room already exists or non-fatal room creation notice
+      }
+    }
+
     const participantIdentity =
       userId && userId.trim()
         ? userId.trim()
@@ -41,7 +59,7 @@ export async function GET(request: NextRequest) {
     const isTeacher = role.toLowerCase() === 'teacher';
 
     at.addGrant({
-      room: room.trim(),
+      room: trimmedRoom,
       roomJoin: true,
       canPublish: true,
       canSubscribe: true,
@@ -55,7 +73,7 @@ export async function GET(request: NextRequest) {
       token,
       url: wsUrl,
       identity: username.trim(),
-      room: room.trim(),
+      room: trimmedRoom,
     });
   } catch (error: any) {
     console.error('Error generating LiveKit token:', error);

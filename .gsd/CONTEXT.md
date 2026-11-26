@@ -1,27 +1,11 @@
-# Context: LearnCube-Style Document Stage & Whiteboard Rebuild
+# Context: LiveKit Real-Time Sync, Latency Optimization, and Classroom Gating
 
-## Problem Statement
-The classroom whiteboard needs a predictable, distraction-free document-first experience modeled on LearnCube:
-- Infinite arbitrary 2D panning caused disorientation where students or teachers scrolled into blank $(x: 50000, y: -20000)$ space and lost worksheets.
-- Multi-page PDFs need continuous portrait stacking with smooth vertical scrolling and fit-to-width auto-scaling.
-- Document pages must be locked visual layers beneath annotations.
-- Full classroom feature integration must be preserved: LiveKit/WebRTC delta sync, teacher authority guards (Global Lock, Laser Only), multi-page tools, and high-fidelity flattened `pdf-lib` export.
+## Objective
+Address critical real-time sync, participant persistence, LiveKit room lifecycle, and pre-class media gating on Injasraj platform while preserving Supabase SSOT normalization and server-side teacher authentication.
 
-## Architecture
-1. **LearnCube Portrait Document Stage**:
-   - Centered portrait document canvas (standard A4/Letter 3:4 aspect ratio: 1200 x 1600 per page).
-   - Multi-page documents stacked vertically with comfortable page gaps (40px) and page badges (`Page X of Y`).
-   - Clean low-glare backdrop (`bg-stone-100`/`bg-stone-50`), page drop-shadows (`shadow-lg shadow-stone-900/10`).
-   - Fit-to-Width auto-scaling calculated from container width, plus discrete zoom presets: `Fit Width`, `100%`, `125%`, `150%`.
-2. **Visual Document Ingestion**:
-   - `pdfjs-dist` offscreen high-DPI rasterization (following tldraw/FesTGig pipeline).
-   - Word `.docx` rendering via `mammoth` HTML-to-canvas.
-   - Background document pages locked (`selectable: false`, `evented: false`).
-3. **Live Collaboration & Synchronization**:
-   - Stroke coordinates normalized to the portrait document coordinate space.
-   - LiveKit / WebRTC real-time sync for strokes, laser pointer, and Follow-Teacher vertical scroll sync.
-   - Immediate enforcement of Global Lock and Laser Pointer Only.
-4. **Tools & Exporting**:
-   - Blank page grid patterns (`blank`, `dots`, `lined`, `grid`).
-   - Multi-page management (add, clone, delete, jump).
-   - Flattened PDF export via `pdf-lib` stamping user annotations back onto the original document.
+## Constraints & Requirements
+1. **Student Rejoin Persistence**: Persist same-device student identity (`injasraj_student_device_id` / `injasraj_student_name`) so rejoining connects cleanly without duplicate participants or permission/reward resets.
+2. **Bidirectional Mic & Video State Sync + Avatar Fallback**: Real-time synchronization of mute/unmute and camera off across both ends. Display clean avatar with initials/photo when camera is off.
+3. **LiveKit Room Auto-Close (15-min Timeout)**: Configure `emptyTimeout: 900` and `departureTimeout: 900` via LiveKit RoomServiceClient so rooms cleanly shut down when abandoned.
+4. **Pre-Class Waiting Gate**: Students must not see video, audio, or classroom active media until teacher explicitly clicks "Start Class".
+5. **No-Zombie-Data & SSOT Compliance**: Respect Supabase SSOT tables (`lessons`, `profiles`, `whiteboard_sessions`). Zero table resets.

@@ -1,22 +1,10 @@
-# GSD State: Classroom Whiteboard Polish & Features
+# GSD State: LiveKit Sync & Classroom Gating
 
-## Current Lifecycle Phase
-**Phase 5: Ship & Verified**
-
-## Objective
-Address user feedback across 6 core areas:
-1. Removed intrusive `< Page 1 of 1 > | +` navigation bar from single-page boards; show page navigator only when documents/multi-pages are added.
-2. Added interactive image support (resize, reposition, drag with corner handles) for ANY imported image.
-3. Defaulted to a clean 'new page' whiteboard instead of auto-restoring previous session boards.
-4. Hid empty student video panel until students actually join; prompted all students to enter/confirm their name upon joining.
-5. Moved annoying floating AV controls dock from left-middle to bottom-right.
-6. Fixed Studio Panel low-contrast buttons and text (`/ask-emil`).
+## Current Phase: 4 (Verified & Ready to Ship)
 
 ## Task Checklist
-- [x] Task 1: Navigation Pill Visibility (`WhiteboardStage.tsx`)
-- [x] Task 2: Interactive Image Drag/Resize Engine (`shape-renderers.ts`, `fabric-engine.ts`, `geometry.ts`)
-- [x] Task 3: Default Fresh Whiteboard Page (`ClassroomView.tsx`)
-- [x] Task 4: Dynamic Student Panels & Name Modal (`ClassroomWorkspace.tsx`, `ClassroomView.tsx`)
-- [x] Task 5: AV Controls Repositioning to Bottom Right (`ControlBar.tsx`, `ClassroomWorkspace.tsx`)
-- [x] Task 6: Studio Panel Emil Contrast Fixes (`MaterialsTab.tsx`, `GlassButton.tsx`)
-- [x] Task 7: Verification (`vitest`, `npm run build` - 0 errors)
+- [x] Task 1: Student Rejoin Persistence (`STUDENT_DEVICE_ID_STORAGE_KEY` and identity preservation in `ClassroomView`, `StudentNameModal`, and token route)
+- [x] Task 2: Bidirectional Mic/Video Track Sync & Camera-Off Avatar Fallback (LiveKit track events, per-participant remote media state, avatar rendering in `VideoCard` & `ClassroomWorkspace`)
+- [x] Task 3: LiveKit Room Auto-Close with 15-Minute Timeout (`RoomServiceClient.createRoom` with `emptyTimeout: 900` / `departureTimeout: 900`)
+- [x] Task 4: Pre-Class Student Media Gate (Block video/audio until teacher clicks "Start Class")
+- [x] Task 5: Comprehensive Automated Testing & Verification (All 34 test cases passing across regression & unit suites)
