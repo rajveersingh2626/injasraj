@@ -23,6 +23,8 @@ import {
 } from '../../utils/timezone';
 import { createBrowserClient } from '../../lib/supabase/client';
 
+import { CANONICAL_TEACHER_ID, DEFAULT_TEACHER_NAME } from '@/lib/auth/teacher-auth';
+
 export interface BookTeacherViewProps {
   teacherId?: string;
   teacherName?: string;
@@ -34,7 +36,7 @@ export interface BookTeacherViewProps {
 
 const DEFAULT_AVAILABILITY: TeacherAvailability[] = [1, 2, 3, 4, 5].map((day) => ({
   id: `avail-${day}`,
-  teacher_id: 'teacher-1',
+  teacher_id: CANONICAL_TEACHER_ID,
   day_of_week: day,
   start_time: '16:00:00',
   end_time: '21:00:00',
@@ -42,8 +44,8 @@ const DEFAULT_AVAILABILITY: TeacherAvailability[] = [1, 2, 3, 4, 5].map((day) =>
 }));
 
 export function BookTeacherView({
-  teacherId = 'teacher-1',
-  teacherName = 'Injasraj',
+  teacherId = CANONICAL_TEACHER_ID,
+  teacherName = DEFAULT_TEACHER_NAME,
   initialTimezone,
   initialAvailability = DEFAULT_AVAILABILITY,
   slots,

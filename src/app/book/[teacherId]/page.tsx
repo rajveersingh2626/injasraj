@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react';
 import { BookTeacherView } from '@/components/booking/BookTeacherView';
+import { CANONICAL_TEACHER_ID } from '@/lib/auth/teacher-auth';
 
 export interface BookPageProps {
   params: Promise<{ teacherId: string }>;
@@ -8,7 +9,7 @@ export interface BookPageProps {
 
 function BookTeacherContent({ params }: BookPageProps) {
   const unwrappedParams = React.use(params);
-  return <BookTeacherView teacherId={unwrappedParams?.teacherId || 'teacher-1'} />;
+  return <BookTeacherView teacherId={unwrappedParams?.teacherId || CANONICAL_TEACHER_ID} />;
 }
 
 export default function BookTeacherPage(props: BookPageProps) {

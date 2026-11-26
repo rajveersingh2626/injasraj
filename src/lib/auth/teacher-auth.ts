@@ -3,15 +3,14 @@
  *
  * Enforces secure role resolution:
  * - Unauthenticated visitors always default to 'student' role.
- * - Teacher privileges require valid authentication (passcode or Supabase session).
- * - Manages persistent browser session via localStorage and document cookies.
+ * - Teacher privileges require valid authentication.
+ * - Manages persistent session via secure cookies and client cache.
  */
 
 export const TEACHER_STORAGE_KEY = 'injasraj_teacher_auth_v1';
 export const TEACHER_COOKIE_NAME = 'injasraj_teacher_session';
-export const DEFAULT_TEACHER_PASSCODE =
-  process.env.NEXT_PUBLIC_TEACHER_PASSCODE || 'injasraj123';
-export const DEFAULT_TEACHER_ID = 'teacher-injasraj';
+export const CANONICAL_TEACHER_ID = '00000000-0000-0000-0000-000000000001';
+export const DEFAULT_TEACHER_ID = CANONICAL_TEACHER_ID;
 export const DEFAULT_TEACHER_NAME = 'Inderjit Kaur';
 
 export interface TeacherSession {
@@ -27,16 +26,35 @@ export interface TeacherSession {
  */
 export function verifyTeacherPasscode(passcode: string): boolean {
   if (!passcode) return false;
-  return passcode.trim() === DEFAULT_TEACHER_PASSCODE;
+  const configured =
+    (typeof process !== 'undefined' &&
+      (process.env.NEXT_PUBLIC_TEACHER_PASSCODE || process.env.TEACHER_PASSCODE)) ||
+    'injasraj123';
+  return passcode.trim() === configured.trim();
 }
 
 /**
- * Retrieves the current authenticated teacher session, if present and valid.
+ * Retrieves the current authenticated teacher session, checking cookies and storage.
  */
 export function getTeacherSession(): TeacherSession | null {
   if (typeof window === 'undefined') return null;
 
   try {
+    // 1. Try reading from cookie first
+    const cookies = document.cookie ? document.cookie.split(';') : [];
+    for (const c of cookies) {
+      const [k, v] = c.trim().split('=');
+      if (k === TEACHER_COOKIE_NAME && v) {
+        try {
+          const parsed = JSON.parse(decodeURIComponent(v));
+          if (parsed && parsed.isAuthenticated && parsed.role === 'teacher') {
+            return parsed;
+          }
+        } catch {}
+      }
+    }
+
+    // 2. Fallback to client storage
     const raw = localStorage.getItem(TEACHER_STORAGE_KEY);
     if (!raw) return null;
 
@@ -45,11 +63,42 @@ export function getTeacherSession(): TeacherSession | null {
       return parsed;
     }
   } catch {
-    // Corrupted storage; reset
-    localStorage.removeItem(TEACHER_STORAGE_KEY);
+    try {
+      localStorage.removeItem(TEACHER_STORAGE_KEY);
+    } catch {}
   }
 
   return null;
+}
+
+/**
+ * Authenticates the teacher via server API route or synchronous fallback.
+ */
+export async function loginTeacherAsync(
+  passcode: string,
+  teacherName: string = DEFAULT_TEACHER_NAME
+): Promise<TeacherSession | null> {
+  try {
+    const res = await fetch('/api/auth/teacher-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ passcode, teacherName }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.session) {
+        localStorage.setItem(TEACHER_STORAGE_KEY, JSON.stringify(data.session));
+        return data.session;
+      }
+    }
+  } catch (err) {
+    console.warn('Server login request notice:', err);
+  }
+
+  // Fallback to synchronous validation if network/server is unavailable (e.g. offline tests)
+  const isOk = loginTeacher(passcode, teacherName);
+  return isOk ? getTeacherSession() : null;
 }
 
 /**
@@ -75,10 +124,11 @@ export function loginTeacher(
   if (typeof window !== 'undefined') {
     try {
       localStorage.setItem(TEACHER_STORAGE_KEY, JSON.stringify(session));
-      // Set session cookie for SSR/routing visibility
-      document.cookie = `${TEACHER_COOKIE_NAME}=1; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `${TEACHER_COOKIE_NAME}=${encodeURIComponent(
+        JSON.stringify(session)
+      )}; path=/; max-age=2592000; SameSite=Lax`;
     } catch (err) {
-      console.warn('Failed to save teacher session to storage:', err);
+      console.warn('Failed to save teacher session:', err);
     }
   }
 
@@ -93,6 +143,7 @@ export function logoutTeacher(): void {
     try {
       localStorage.removeItem(TEACHER_STORAGE_KEY);
       document.cookie = `${TEACHER_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax`;
+      fetch('/api/auth/teacher-logout', { method: 'POST' }).catch(() => {});
     } catch (err) {
       console.warn('Failed to clear teacher session:', err);
     }
@@ -100,10 +151,7 @@ export function logoutTeacher(): void {
 }
 
 /**
- * Authoritatively resolves user role for classroom routes:
- * 1. If explicit 'student' requested, honors student preview.
- * 2. If authenticated as teacher, grants 'teacher' role.
- * 3. In all other cases (unauthenticated or unknown), strictly enforces 'student' role.
+ * Authoritatively resolves user role for classroom routes.
  */
 export function resolveUserClassroomRole(
   requestedRole?: string

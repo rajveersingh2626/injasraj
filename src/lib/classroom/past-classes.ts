@@ -5,6 +5,7 @@
  * - Room ID, class title, date, and duration.
  * - Snapshot of the complete whiteboard notebook (all canvas objects, pages, background images).
  * - Full retrieval support for reloading previous whiteboards into active sessions.
+ * - Backed by Supabase public.lessons and public.whiteboard_sessions tables (SSOT).
  */
 
 import {
@@ -13,6 +14,8 @@ import {
 } from '../whiteboard/whiteboard-persistence';
 import { deleteManagedRoom } from './room-manager';
 import { createDefaultWhiteboardPage, defaultWhiteboardPermissions } from '../../types/whiteboard';
+import { createBrowserClient } from '../supabase/client';
+import { CANONICAL_TEACHER_ID } from '../auth/teacher-auth';
 
 export const PAST_CLASSES_STORAGE_KEY = 'injasraj_past_classes_v1';
 
@@ -120,6 +123,27 @@ export async function archiveClassToHistory(
   // Clean up from active room manager
   deleteManagedRoom(roomId);
 
+  // Sync completed state to Supabase
+  try {
+    const supabase = createBrowserClient();
+    if (supabase && typeof supabase.from === 'function') {
+      Promise.resolve(
+        supabase
+          .from('lessons')
+          .upsert(
+            {
+              room_id: roomId,
+              teacher_id: CANONICAL_TEACHER_ID,
+              title: resolvedTitle,
+              status: 'completed',
+              end_time_utc: new Date().toISOString(),
+            },
+            { onConflict: 'room_id' }
+          )
+      ).catch(() => {});
+    }
+  } catch {}
+
   return record;
 }
 
@@ -131,6 +155,38 @@ export function getPastClasses(): PastClassRecord[] {
   return records.sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
+}
+
+/**
+ * Asynchronously synchronizes past completed classes from Supabase.
+ */
+export async function syncPastClassesFromSupabase(): Promise<PastClassRecord[]> {
+  try {
+    const supabase = createBrowserClient();
+    if (supabase && typeof supabase.from === 'function') {
+      const { data, error } = await supabase
+        .from('lessons')
+        .select('*')
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false });
+
+      if (!error && Array.isArray(data)) {
+        const synced: PastClassRecord[] = data.map((l: any) => ({
+          id: l.id,
+          roomId: l.room_id,
+          title: l.title || `Classroom (${l.room_id})`,
+          date: l.end_time_utc || l.created_at || new Date().toISOString(),
+          durationSeconds: 0,
+          pageCount: 1,
+        }));
+        saveStoredPastClasses(synced);
+        return synced;
+      }
+    }
+  } catch (err) {
+    console.warn('Could not sync past classes from Supabase:', err);
+  }
+  return getPastClasses();
 }
 
 /**

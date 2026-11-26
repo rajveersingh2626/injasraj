@@ -13,9 +13,21 @@ const DEFAULT_MOCK_ANON_KEY = 'mock-anon-jwt-token-for-local-testing';
  * or safe mock fallbacks for testing/local offline development.
  */
 export function getSupabaseConfig(): SupabaseConfig {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || DEFAULT_MOCK_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || DEFAULT_MOCK_ANON_KEY;
-  return { url, anonKey };
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !anonKey) {
+    if (typeof process !== 'undefined' && process.env.NODE_ENV === 'production') {
+      console.error(
+        'CRITICAL: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY is missing in production.'
+      );
+    }
+  }
+
+  return {
+    url: url || DEFAULT_MOCK_URL,
+    anonKey: anonKey || DEFAULT_MOCK_ANON_KEY,
+  };
 }
 
 // Global / module singleton cache to avoid multiple GoTrueClient instances

@@ -3,15 +3,16 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import TeacherDashboardPage from '../../src/app/page';
 
-const DEFAULT_TEACHER_ID = 'teacher-1';
-const DEFAULT_TEACHER_NAME = 'Injasraj';
+import { loginTeacher, logoutTeacher, CANONICAL_TEACHER_ID } from '../../src/lib/auth/teacher-auth';
 import BookTeacherPage from '../../src/app/book/[teacherId]/page';
 import { BookTeacherView } from '../../src/components/booking/BookTeacherView';
 import ClassroomPage from '../../src/app/classroom/[roomId]/page';
 import { ClassroomView } from '../../src/components/classroom/ClassroomView';
 import { IMediaSession, ConnectionQuality } from '../../src/types/media';
 import { SlotItem, formatDateLabel } from '../../src/utils/timezone';
-import { loginTeacher, logoutTeacher } from '../../src/lib/auth/teacher-auth';
+
+const DEFAULT_TEACHER_ID = CANONICAL_TEACHER_ID;
+const DEFAULT_TEACHER_NAME = 'Inderjit Kaur';
 
 // Extend expect for jest-dom matchers
 expect.extend({

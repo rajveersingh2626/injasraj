@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { TeacherAvailability } from '../../types/database';
 import { GlassCard } from '../ui/GlassCard';
 import { GlassButton } from '../ui/GlassButton';
+import { CANONICAL_TEACHER_ID } from '@/lib/auth/teacher-auth';
 
 export interface TeacherAvailabilityFormProps {
   teacherId?: string;
@@ -22,7 +23,7 @@ export const DAYS_OF_WEEK = [
 ];
 
 export const TeacherAvailabilityForm: React.FC<TeacherAvailabilityFormProps> = ({
-  teacherId = 'teacher-1',
+  teacherId = CANONICAL_TEACHER_ID,
   initialAvailabilities,
   onSave,
   isLoading = false,
