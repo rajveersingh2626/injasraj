@@ -87,6 +87,7 @@ export interface ClassroomWorkspaceProps {
   onModeChange?: (mode: WorkspaceMode) => void;
   localStream?: MediaStream | null;
   remoteStream?: MediaStream | null;
+  remoteScreenStream?: MediaStream | null;
   initialQuality?: ConnectionQuality;
   audioDevices?: MediaDeviceInfo[];
   videoDevices?: MediaDeviceInfo[];
@@ -118,6 +119,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   onModeChange,
   localStream: propLocalStream,
   remoteStream: propRemoteStream,
+  remoteScreenStream: propRemoteScreenStream,
   initialQuality,
   audioDevices: propAudioDevices,
   videoDevices: propVideoDevices,
@@ -174,6 +176,18 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(
     propRemoteStream || null
   );
+  const [localScreenStream, setLocalScreenStream] = useState<MediaStream | null>(null);
+  const localScreenStreamRef = useRef<MediaStream | null>(null);
+  const [remoteScreenStream, setRemoteScreenStream] = useState<MediaStream | null>(
+    propRemoteScreenStream || null
+  );
+  const [screenSharerName, setScreenSharerName] = useState<string | undefined>();
+
+  useEffect(() => {
+    if (propRemoteScreenStream !== undefined) {
+      setRemoteScreenStream(propRemoteScreenStream);
+    }
+  }, [propRemoteScreenStream]);
   const [quality, setQuality] = useState<ConnectionQuality>(
     initialQuality || createDefaultQuality()
   );
@@ -624,6 +638,20 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             handleToggleMic();
           } else if (payload.type === 'toggle-camera') {
             handleToggleCamera();
+          }
+        }
+      } else if (eventName === 'screen-share-state') {
+        if (payload?.isSharing) {
+          if (payload.sharerId !== userId) {
+            setScreenSharerName(payload.sharerName || 'Participant');
+            if (payload.screenStream) {
+              setRemoteScreenStream(payload.screenStream);
+            }
+          }
+        } else {
+          if (payload?.sharerId !== userId) {
+            setRemoteScreenStream(null);
+            setScreenSharerName(undefined);
           }
         }
       } else if (eventName === 'timer-state') {
@@ -1202,17 +1230,99 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
     setIsSidePanelCollapsed((prev) => !prev);
   };
 
-  // Screen Share Control
-  const handleToggleScreenShare = () => {
-    if (mediaSession) {
-      if (typeof (mediaSession as any).toggleScreenShare === 'function') {
-        (mediaSession as any).toggleScreenShare().catch(() => {});
-      } else if (isScreenSharing && typeof mediaSession.stopScreenShare === 'function') {
-        mediaSession.stopScreenShare().catch(() => {});
+  // Stop Screen Share (Clean teardown of local tracks, media session unpublishing, and canvas restoration)
+  const handleStopScreenShare = useCallback(async () => {
+    const stream = localScreenStreamRef.current || localScreenStream;
+    if (stream) {
+      stream.getTracks().forEach((track) => {
+        try {
+          track.onended = null;
+          track.stop();
+        } catch {}
+      });
+      localScreenStreamRef.current = null;
+      setLocalScreenStream(null);
+    }
+    setIsScreenSharing(false);
+    setScreenSharerName(undefined);
+
+    if (mediaSession && typeof mediaSession.stopScreenShare === 'function') {
+      try {
+        await mediaSession.stopScreenShare();
+      } catch (err) {
+        console.warn('Error stopping screen share on media session:', err);
       }
     }
-    setIsScreenSharing((prev) => !prev);
-  };
+
+    whiteboardAdapter?.broadcastCustomEvent?.('screen-share-state', {
+      isSharing: false,
+      sharerId: userId,
+    });
+  }, [localScreenStream, mediaSession, whiteboardAdapter, userId]);
+
+  // Screen Share Control (Standard Native Browser getDisplayMedia capture)
+  const handleToggleScreenShare = useCallback(async () => {
+    // If currently sharing, stop it cleanly
+    if (isScreenSharing || localScreenStream) {
+      await handleStopScreenShare();
+      return;
+    }
+
+    // Trigger standard browser native capture picker (Entire Screen, Window, Tab, with audio)
+    if (
+      typeof navigator !== 'undefined' &&
+      navigator.mediaDevices &&
+      typeof navigator.mediaDevices.getDisplayMedia === 'function'
+    ) {
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: {
+            displaySurface: 'monitor',
+          } as any,
+          audio: true,
+        });
+
+        if (!stream) return;
+
+        const screenTrack = stream.getVideoTracks()[0];
+        if (!screenTrack) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+
+        // Auto-revert cleanly when user clicks the browser's floating "Stop sharing" bar
+        screenTrack.onended = () => {
+          handleStopScreenShare();
+        };
+
+        localScreenStreamRef.current = stream;
+        setLocalScreenStream(stream);
+        setIsScreenSharing(true);
+        setScreenSharerName('You');
+
+        // Publish track to LiveKit SFU or WebRTC P2P
+        if (mediaSession && typeof mediaSession.publishScreenShare === 'function') {
+          await mediaSession.publishScreenShare(screenTrack);
+        }
+
+        // Broadcast to all participants that screen share is active on the whiteboard
+        whiteboardAdapter?.broadcastCustomEvent?.('screen-share-state', {
+          isSharing: true,
+          sharerId: userId,
+          sharerName: localName,
+        });
+      } catch (err: any) {
+        // Handle user cancelling or rejecting capture dialog gracefully
+        if (err.name === 'NotAllowedError' || err.name === 'AbortError') {
+          console.log('Screen capture dismissed or cancelled by user.');
+        } else {
+          console.warn('getDisplayMedia capture failed:', err);
+        }
+      }
+    } else {
+      console.warn('Screen sharing (getDisplayMedia) is not supported in this browser environment.');
+    }
+  }, [isScreenSharing, localScreenStream, handleStopScreenShare, mediaSession, whiteboardAdapter, userId, localName]);
 
   // Page Navigation Handlers
   const handlePageChange = (pageNum: number) => {
@@ -2063,6 +2173,10 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             documentCurrentPage={activeWhiteboardPage?.pdfDocument?.currentPage || 1}
             documentTotalPages={activeWhiteboardPage?.pdfDocument?.totalPages}
             onDocumentPageChange={handlePdfSubPageChange}
+            screenStream={localScreenStream || remoteScreenStream}
+            isScreenSharingActive={Boolean(localScreenStream || remoteScreenStream)}
+            screenSharerName={screenSharerName}
+            onStopScreenShare={localScreenStream ? handleStopScreenShare : undefined}
             className="w-full flex-1 min-h-0"
           />
         </main>

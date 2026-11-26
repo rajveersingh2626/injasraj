@@ -32,3 +32,9 @@
 - [x] Task 11: Git Commit & Handover Documentation
   - [x] 11.1 Update `HANDOVER.md` and `CONTEXT.md`.
   - [x] 11.2 Stage changes and commit cleanly on the branch.
+- [x] Task 12: Working Screen Share Rendered Directly on Whiteboard (Requirement 10)
+  - [x] 12.1 Implement `getDisplayMedia` capture with audio support, error/cancel handling, and `screenTrack.onended` auto-teardown.
+  - [x] 12.2 Publish screen share track via LiveKit SFU (`publishTrack({ source: 'screen_share' })`) and WebRTC P2P with `screen-share-state` broadcast.
+  - [x] 12.3 Render live screen share video inside `WhiteboardStage` (`canvas-stage-wrapper`) with transparent Fabric overlay for real-time pen/laser annotations.
+  - [x] 12.4 Add in-app and native browser Stop Sharing teardown with track cleanup and whiteboard restoration.
+  - [x] 12.5 Add dedicated test suite `tests/whiteboard/screen-share-whiteboard.test.tsx` (all 5 tests passing).

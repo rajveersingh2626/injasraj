@@ -75,6 +75,12 @@ export interface WhiteboardStageProps {
   documentTotalPages?: number;
   onDocumentPageChange?: (page: number) => void;
 
+  // Screen Sharing
+  screenStream?: MediaStream | null;
+  isScreenSharingActive?: boolean;
+  screenSharerName?: string;
+  onStopScreenShare?: () => void;
+
   // User & Permissions
   role?: 'teacher' | 'student';
   userId?: string;
@@ -140,6 +146,11 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
   documentCurrentPage,
   documentTotalPages,
   onDocumentPageChange,
+  // Screen Sharing
+  screenStream,
+  isScreenSharingActive,
+  screenSharerName,
+  onStopScreenShare,
   // User & Permissions
   role = 'teacher',
   userId = 'user-1',
@@ -934,13 +945,54 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
           transformOrigin: 'center center',
         }}
       >
+        {/* Screen Share Live Media Stream Viewport */}
+        {screenStream && (
+          <div
+            data-testid="whiteboard-screenshare-container"
+            className="absolute inset-0 w-full h-full rounded-xl overflow-hidden bg-black flex items-center justify-center z-0"
+          >
+            <video
+              ref={(el) => {
+                if (el && el.srcObject !== screenStream) {
+                  el.srcObject = screenStream;
+                }
+              }}
+              data-testid="whiteboard-screenshare-video"
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-contain pointer-events-none"
+            />
+            {/* Floating Screen Share Status Pill */}
+            <div
+              data-testid="screenshare-status-pill"
+              className="absolute top-3 left-3 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full bg-stone-900/90 backdrop-blur-md border border-white/10 text-white text-xs font-medium shadow-lg select-none"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>{screenSharerName ? `${screenSharerName}'s screen` : 'Screen share active'}</span>
+              {onStopScreenShare && (
+                <button
+                  type="button"
+                  data-testid="whiteboard-stop-screenshare-btn"
+                  onClick={onStopScreenShare}
+                  className="ml-2 px-2 py-0.5 rounded bg-red-500/80 hover:bg-red-500 text-white text-[11px] font-semibold transition-all cursor-pointer"
+                >
+                  Stop Sharing
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Fabric Vector Canvas */}
         <canvas
           ref={canvasRef}
           data-testid="whiteboard-canvas"
           width={stageAspect === '16:9' ? 1920 : DEFAULT_PORTRAIT_WIDTH}
           height={stageAspect === '16:9' ? 1080 : DEFAULT_PORTRAIT_HEIGHT}
-          className={`w-full h-full block bg-white rounded-xl shadow-xl shadow-stone-900/10 border border-stone-200/80 touch-none ${getToolCursorClass(
+          className={`w-full h-full block ${
+            screenStream ? 'bg-transparent relative z-10' : 'bg-white'
+          } rounded-xl shadow-xl shadow-stone-900/10 border border-stone-200/80 touch-none ${getToolCursorClass(
             activeTool
           )}`}
           onPointerDown={handlePointerDown}
@@ -961,7 +1013,7 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
           data-testid="laser-overlay"
           width={stageAspect === '16:9' ? 1920 : DEFAULT_PORTRAIT_WIDTH}
           height={stageAspect === '16:9' ? 1080 : DEFAULT_PORTRAIT_HEIGHT}
-          className="absolute inset-0 pointer-events-none w-full h-full z-10"
+          className="absolute inset-0 pointer-events-none w-full h-full z-20"
         />
       </div>
 

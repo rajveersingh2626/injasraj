@@ -17,7 +17,7 @@
   - `500ac16`: *fix(pdf): resolve worker version mismatch and serve local worker for high-dpi rendering*
   - `977767c`: *fix(toolbar): resolve color picker popover clipping by setting overflow-visible*
   - `06fd02f`: *fix(whiteboard): make viewport an infinite seamless white canvas*
-- **Test Suite**: **71/71 test suites passed (724/724 tests)** via Vitest.
+- **Test Suite**: **72/72 test suites passed (729/729 tests)** via Vitest.
 - **Production Build**: **Clean build** via `npm run build` (Next.js 15.5.29 App Router, React 19).
 - **Working Tree**: Ready for release.
 
@@ -138,6 +138,12 @@ npm run lint
   - In `ClassroomWorkspace.tsx`, resolved canvas backgrounds from Single Source of Truth (`target.backgroundImageUrl || target.pdfDocument?.pages[...] || target.thumbnailUrl`), preventing `clearBackgroundImage()` from erasing PDFs on page switch or viewport change.
 - **High-Fidelity PDF Export**:
   - Multi-page PDF export renders all pages and document sub-pages with canvas objects, WebP/PNG backgrounds, shapes, and formulas via `pdf-lib-export.ts`.
+- **Working Screen Share Directly on Whiteboard**:
+  - Clicking "Share Screen" in `ControlBar` triggers native `navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })` across Entire Screen, Window, or Browser Tab.
+  - Live screen share stream renders directly in `WhiteboardStage` (`canvas-stage-wrapper`) via `<video autoPlay playsInline muted object-contain />`.
+  - Fabric canvas becomes `bg-transparent` while sharing is active, allowing live drawing, annotations, pen strokes, sticky notes, formulas, and laser pointer trails directly over the shared screen.
+  - Clean teardown triggers from either in-app "Stop Sharing" button or the browser's native floating notification bar (`screenTrack.onended`), cleanly stopping all tracks and restoring the whiteboard background with zero stale frames.
+  - Published to remote peers via LiveKit Cloud SFU (`Track.Source.ScreenShare`) and Supabase Realtime broadcast (`screen-share-state`). Verified by `tests/whiteboard/screen-share-whiteboard.test.tsx`.
 
 ---
 

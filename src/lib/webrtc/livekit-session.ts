@@ -11,6 +11,7 @@ export class LiveKitMediaSession implements IMediaSession {
   private cameraEnabled = true;
   private screenShareEnabled = false;
   private remoteTrackCallbacks: ((track: MediaStreamTrack, stream: MediaStream) => void)[] = [];
+  private remoteScreenTrackCallbacks: ((track: MediaStreamTrack | null, stream: MediaStream | null) => void)[] = [];
   private qualityCallbacks: ((metrics: ConnectionQuality) => void)[] = [];
   private participantCallbacks: ((participants: any[]) => void)[] = [];
   private currentQuality: ConnectionQuality = createDefaultQuality();
@@ -49,6 +50,12 @@ export class LiveKitMediaSession implements IMediaSession {
       });
 
       this.room.on(RoomEvent.TrackSubscribed, (track: any, publication: any, participant: any) => {
+        const isScreenShare =
+          track.source === Track.Source.ScreenShare ||
+          publication?.source === Track.Source.ScreenShare ||
+          publication?.source === 'screen_share' ||
+          publication?.trackName?.includes('screen');
+
         if (track.kind === 'audio' && typeof document !== 'undefined') {
           try {
             const audioElement = track.attach();
@@ -57,6 +64,9 @@ export class LiveKitMediaSession implements IMediaSession {
           } catch (err) {
             console.warn('Audio track auto-attach notice:', err);
           }
+        } else if (isScreenShare && track.mediaStreamTrack) {
+          const mediaStream = new MediaStream([track.mediaStreamTrack]);
+          this.emitRemoteScreenTrack(track.mediaStreamTrack, mediaStream);
         } else if (track.mediaStreamTrack) {
           const mediaStream = new MediaStream([track.mediaStreamTrack]);
           this.emitRemoteTrack(track.mediaStreamTrack, mediaStream);
@@ -64,7 +74,17 @@ export class LiveKitMediaSession implements IMediaSession {
         this.emitParticipants();
       });
 
-      this.room.on(RoomEvent.TrackUnsubscribed, (track: any) => {
+      this.room.on(RoomEvent.TrackUnsubscribed, (track: any, publication: any) => {
+        const isScreenShare =
+          track?.source === Track.Source.ScreenShare ||
+          publication?.source === Track.Source.ScreenShare ||
+          publication?.source === 'screen_share' ||
+          publication?.trackName?.includes('screen');
+
+        if (isScreenShare) {
+          this.emitRemoteScreenTrack(null, null);
+        }
+
         if (track && typeof track.detach === 'function') {
           try {
             const elements = track.detach();
@@ -194,7 +214,14 @@ export class LiveKitMediaSession implements IMediaSession {
     this.screenShareEnabled = true;
     if (this.room?.localParticipant) {
       try {
-        await this.room.localParticipant.setScreenShareEnabled(true);
+        if (screenTrack) {
+          await this.room.localParticipant.publishTrack(screenTrack, {
+            name: 'screen_share',
+            source: 'screen_share',
+          });
+        } else {
+          await this.room.localParticipant.setScreenShareEnabled(true);
+        }
       } catch (err) {
         console.warn('Screen share publish notice:', err);
       }
@@ -205,6 +232,10 @@ export class LiveKitMediaSession implements IMediaSession {
     this.screenShareEnabled = false;
     if (this.room?.localParticipant) {
       try {
+        const screenPub = this.room.localParticipant.getTrackPublication?.('screen_share');
+        if (screenPub && typeof this.room.localParticipant.unpublishTrack === 'function') {
+          await this.room.localParticipant.unpublishTrack(screenPub.track);
+        }
         await this.room.localParticipant.setScreenShareEnabled(false);
       } catch (err) {
         console.warn('Screen share stop notice:', err);
@@ -232,6 +263,20 @@ export class LiveKitMediaSession implements IMediaSession {
 
   onRemoteTrack(callback: (track: MediaStreamTrack, stream: MediaStream) => void): void {
     this.remoteTrackCallbacks.push(callback);
+  }
+
+  onRemoteScreenTrack(callback: (track: MediaStreamTrack | null, stream: MediaStream | null) => void): void {
+    this.remoteScreenTrackCallbacks.push(callback);
+  }
+
+  emitRemoteScreenTrack(track: MediaStreamTrack | null, stream: MediaStream | null): void {
+    for (const cb of this.remoteScreenTrackCallbacks) {
+      try {
+        cb(track, stream);
+      } catch (e) {
+        console.error(e);
+      }
+    }
   }
 
   onQualityMetrics(callback: (metrics: ConnectionQuality) => void): void {
