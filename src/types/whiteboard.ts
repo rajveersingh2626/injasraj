@@ -173,7 +173,7 @@ export const DEFAULT_STUDENT_ALLOWED_TOOLS: WhiteboardToolType[] = [
  */
 export function defaultWhiteboardPermissions(): WhiteboardPermissions {
   return {
-    isLockedGlobally: false,
+    isLockedGlobally: true,
     tabLocks: {},
     studentDrawingGranted: {},
     preventDeletingTeacherContent: true,
