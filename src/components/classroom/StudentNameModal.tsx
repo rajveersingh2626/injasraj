@@ -11,6 +11,21 @@ export interface StudentNameModalProps {
 }
 
 export const STUDENT_NAME_STORAGE_KEY = 'injasraj_student_name';
+export const STUDENT_DEVICE_ID_STORAGE_KEY = 'injasraj_student_device_id';
+
+export function getOrCreateStudentDeviceId(): string {
+  if (typeof window === 'undefined') return 'server_student_device';
+  try {
+    let deviceId = localStorage.getItem(STUDENT_DEVICE_ID_STORAGE_KEY);
+    if (!deviceId || !deviceId.trim()) {
+      deviceId = `student_dev_${Math.random().toString(36).substring(2, 11)}_${Date.now().toString(36)}`;
+      localStorage.setItem(STUDENT_DEVICE_ID_STORAGE_KEY, deviceId);
+    }
+    return deviceId;
+  } catch {
+    return 'fallback_student_device';
+  }
+}
 
 export const StudentNameModal: React.FC<StudentNameModalProps> = ({
   isOpen,

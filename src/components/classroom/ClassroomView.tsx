@@ -24,7 +24,7 @@ import {
   getTeacherSession,
 } from '../../lib/auth/teacher-auth';
 import { recordRoomJoin, getRoomById } from '../../lib/classroom/room-manager';
-import { StudentNameModal, STUDENT_NAME_STORAGE_KEY } from './StudentNameModal';
+import { StudentNameModal, STUDENT_NAME_STORAGE_KEY, getOrCreateStudentDeviceId } from './StudentNameModal';
 import { Participant } from '../whiteboard/tabs/PeopleTab';
 import { Lock, LogIn, AlertOctagon, ArrowLeft } from 'lucide-react';
 
@@ -112,11 +112,28 @@ export function ClassroomView({
       ? teacherSession?.teacherName || 'Teacher'
       : resolvedStudentName || 'Student');
 
-  // Persistent User ID for this session
-  const userIdRef = useRef<string>(
-    propUserId || `peer_${activeRole}_${Math.random().toString(36).substring(2, 9)}`
-  );
-  const userId = userIdRef.current;
+  // Persistent User ID for this session (keyed by device ID for students to guarantee clean rejoins)
+  const [resolvedUserId, setResolvedUserId] = useState<string>(() => {
+    if (propUserId) return propUserId;
+    if (role === 'teacher') {
+      const ts = getTeacherSession();
+      return ts?.teacherId || `teacher_${Math.random().toString(36).substring(2, 9)}`;
+    }
+    if (typeof window !== 'undefined') {
+      const devId = getOrCreateStudentDeviceId();
+      return `student_${devId}`;
+    }
+    return `student_pending_${Math.random().toString(36).substring(2, 9)}`;
+  });
+
+  useEffect(() => {
+    if (!propUserId && activeRole === 'student') {
+      const devId = getOrCreateStudentDeviceId();
+      setResolvedUserId(`student_${devId}`);
+    }
+  }, [activeRole, propUserId]);
+
+  const userId = propUserId || resolvedUserId;
 
   // Instantiate or reuse WebRTC / LiveKit media session
   const internalMediaSession = useMemo(() => {
@@ -268,15 +285,16 @@ export function ClassroomView({
         });
       }
 
-      // Wire LiveKit participant changes to classroom state
+      // Wire LiveKit participant changes to classroom state (including dynamic mic/camera mute states)
       if (typeof (activeMediaSession as any).onParticipantsChange === 'function') {
         (activeMediaSession as any).onParticipantsChange((lkParticipants: any[]) => {
           if (!isCancelled && Array.isArray(lkParticipants) && lkParticipants.length > 0) {
             setRemoteParticipants((prev) => {
               const updated = [...prev];
               lkParticipants.forEach((p) => {
-                if (p.id !== userId && !updated.some((u) => u.id === p.id)) {
-                  updated.push({
+                if (p.id !== userId) {
+                  const existingIdx = updated.findIndex((u) => u.id === p.id);
+                  const entry: Participant = {
                     id: p.id,
                     name: p.name || 'Participant',
                     role: p.role || 'student',
@@ -284,7 +302,12 @@ export function ClassroomView({
                     isCameraOn: p.isCameraOn ?? true,
                     isSelf: false,
                     isDrawingAllowed: p.role === 'teacher',
-                  });
+                  };
+                  if (existingIdx >= 0) {
+                    updated[existingIdx] = { ...updated[existingIdx], ...entry };
+                  } else {
+                    updated.push(entry);
+                  }
                 }
               });
               return updated;
@@ -301,8 +324,10 @@ export function ClassroomView({
         }
       }
 
-      // Try acquiring local media if available in browser
+      // Try acquiring local media if LiveKit did not already acquire or if using P2P fallback
+      const isLiveKit = activeMediaSession instanceof LiveKitMediaSession;
       if (
+        !isLiveKit &&
         typeof navigator !== 'undefined' &&
         navigator.mediaDevices?.getUserMedia
       ) {
