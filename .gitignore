@@ -41,3 +41,6 @@ yarn-error.log*
 console.log*
 *.type
 powershell.cmd
+
+.vercel
+.env*
