@@ -2069,33 +2069,50 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
             />
           </div>
 
-          {/* Remote Participant Video Tiles - Only rendered as soon as they join */}
-          {remotePeers.map((peer, idx) => (
+          {/* Remote Participant Video Tiles - Gated for students until class is started by teacher */}
+          {role === 'student' && sessionStatus === 'waiting' ? (
             <div
-              key={peer.id}
-              data-testid={idx === 0 ? "remote-video-wrapper" : `remote-student-tile-${peer.id}`}
-              className={`transition-all duration-300 ease-out overflow-hidden rounded-xl ${
+              data-testid="remote-video-waiting-placeholder"
+              className={`transition-all duration-300 ease-out overflow-hidden rounded-xl bg-stone-900 border border-stone-800 flex flex-col items-center justify-center p-4 text-center ${
                 mode === 'classroom'
-                  ? 'w-full aspect-video shadow-lg border border-white/[0.08]'
-                  : 'w-36 md:w-44 aspect-video shadow-2xl border border-white/20 backdrop-blur-md'
+                  ? 'w-full aspect-video shadow-lg'
+                  : 'w-36 md:w-44 aspect-video shadow-2xl'
               }`}
             >
-              <VideoCard
-                participantName={peer.name}
-                roleBadge={peer.role === 'teacher' ? 'Teacher' : 'Student'}
-                stream={idx === 0 ? remoteStream : null}
-                isLocal={false}
-                isCameraOff={idx === 0 ? isRemoteCameraOff : true}
-                isAudioMuted={idx === 0 ? isRemoteAudioMuted : false}
-                starsCount={studentStars[peer.id] || 0}
-                canAwardStar={role === 'teacher' && peer.role !== 'teacher'}
-                onAwardStar={() => handleAwardStar(peer.id, peer.name)}
-                canControlRemoteMedia={role === 'teacher' && peer.role !== 'teacher'}
-                onRemoteToggleMic={() => handleRemoteToggleMic(peer.id)}
-                onRemoteToggleCamera={() => handleRemoteToggleCamera(peer.id)}
-              />
+              <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 mb-2">
+                <Clock className="w-5 h-5 animate-pulse" />
+              </div>
+              <p className="text-xs font-semibold text-stone-200">Teacher Video Feed Gated</p>
+              <p className="text-[10px] text-stone-400 mt-0.5">Media connects when class starts</p>
             </div>
-          ))}
+          ) : (
+            remotePeers.map((peer, idx) => (
+              <div
+                key={peer.id}
+                data-testid={idx === 0 ? "remote-video-wrapper" : `remote-student-tile-${peer.id}`}
+                className={`transition-all duration-300 ease-out overflow-hidden rounded-xl ${
+                  mode === 'classroom'
+                    ? 'w-full aspect-video shadow-lg border border-white/[0.08]'
+                    : 'w-36 md:w-44 aspect-video shadow-2xl border border-white/20 backdrop-blur-md'
+                }`}
+              >
+                <VideoCard
+                  participantName={peer.name}
+                  roleBadge={peer.role === 'teacher' ? 'Teacher' : 'Student'}
+                  stream={idx === 0 ? remoteStream : null}
+                  isLocal={false}
+                  isCameraOff={peer.isCameraOn !== undefined ? !peer.isCameraOn : (idx === 0 ? isRemoteCameraOff : true)}
+                  isAudioMuted={peer.isMicOn !== undefined ? !peer.isMicOn : (idx === 0 ? isRemoteAudioMuted : false)}
+                  starsCount={studentStars[peer.id] || 0}
+                  canAwardStar={role === 'teacher' && peer.role !== 'teacher'}
+                  onAwardStar={() => handleAwardStar(peer.id, peer.name)}
+                  canControlRemoteMedia={role === 'teacher' && peer.role !== 'teacher'}
+                  onRemoteToggleMic={() => handleRemoteToggleMic(peer.id)}
+                  onRemoteToggleCamera={() => handleRemoteToggleCamera(peer.id)}
+                />
+              </div>
+            ))
+          )}
         </div>
 
         {/* Whiteboard Interactive Canvas Stage */}

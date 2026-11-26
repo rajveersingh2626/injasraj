@@ -51,6 +51,16 @@ export class LiveKitMediaSession implements IMediaSession {
       this.room = new Room({
         adaptiveStream: true,
         dynacast: true,
+        publishDefaults: {
+          simulcast: true,
+          videoCodec: 'vp8',
+          videoEncoding: {
+            maxBitrate: 1_200_000,
+            maxFramerate: 30,
+          },
+          dtx: true,
+          red: true,
+        },
       });
 
       this.room.on(RoomEvent.TrackSubscribed, (track: any, publication: any, participant: any) => {
@@ -106,6 +116,22 @@ export class LiveKitMediaSession implements IMediaSession {
         this.emitParticipants();
       });
 
+      this.room.on(RoomEvent.TrackMuted, (_pub: any, _participant: any) => {
+        this.emitParticipants();
+      });
+
+      this.room.on(RoomEvent.TrackUnmuted, (_pub: any, _participant: any) => {
+        this.emitParticipants();
+      });
+
+      this.room.on(RoomEvent.LocalTrackPublished, () => {
+        this.emitParticipants();
+      });
+
+      this.room.on(RoomEvent.LocalTrackUnpublished, () => {
+        this.emitParticipants();
+      });
+
       this.room.on(
         RoomEvent.ConnectionQualityChanged,
         (quality: any, participant: any) => {
@@ -158,12 +184,23 @@ export class LiveKitMediaSession implements IMediaSession {
     try {
       if (this.room.remoteParticipants) {
         this.room.remoteParticipants.forEach((p: any) => {
+          let isMicOn = p.isMicrophoneEnabled ?? true;
+          let isCameraOn = p.isCameraEnabled ?? true;
+
+          // Check track publications directly for real-time mute states
+          if (typeof p.getTrackPublication === 'function') {
+            const audioPub = p.getTrackPublication('audio') || p.getTrackPublication(1);
+            if (audioPub) isMicOn = !audioPub.isMuted;
+            const videoPub = p.getTrackPublication('video') || p.getTrackPublication(2);
+            if (videoPub) isCameraOn = !videoPub.isMuted;
+          }
+
           result.push({
             id: p.identity || p.sid,
             name: p.name || p.identity,
             role: p.metadata ? JSON.parse(p.metadata)?.role : 'student',
-            isMicOn: p.isMicrophoneEnabled ?? true,
-            isCameraOn: p.isCameraEnabled ?? true,
+            isMicOn,
+            isCameraOn,
           });
         });
       }
