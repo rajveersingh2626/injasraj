@@ -17,13 +17,13 @@ describe('LiveKit Cloud Production & WebRTC Verification', () => {
   const apiSecret = process.env.LIVEKIT_API_SECRET || '';
   const httpUrl = wsUrl.replace('wss://', 'https://');
 
-  it('authenticates and connects to LiveKit Cloud SFU via RoomServiceClient', async () => {
+  it.skipIf(!apiKey || !apiSecret)('authenticates and connects to LiveKit Cloud SFU via RoomServiceClient', async () => {
     const svc = new RoomServiceClient(httpUrl, apiKey, apiSecret);
     const rooms = await svc.listRooms();
     expect(Array.isArray(rooms)).toBe(true);
   });
 
-  it('creates an ephemeral room, queries it, and deletes it cleanly on LiveKit Cloud', async () => {
+  it.skipIf(!apiKey || !apiSecret)('creates an ephemeral room, queries it, and deletes it cleanly on LiveKit Cloud', async () => {
     const svc = new RoomServiceClient(httpUrl, apiKey, apiSecret);
     const testRoomId = `e2e-test-${Date.now()}`;
 
@@ -50,7 +50,7 @@ describe('LiveKit Cloud Production & WebRTC Verification', () => {
     expect(found).toBeUndefined();
   });
 
-  it('mints teacher and student tokens via /api/livekit/token with correct roles and claims', async () => {
+  it.skipIf(!apiKey || !apiSecret)('mints teacher and student tokens via /api/livekit/token with correct roles and claims', async () => {
     // 1. Teacher token
     const teacherReq = new NextRequest(
       'http://localhost:3000/api/livekit/token?room=e2e-room&username=Inderjit+Kaur&userId=teacher-1&role=teacher'
@@ -74,7 +74,7 @@ describe('LiveKit Cloud Production & WebRTC Verification', () => {
     expect(studentData.token.split('.').length).toBe(3);
   });
 
-  it('generates valid grants for multi-party audio, video, and screen share in live tokens', async () => {
+  it.skipIf(!apiKey || !apiSecret)('generates valid grants for multi-party audio, video, and screen share in live tokens', async () => {
     const at = new AccessToken(apiKey, apiSecret, {
       identity: 'test-identity',
       name: 'Test Participant',

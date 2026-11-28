@@ -1,32 +1,37 @@
-# Ralph Loop Task Checklist: Production Polish & Real-Time Controls
+# Ralph Loop Master Checklist: Vercel + Supabase Architecture Hardening
 
-- [x] Task 1: Uncropped Camera Feeds & Redesigned Teacher/Student Camera Layout (Items 6 & 7)
-  - [x] 1.1 In `VideoCard.tsx`, change video styling from `object-cover` to `object-contain bg-zinc-950` so camera feeds are 100% exact and never cropped.
-  - [x] 1.2 In `livekit-session.ts`, ensure `getUserMedia` / `VideoCaptureOptions` does not enforce rigid 16:9 crop constraints.
-  - [x] 1.3 In `ClassroomWorkspace.tsx`, restructure video tiles: Top primary full-width landscape tile for teacher / main presenter, Bottom 2-column grid (`grid grid-cols-2 gap-2`) for students/participants.
-- [x] Task 2: Waiting Room Student Camera Preview for Teacher (Item 5)
-  - [x] 2.1 In `livekit-session.ts`, map remote streams by participant identity (`remoteStreams: Map<string, MediaStream>`) and emit per-participant streams.
-  - [x] 2.2 In `ClassroomWorkspace.tsx`, allow the teacher to receive and render the student's live camera preview tile when `sessionStatus === 'waiting'`, while keeping teacher video/audio gated from student until started.
-- [x] Task 3: Per-Tab Lock/Unlock & Canvas Enforcement (Item 3)
-  - [x] 3.1 Update `WhiteboardPage` interface to include `isLocked?: boolean`, and `WhiteboardPermissions` to include `tabLocks?: Record<string, boolean>`.
-  - [x] 3.2 In `BrowserTabBar.tsx`, add interactive lock/unlock icon button on every tab for teacher, and lock indicator badge for students.
-  - [x] 3.3 In `FabricWhiteboardEngine` and `WhiteboardStage.tsx`, enforce lock state on student canvas (block pointer drawing, disable tools in toolbar, show locked banner).
-- [x] Task 4: Force-Sync Students to Teacher's Active Whiteboard Tab (Item 4)
-  - [x] 4.1 In `BrowserTabBar.tsx`, prevent students from navigating tabs independently (`if (!isTeacher) return;`).
-  - [x] 4.2 In `ClassroomWorkspace.tsx`, broadcast `page-switch` on teacher tab changes and enforce student auto-follow to active tab.
-- [x] Task 5: Screen Share Auto-Open in New Dedicated Whiteboard Tab (Item 1)
-  - [x] 5.1 When screen share is published or received, auto-create a dedicated screen share tab (`isScreenShareTab: true`) and auto-switch participants to it.
-  - [x] 5.2 Render screen share video inside the dedicated tab with unhindered visibility (`object-contain`) and transparent drawing layer for annotations.
-  - [x] 5.3 On stop screen share, auto-close the screen share tab and return to the previous active whiteboard page.
-- [x] Task 6: Expanded Teacher Meeting Controls on Studio Panel (Item 2)
-  - [x] 6.1 In `PeopleTab.tsx` and `StudioSidePanel.tsx`, add "Mute All" button for teacher.
-  - [x] 6.2 Add per-student remote mic and camera toggle buttons in student participant cards.
-  - [x] 6.3 Add toggles for Screen Share Permissions, Student Chat Permission, and End Class button.
-- [x] Task 7: Working Real-Time In-Class Chat & Relocated Chat Toggle (Item 8)
-  - [x] 7.1 In `ClassroomWorkspace.tsx`, broadcast chat messages via signaling / adapter (`chat-message` event) and handle incoming chat deltas.
-  - [x] 7.2 Add dedicated Chat Toggle Button in top navigation with unread badge counter that opens Studio Panel directly on the Chat tab.
-- [x] Task 8: Mechanical Verification, Documentation & Pull Request
-  - [x] 8.1 Run full Vitest test suite (`npm test -- --run`).
-  - [x] 8.2 Run Next.js production build (`npm run build`).
-  - [x] 8.3 Update `HANDOVER.md` and `CONTEXT.md`.
-  - [x] 8.4 Commit changes with atomic messages and push branch to open PR.
+## Phase 1: Architecture Decision Records & API Contracts
+- [x] 1.1 Create formal ADRs in `docs/adr/` per `architecture-decision-records`:
+  - `ADR-001-serverless-database-and-pooling.md`: Supabase Postgres + Supavisor transaction pooler on port 6543.
+  - `ADR-002-blob-storage-separation.md`: Offloading whiteboard canvas JSON and PDF raster slides into Supabase Storage.
+  - `ADR-003-scheduled-room-lifecycle.md`: Vercel Cron room expiry sweeps replacing client-side intervals.
+- [x] 1.2 Map classroom UI consumers into TypeScript request/response contracts with Zod validation in `src/contracts/classroom-contracts.ts` per `frontend-to-backend-requirements`.
+- [x] 1.3 Write unit tests for contract validators in `tests/contracts/classroom-contracts.test.ts`.
+
+## Phase 2: Relational Schema Modeling & Migration Planning
+- [x] 2.1 Normalize data model per `database-schema-designer` and `database-design`: `rooms`, `room_participants`, `whiteboard_sessions`, `whiteboard_pages`, `teacher_profiles`, and `bookings` with strict foreign keys, cascade deletes, and check constraints.
+- [x] 2.2 Design table partitioning and relational boundaries between active sessions and cold past classes per `database-architect`.
+- [x] 2.3 Structure sequential, reversible migration in `supabase/migrations/20261128000002_rearchitect_normalized_schema.sql` and rollback `20261128000002_rearchitect_normalized_schema.down.sql` per `database-migration`.
+- [x] 2.4 Verify migration syntax, constraints, and test schema in `tests/database/schema-verification.test.ts`.
+
+## Phase 3: PostgreSQL Optimization & Best Practices
+- [x] 3.1 Configure Supavisor transaction mode on port 6543 (`src/lib/supabase/pooler.ts`) and audit connection pooling per `postgres-best-practices`.
+- [x] 3.2 Harden Row-Level Security (RLS) policies ensuring students cannot mutate teacher settings or other rooms.
+- [x] 3.3 Design composite B-Tree indexes for high-frequency queries (`(status, created_at)`, `(room_id, page_index)`) and verify query execution plans under 5ms per `postgresql-optimization`.
+- [x] 3.4 Write tests verifying pooler config and RLS policy rules in `tests/database/postgres-optimization.test.ts`.
+
+## Phase 4: API Architecture, Service Layer & Backend Patterns
+- [x] 4.1 Refactor Next.js App Router route handlers to Controller -> Service Layer -> Repository pattern with centralized error envelopes and structured logging per `backend-architect` and `nodejs-backend-patterns` (`src/server/errors.ts`, `src/server/logger.ts`, `src/server/repositories/`, `src/server/services/`).
+- [x] 4.2 Enforce RESTful consistency, idempotency keys on room creation/booking endpoints, and standard HTTP error codes per `api-design-principles`.
+- [x] 4.3 Implement Vercel Cron handler at `/api/cron/room-sweeper/route.ts` authenticated via `CRON_SECRET`.
+- [x] 4.4 Write tests for service layer, repositories, and cron handler in `tests/server/api-architecture.test.ts`.
+
+## Phase 5: Backup Strategy & Disaster Recovery
+- [x] 5.1 Document disaster recovery and point-in-time recovery runbooks in `docs/disaster-recovery.md` per `database-backups`.
+- [x] 5.2 Implement GitHub Actions automated backup workflow at `.github/workflows/db-backup.yml` for automated scheduled pg_dump to encrypted storage.
+- [x] 5.3 Write verification test ensuring backup workflow and disaster recovery documentation integrity in `tests/devops/backup-workflow.test.ts`.
+
+## Verification & Handover
+- [x] 6.1 Execute full test suite `npx vitest run` ensuring 100% green tests.
+- [x] 6.2 Update `CONTEXT.md` and `HANDOVER.md`.
+- [x] 6.3 Commit all changes with clear atomic git messages.

@@ -41,6 +41,7 @@
 
 ### Root & Configuration Files
 - [`package.json`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/package.json): Project dependencies, scripts (`dev`, `build`, `test`, `lint`).
+- [`vercel.json`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/vercel.json): Vercel configuration including Vercel Cron schedule (`/api/cron/room-sweeper` every 5m).
 - [`tsconfig.json`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/tsconfig.json): TypeScript compilation settings, `@/*` path aliases mapped to `./src/*`.
 - [`vitest.config.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/vitest.config.ts): Vitest configuration, jsdom test environment, global setup, path resolution.
 - [`tailwind.config.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/tailwind.config.ts): Design system theme colors (warm stone palette, zinc accents, custom shadows).
@@ -48,6 +49,17 @@
 - [`.env.local`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/.env.local): Environment secrets (Supabase URL, anon key).
 - [`CONTEXT.md`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/CONTEXT.md): **This file** — System architecture, comprehensive file map, and developer guidelines.
 - [`HANDOVER.md`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/HANDOVER.md): Working memory, operational state, test statuses, and instructions for next agent.
+- [`docs/adr/`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/docs/adr/): Formal Architecture Decision Records (ADR-001 Supavisor Pooling, ADR-002 Blob Storage Separation, ADR-003 Scheduled Room Lifecycle).
+- [`docs/disaster-recovery.md`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/docs/disaster-recovery.md): Comprehensive disaster recovery, PITR, and backup runbooks.
+- [`.github/workflows/db-backup.yml`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/.github/workflows/db-backup.yml): Automated scheduled `pg_dump` with AES-256 GPG encryption.
+
+### Contracts & Service Architecture (`src/contracts/`, `src/server/`)
+- [`src/contracts/classroom-contracts.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/contracts/classroom-contracts.ts): Zod schemas for whiteboard sync, room manager, past classes, bookings, and cron sweeps.
+- [`src/server/errors.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/server/errors.ts): Centralized AppError classes and JSON response envelopes.
+- [`src/server/logger.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/server/logger.ts): Structured JSON logger with credential sanitization.
+- [`src/server/repositories/`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/server/repositories/): Data Access Layer (`room-repository.ts`).
+- [`src/server/services/`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/server/services/): Business Logic Layer (`room-service.ts`, `cron-sweeper-service.ts`).
+- [`src/lib/supabase/pooler.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/src/lib/supabase/pooler.ts): Supavisor port 6543 connection pooling configuration and RLS security validators.
 
 ---
 

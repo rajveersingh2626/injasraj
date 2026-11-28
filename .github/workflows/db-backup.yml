@@ -1,0 +1,83 @@
+name: Scheduled Database Backup & Off-Site Encryption
+
+on:
+  schedule:
+    # Run daily at 02:00 UTC (07:30 IST)
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Manual backup trigger reason'
+        required: false
+        default: 'Manual maintenance backup'
+
+jobs:
+  backup:
+    name: Execute Encrypted Postgres Backup
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL Client Tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client gnupg
+
+      - name: Create Temporary Backup Directory
+        run: |
+          mkdir -p /tmp/backups
+          chmod 700 /tmp/backups
+
+      - name: Run Logical Database Dump (pg_dump)
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DIRECT_DB_URL }}
+        run: |
+          BACKUP_FILE="/tmp/backups/injasraj_$(date +'%Y%m%d_%H%M%S').dump"
+          echo "BACKUP_FILE=$BACKUP_FILE" >> $GITHUB_ENV
+          
+          # Execute pg_dump using custom compressed archive format with blobs
+          pg_dump "$DATABASE_URL" \
+            --format=custom \
+            --blobs \
+            --verbose \
+            --no-owner \
+            --no-privileges \
+            --file="$BACKUP_FILE"
+
+      - name: Encrypt Backup Archive with AES-256
+        env:
+          PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: |
+          gpg --symmetric \
+            --cipher-algo AES256 \
+            --batch \
+            --yes \
+            --passphrase "$PASSPHRASE" \
+            --output "${BACKUP_FILE}.gpg" \
+            "$BACKUP_FILE"
+            
+          # Remove unencrypted dump immediately
+          rm -f "$BACKUP_FILE"
+          echo "ENCRYPTED_FILE=${BACKUP_FILE}.gpg" >> $GITHUB_ENV
+
+      - name: Upload Encrypted Archive to Off-Site Backup Store
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_STORAGE_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_STORAGE_SECRET_KEY }}
+          BUCKET_NAME: ${{ secrets.BACKUP_STORAGE_BUCKET }}
+        run: |
+          if [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$BUCKET_NAME" ]; then
+            aws s3 cp "$ENCRYPTED_FILE" "s3://${BUCKET_NAME}/backups/$(basename $ENCRYPTED_FILE)"
+            echo "Successfully uploaded $(basename $ENCRYPTED_FILE) to off-site vault."
+          else
+            echo "Backup storage credentials not configured. Archiving as GitHub artifact."
+          fi
+
+      - name: Store Backup Artifact (7-day fallback retention)
+        uses: actions/upload-artifact@v4
+        with:
+          name: encrypted-database-backup
+          path: ${{ env.ENCRYPTED_FILE }}
+          retention-days: 7

@@ -8,14 +8,16 @@
 
 ## 1. Current Repository Status
 
-- **Current Branch**: `feat/screenshare-tab-controls-video-layout`
-- **Latest Commits**:
-  - `e265cc8`: *feat(video): uncropped exact camera feeds, 2-column participant layout, and waiting room preview*
-  - `d4d7162`: *feat(whiteboard): per-tab lock enforcement and force-sync student navigation to active tab*
-  - `373a383`: *feat(screenshare-chat): auto-open dedicated screen share tab, live chat broadcast, and meeting controls*
-- **Test Suite**: **All targeted & integration test suites passed** via Vitest.
-- **Production Build**: **Clean build (13/13 pages compiled)** via `npm run build` (Next.js 15.5.29 App Router, React 19).
-- **Working Tree**: Ready for release / PR.
+- **Current Branch**: `feat/screenshare-tab-controls-video-layout` (or `main`)
+- **Hardened Architecture Milestone**: Vercel + Supabase Re-architecture complete
+  - **ADRs**: ADR-001 (Supavisor Pooling 6543), ADR-002 (Blob Storage Separation), ADR-003 (Vercel Cron Sweeper).
+  - **Relational Schema**: Sequential reversible migration `20261128000002_rearchitect_normalized_schema.sql` with check constraints, foreign keys, partition boundaries for past classes, and composite indexes.
+  - **Connection Pooling**: Supavisor transaction pooler config on port 6543.
+  - **Service Architecture**: Controller -> Service -> Repository pattern, centralized error envelopes, structured logger with redaction.
+  - **Vercel Cron Sweeper**: `/api/cron/room-sweeper` authenticated with `CRON_SECRET`.
+  - **Disaster Recovery**: `docs/disaster-recovery.md` and `.github/workflows/db-backup.yml` (automated AES-256 encrypted `pg_dump`).
+- **Test Suite**: **All architectural test suites passing cleanly** via Vitest.
+- **Production Build**: Verified.
 
 ---
 
