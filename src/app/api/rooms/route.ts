@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  const rooms = await roomRepository.listActiveRooms();
+  const rooms = await roomService.listActiveRooms();
   return NextResponse.json({
     success: true,
     data: {

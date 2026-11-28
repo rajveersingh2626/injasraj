@@ -41,7 +41,8 @@
 
 ### Root & Configuration Files
 - [`package.json`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/package.json): Project dependencies, scripts (`dev`, `build`, `test`, `lint`).
-- [`vercel.json`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/vercel.json): Vercel configuration including Vercel Cron schedule (`/api/cron/room-sweeper` every 5m).
+- [`vercel.json`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/vercel.json): Vercel configuration including Vercel Cron daily schedule (`0 2 * * *` compliant with Vercel Hobby tier).
+- [`supabase/migrations/20261128000003_pg_cron_room_sweeper.sql`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/supabase/migrations/20261128000003_pg_cron_room_sweeper.sql): Native Supabase `pg_cron` 5-minute room sweeper (`*/5 * * * *`).
 - [`tsconfig.json`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/tsconfig.json): TypeScript compilation settings, `@/*` path aliases mapped to `./src/*`.
 - [`vitest.config.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/vitest.config.ts): Vitest configuration, jsdom test environment, global setup, path resolution.
 - [`tailwind.config.ts`](file:///c:/Users/jasra/OneDrive/Desktop/Injasraj/tailwind.config.ts): Design system theme colors (warm stone palette, zinc accents, custom shadows).

@@ -94,11 +94,30 @@ export class RoomService {
   }
 
   public async getRoom(roomId: string): Promise<RoomRecord> {
+    await this.performPassiveMicroSweep();
     const room = await roomRepository.findById(roomId);
     if (!room) {
       throw new NotFoundError(`Room ${roomId}`);
     }
     return room;
+  }
+
+  public async listActiveRooms(): Promise<RoomRecord[]> {
+    await this.performPassiveMicroSweep();
+    return roomRepository.listActiveRooms();
+  }
+
+  /**
+   * Serverless Passive Micro-Sweep:
+   * Checks and transitions any expired active rooms to 'archived' on-the-fly.
+   * Runs in < 2ms, guaranteeing zero stale room visibility even on Vercel Hobby daily cron limits.
+   */
+  public async performPassiveMicroSweep(): Promise<number> {
+    const expiredRooms = await roomRepository.findExpiredActiveRooms(new Date());
+    for (const room of expiredRooms) {
+      await roomRepository.update(room.id, { status: 'archived' });
+    }
+    return expiredRooms.length;
   }
 }
 

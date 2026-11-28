@@ -93,5 +93,22 @@ describe('Relational Schema Modeling & Migration Verification Suite', () => {
       expect(downSql).toContain('DROP TABLE IF EXISTS public.rooms CASCADE');
       expect(downSql).toContain('DROP TABLE IF EXISTS public.teacher_profiles CASCADE');
     });
+
+    it('verifies pg_cron room sweeper migration schedules 5-minute background sweep', () => {
+      const pgCronUpPath = path.join(migrationsDir, '20261128000003_pg_cron_room_sweeper.sql');
+      const pgCronDownPath = path.join(migrationsDir, '20261128000003_pg_cron_room_sweeper.down.sql');
+      expect(fs.existsSync(pgCronUpPath)).toBe(true);
+      expect(fs.existsSync(pgCronDownPath)).toBe(true);
+
+      const pgCronSql = fs.readFileSync(pgCronUpPath, 'utf8');
+      expect(pgCronSql).toContain('CREATE EXTENSION IF NOT EXISTS pg_cron');
+      expect(pgCronSql).toContain('FUNCTION public.sweep_expired_rooms');
+      expect(pgCronSql).toContain("'*/5 * * * *'");
+      expect(pgCronSql).toContain("'sweep-expired-rooms'");
+
+      const pgCronDownSql = fs.readFileSync(pgCronDownPath, 'utf8');
+      expect(pgCronDownSql).toContain('cron.unschedule');
+      expect(pgCronDownSql).toContain('DROP FUNCTION IF EXISTS public.sweep_expired_rooms');
+    });
   });
 });

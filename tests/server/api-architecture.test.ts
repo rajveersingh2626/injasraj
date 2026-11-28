@@ -165,18 +165,50 @@ describe('Phase 4: API Architecture, Service Layer & Backend Patterns Suite', ()
       expect(data.data.title).toBe('Punjabi Conversational Practice');
     });
 
-    it('lists rooms via GET', async () => {
-      await roomService.createRoom({
-        title: 'Room List Test',
+    it('lists rooms via GET and triggers passive micro-sweep of stale expired rooms', async () => {
+      const activeRoom = await roomService.createRoom({
+        title: 'Active Room',
         teacherId: 'teacher-1',
         teacherName: 'Teacher',
+      });
+
+      const expiredRoom = await roomService.createRoom({
+        title: 'Expired Room',
+        teacherId: 'teacher-1',
+        teacherName: 'Teacher',
+      });
+      await roomService.recordJoin(expiredRoom.id, { identity: 'user-1', name: 'User', role: 'teacher' });
+      await roomRepository.update(expiredRoom.id, {
+        expiresAt: new Date(Date.now() - 5000).toISOString(),
       });
 
       const res = await listRoomsGet();
       expect(res.status).toBe(HttpStatus.OK);
       const data = await res.json();
       expect(data.success).toBe(true);
-      expect(data.data.totalCount).toBeGreaterThanOrEqual(1);
+
+      const roomIds = data.data.rooms.map((r: any) => r.id);
+      expect(roomIds).toContain(activeRoom.id);
+      expect(roomIds).not.toContain(expiredRoom.id);
+
+      // Verify expired room transitioned to archived
+      const archived = await roomRepository.findById(expiredRoom.id);
+      expect(archived?.status).toBe('archived');
+    });
+
+    it('verifies vercel.json cron complies with Vercel Hobby plan daily constraint', () => {
+      const vercelJson = JSON.parse(
+        require('fs').readFileSync(require('path').resolve(__dirname, '../../vercel.json'), 'utf8')
+      );
+      expect(vercelJson.crons).toBeDefined();
+      expect(vercelJson.crons.length).toBeGreaterThan(0);
+      const roomSweeperCron = vercelJson.crons.find((c: any) => c.path === '/api/cron/room-sweeper');
+      expect(roomSweeperCron).toBeDefined();
+      // Must be once daily (e.g. '0 2 * * *') to satisfy Vercel Hobby plan constraint
+      const parts = roomSweeperCron.schedule.trim().split(/\s+/);
+      expect(parts.length).toBe(5);
+      expect(parts[0]).toMatch(/^\d+$/); // Specific minute, not */5
+      expect(parts[1]).toMatch(/^\d+$/); // Specific hour
     });
   });
 });

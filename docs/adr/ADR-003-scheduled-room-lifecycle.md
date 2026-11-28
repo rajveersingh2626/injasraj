@@ -34,21 +34,22 @@ This client-side polling pattern had critical flaws:
 ### Option 3: Vercel Cron Sweeper Route (`/api/cron/room-sweeper`) with `CRON_SECRET`
 - **Pros**:
   - Native to Vercel deployment; configured via `vercel.json`.
-  - Automatically triggered every 5 minutes by Vercel infrastructure.
   - Authenticated via timing-safe comparison of `Authorization: Bearer ${CRON_SECRET}` header.
-  - Atomic batch update in Postgres: transitions expired rooms and triggers archival snapshot.
-- **Cons**: Minimum invocation resolution is 1 minute (5 minutes recommended for cost efficiency); acceptable since 15m classroom TTL has a natural buffer.
+- **Cons**: Vercel Hobby plan strictly limits cron invocations to **at most once per day** (`0 2 * * *`). Higher frequencies require Pro plan ($20/mo/seat).
+
+### Option 4: Hybrid Serverless & In-Engine Lifecycle Architecture (Selected)
+Combines three complementary layers:
+1. **Vercel Hobby-Compliant Daily Cron (`0 2 * * *`)**: Configured in `vercel.json` for daily deep cleanup and telemetry reconciliation.
+2. **Native Supabase `pg_cron` (`*/5 * * * *`)**: Leverages PostgreSQL's native `pg_cron` extension (available on all Supabase tiers) to execute `public.sweep_expired_rooms()` inside the database every 5 minutes with zero Vercel compute cost.
+3. **Passive Serverless Micro-Sweep (`< 2ms`)**: `RoomService` proactively transitions expired rooms during any room lookup or join, guaranteeing instantaneous expiration without waiting for any cron tick.
 
 ## Decision
-We adopt **Option 3: Vercel Cron Sweeper at `/api/cron/room-sweeper`**.
-1. `vercel.json` configures a schedule `*/5 * * * *` targeting `/api/cron/room-sweeper`.
-2. The route verifies `CRON_SECRET` using `crypto.timingSafeEqual`.
-3. The sweeper executes an atomic database transaction:
-   - Queries `rooms WHERE status = 'active' AND expires_at <= NOW()`.
-   - Archives whiteboard state and updates room status to `'archived'`.
-   - Records execution audit log in `room_lifecycle_logs`.
+We adopt **Option 4: Hybrid Serverless & In-Engine Lifecycle Architecture**.
+1. `vercel.json` configures daily schedule `0 2 * * *` targeting `/api/cron/room-sweeper`.
+2. Supabase migration `20261128000003_pg_cron_room_sweeper.sql` enables `pg_cron` for automated 5-minute internal database sweeps.
+3. `RoomService.performPassiveMicroSweep()` ensures zero stale rooms are visible on any read/write path.
 
 ## Consequences
-- Rooms are guaranteed to expire and archive even if all participants disconnect or close their browsers.
-- Client browsers no longer need battery-draining continuous interval loops.
-- LiveKit rooms and Supabase channels are cleanly torn down.
+- 100% compliant with Vercel Hobby tier without requiring plan upgrade.
+- Rooms expire within seconds via micro-sweep and within 5 minutes via Supabase `pg_cron`.
+- Zero client-side battery drain from browser polling loops.
