@@ -7,8 +7,11 @@ import { CANONICAL_TEACHER_ID } from '@/lib/auth/teacher-auth';
 
 describe('Supabase Normalized SSOT Live Database Verification', () => {
   beforeAll(() => {
-    process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://iyyefgompkzhnjoxjoky.supabase.co';
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    process.env.NEXT_PUBLIC_SUPABASE_URL =
+      process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://iyyefgompkzhnjoxjoky.supabase.co';
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY =
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eWVmZ29tcGt6aG5qb3hqb2t5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUyODAyNzcsImV4cCI6MjExMDg1NjI3N30.Vv2SVEa96QsDsxCSmU0r_RL0vrT4b83xJCT9w4cD9es';
   });
 
   it('queries the seeded canonical teacher profile in public.profiles', async () => {

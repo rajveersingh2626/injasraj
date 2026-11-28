@@ -11,7 +11,7 @@ import { signTeacherSessionCookie } from '@/lib/auth/teacher-session-server';
 
 describe('Teacher Authentication Server API Routes', () => {
   beforeEach(() => {
-    process.env.TEACHER_PASSCODE = 'injasraj123';
+    process.env.TEACHER_PASSCODE = 'Mt22@raman';
   });
 
   it('rejects login with invalid passcode with 401', async () => {
@@ -25,10 +25,21 @@ describe('Teacher Authentication Server API Routes', () => {
     expect(data.error).toMatch(/invalid.*passcode/i);
   });
 
-  it('authenticates teacher with valid passcode and returns session and cookie', async () => {
+  it('rejects login with obsolete passcode with 401', async () => {
     const req = new NextRequest('http://localhost:3000/api/auth/teacher-login', {
       method: 'POST',
-      body: JSON.stringify({ passcode: 'injasraj123', teacherName: 'Inderjit Kaur' }),
+      body: JSON.stringify({ passcode: 'injasraj123' }),
+    });
+    const res = await loginPOST(req);
+    expect(res.status).toBe(401);
+    const data = await res.json();
+    expect(data.error).toMatch(/invalid.*passcode/i);
+  });
+
+  it('authenticates teacher with valid passcode Mt22@raman and returns session and cookie', async () => {
+    const req = new NextRequest('http://localhost:3000/api/auth/teacher-login', {
+      method: 'POST',
+      body: JSON.stringify({ passcode: 'Mt22@raman', teacherName: 'Inderjit Kaur' }),
     });
     const res = await loginPOST(req);
     expect(res.status).toBe(200);

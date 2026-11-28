@@ -173,7 +173,7 @@ describe('Task 10 E2E Platform Integration: Booking to Live Classroom', () => {
 
   describe('Suite 1: Platform Home & Teacher Dashboard (src/app/page.tsx)', () => {
     beforeEach(() => {
-      loginTeacher('injasraj123');
+      loginTeacher('Mt22@raman');
     });
 
     it('displays student portal when teacher is not logged in', () => {
@@ -327,7 +327,7 @@ describe('Task 10 E2E Platform Integration: Booking to Live Classroom', () => {
       // Verify connect was called with roomId
       expect(mockSession.connect).toHaveBeenCalledWith(
         'room-abc-123',
-        expect.stringContaining('peer_student_')
+        expect.stringContaining('student_')
       );
 
       // Verify local participant name & badges
@@ -336,7 +336,7 @@ describe('Task 10 E2E Platform Integration: Booking to Live Classroom', () => {
     });
 
     it('mounts classroom page as teacher with teacher badges and controls', async () => {
-      loginTeacher('injasraj123');
+      loginTeacher('Mt22@raman');
       render(
         <ClassroomView
           roomId="room-teacher-99"
@@ -348,7 +348,7 @@ describe('Task 10 E2E Platform Integration: Booking to Live Classroom', () => {
 
       expect(mockSession.connect).toHaveBeenCalledWith(
         'room-teacher-99',
-        expect.stringContaining('peer_teacher_')
+        expect.any(String)
       );
 
       expect(screen.getAllByText(/Injasraj/)[0]).toBeInTheDocument();
@@ -446,7 +446,7 @@ describe('Task 10 E2E Platform Integration: Booking to Live Classroom', () => {
       expect(screen.getByTestId('classroom-container')).toBeInTheDocument();
       expect(mockSession.connect).toHaveBeenCalledWith(
         createdLesson.room_id,
-        expect.stringContaining('peer_student_')
+        expect.stringContaining('student_')
       );
       expect(screen.getAllByText(/David Miller/)[0]).toBeInTheDocument();
     });

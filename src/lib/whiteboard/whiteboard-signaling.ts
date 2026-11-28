@@ -405,11 +405,24 @@ export class WhiteboardRealtimeAdapter {
     };
   }
 
+  private isSubscribed: boolean = false;
+
   /**
    * Optional helper to trigger channel subscription if not already subscribed.
    */
   public subscribe(callback?: (status: string, err?: any) => void): this {
+    if (this.isSubscribed) {
+      callback?.('SUBSCRIBED');
+      return this;
+    }
     if (this.channel && typeof this.channel.subscribe === 'function') {
+      const channelState = (this.channel as any)?.state;
+      if (channelState === 'joined' || channelState === 'joining') {
+        this.isSubscribed = true;
+        callback?.('SUBSCRIBED');
+        return this;
+      }
+      this.isSubscribed = true;
       this.channel.subscribe(callback);
     }
     return this;
@@ -420,6 +433,7 @@ export class WhiteboardRealtimeAdapter {
    */
   public disconnect(): void {
     this.disconnected = true;
+    this.isSubscribed = false;
     this.listeners.clear();
 
     if (this.channel && typeof this.channel.unsubscribe === 'function') {

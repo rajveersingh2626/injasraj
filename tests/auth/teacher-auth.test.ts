@@ -10,7 +10,7 @@ import {
 
 describe('Teacher Authentication & Role Enforcement', () => {
   beforeEach(() => {
-    process.env.TEACHER_PASSCODE = 'injasraj123';
+    process.env.TEACHER_PASSCODE = 'Mt22@raman';
     logoutTeacher();
     if (typeof localStorage !== 'undefined') {
       localStorage.clear();
@@ -29,12 +29,13 @@ describe('Teacher Authentication & Role Enforcement', () => {
   });
 
   it('verifies teacher passcode correctly', () => {
-    expect(verifyTeacherPasscode('injasraj123')).toBe(true);
+    expect(verifyTeacherPasscode('Mt22@raman')).toBe(true);
+    expect(verifyTeacherPasscode('injasraj123')).toBe(false);
     expect(verifyTeacherPasscode('wrong-pass')).toBe(false);
   });
 
   it('logs in teacher with correct passcode and stores session', () => {
-    const success = loginTeacher('injasraj123', 'Injasraj');
+    const success = loginTeacher('Mt22@raman', 'Injasraj');
     expect(success).toBe(true);
 
     const session = getTeacherSession();
@@ -51,7 +52,7 @@ describe('Teacher Authentication & Role Enforcement', () => {
   });
 
   it('logs out teacher cleanly', () => {
-    loginTeacher('injasraj123', 'Injasraj');
+    loginTeacher('Mt22@raman', 'Injasraj');
     expect(getTeacherSession()).not.toBeNull();
 
     logoutTeacher();
@@ -73,7 +74,7 @@ describe('Teacher Authentication & Role Enforcement', () => {
   });
 
   it('grants teacher role only when authenticated as teacher', () => {
-    loginTeacher('injasraj123', 'Injasraj');
+    loginTeacher('Mt22@raman', 'Injasraj');
 
     // Authenticated teacher requesting teacher role or default -> 'teacher'
     expect(resolveUserClassroomRole('teacher')).toBe('teacher');
