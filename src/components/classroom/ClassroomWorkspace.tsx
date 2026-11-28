@@ -1221,7 +1221,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
 
       const pdfBytes = await exportAnnotatedPdf(exportPages, {
         title: `Lesson Summary - ${roomId}`,
-        author: 'Injasraj Classroom',
+        author: 'Injasraj',
         pageWidth: 1200,
         pageHeight: 1600,
       });
@@ -2029,7 +2029,7 @@ export const ClassroomWorkspace: React.FC<ClassroomWorkspaceProps> = ({
 
           <div className="flex items-center gap-2 font-semibold text-sm tracking-tight text-zinc-900">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-medium hidden sm:inline">Classroom</span>
+            <span className="font-medium hidden sm:inline">Injasraj</span>
             <span className="text-zinc-400 text-xs hidden sm:inline">/</span>
             <span
               data-testid="room-id-badge"

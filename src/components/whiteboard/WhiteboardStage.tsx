@@ -351,7 +351,18 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
       const vWidth = stageAspect === '16:9' ? 1920 : DEFAULT_PORTRAIT_WIDTH;
       const vHeight = stageAspect === '16:9' ? 1080 : DEFAULT_PORTRAIT_HEIGHT;
       const bounds = calculateViewportTransform(w, h, vWidth, vHeight);
-      setViewportBounds(bounds);
+      setViewportBounds((prev) => {
+        if (
+          prev.containerWidth === bounds.containerWidth &&
+          prev.containerHeight === bounds.containerHeight &&
+          prev.renderedWidth === bounds.renderedWidth &&
+          prev.renderedHeight === bounds.renderedHeight &&
+          prev.scale === bounds.scale
+        ) {
+          return prev;
+        }
+        return bounds;
+      });
       activeEngine?.requestRender();
     }
   }, [activeEngine, stageAspect]);
@@ -666,6 +677,15 @@ export const WhiteboardStage: React.FC<WhiteboardStageProps> = ({
   // RAF throttling refs for high INP reduction during drag and pan
   const rafPanRef = useRef<number | null>(null);
   const pendingPanRef = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (rafPanRef.current && typeof cancelAnimationFrame !== 'undefined') {
+        cancelAnimationFrame(rafPanRef.current);
+        rafPanRef.current = null;
+      }
+    };
+  }, []);
 
   const handlePointerMove = (e: any) => {
     if (isPanningRef.current) {

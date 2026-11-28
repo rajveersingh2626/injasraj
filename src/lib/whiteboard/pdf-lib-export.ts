@@ -134,7 +134,7 @@ export async function exportAnnotatedPdf(
   if (author) {
     pdfDoc.setAuthor(author);
   }
-  pdfDoc.setProducer('Injasraj Classroom LearnCube Engine');
+  pdfDoc.setProducer('Injasraj');
 
   const pageCount = pdfDoc.getPageCount();
 

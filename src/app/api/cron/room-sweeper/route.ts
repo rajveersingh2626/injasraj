@@ -9,9 +9,12 @@ import { logger } from '@/server/logger';
  */
 function verifyCronSecret(request: NextRequest): boolean {
   const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET || 'dev_cron_secret_injasraj_classroom';
+  const envSecret = process.env.CRON_SECRET;
+  const cronSecret =
+    envSecret ||
+    (process.env.NODE_ENV !== 'production' ? 'dev_cron_secret_injasraj' : '');
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!cronSecret || !authHeader || !authHeader.startsWith('Bearer ')) {
     return false;
   }
 

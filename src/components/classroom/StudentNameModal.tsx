@@ -121,7 +121,7 @@ export const StudentNameModal: React.FC<StudentNameModalProps> = ({
         </form>
 
         <p className="text-[11px] text-center text-stone-500">
-          Injasraj Virtual Classroom • High-performance live learning
+          Injasraj
         </p>
       </div>
     </div>

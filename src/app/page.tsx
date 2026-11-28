@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -90,6 +90,16 @@ export default function TeacherDashboardPage() {
   // Shareable booking link state
   const [origin, setOrigin] = useState<string>('');
   const [isCopied, setIsCopied] = useState<boolean>(false);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+        copyTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const handleStudentJoinRoom = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -234,15 +244,25 @@ export default function TeacherDashboardPage() {
 
   // Copy booking link to clipboard
   const handleCopyLink = async () => {
+    const scheduleReset = () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+      copyTimeoutRef.current = setTimeout(() => {
+        copyTimeoutRef.current = null;
+        setIsCopied(false);
+      }, 2500);
+    };
+
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(fullBookingUrl);
       }
       setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2500);
+      scheduleReset();
     } catch {
       setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2500);
+      scheduleReset();
     }
   };
 
@@ -265,11 +285,8 @@ export default function TeacherDashboardPage() {
           <div>
             <div className="flex items-center space-x-2">
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-50">
-                Injasraj Classroom
+                Injasraj
               </h1>
-              <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                Teacher Hub
-              </span>
             </div>
             <p className="text-xs sm:text-sm text-zinc-400">
               Low-latency international 1:1 lessons • Base TZ: {TEACHER_TIMEZONE} (IST)
@@ -353,7 +370,7 @@ export default function TeacherDashboardPage() {
         >
           <div className="text-center space-y-2.5">
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-100">
-              Welcome to Injasraj Virtual Classroom
+              Welcome to Injasraj
             </h2>
             <p className="text-sm text-zinc-400 max-w-xl mx-auto">
               Join a live interactive lesson with your room code, or book an upcoming 1:1 session across international timezones.

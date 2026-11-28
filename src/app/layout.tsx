@@ -13,7 +13,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://injasraj-classroom.vercel.app'),
-  title: 'Injasraj - International 1:1 Video Classroom',
+  title: 'Injasraj',
   description:
     'Frictionless international 1:1 video classroom with cross-timezone booking and real-time WebRTC media.',
 };

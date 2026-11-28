@@ -1,6 +1,21 @@
+import { z } from 'zod';
 import { ISignalingAdapter } from '../webrtc/p2p-session';
 import { SignalingMessage } from '../../types/media';
 import { createBrowserClient } from '../supabase/client';
+
+export const SignalingPayloadSchema = z.object({
+  type: z.enum([
+    'sdp-offer',
+    'sdp-answer',
+    'ice-candidate',
+    'peer-joined',
+    'peer-left',
+  ]),
+  senderId: z.string().optional(),
+  sdp: z.any().optional(),
+  candidate: z.any().optional(),
+  payload: z.any().optional(),
+});
 
 export type SignalingPayloadType =
   | 'sdp-offer'
@@ -155,11 +170,12 @@ export class SupabaseSignalingAdapter implements ISignalingAdapter {
   private handleIncomingSignaling(message: any): void {
     if (!message || typeof message !== 'object') return;
 
-    const data = message.payload ?? message;
-    if (!data || typeof data !== 'object') return;
+    const rawData = message.payload ?? message;
+    const parsed = SignalingPayloadSchema.safeParse(rawData);
+    if (!parsed.success) return;
 
+    const data = parsed.data;
     const { type, senderId } = data;
-    if (!type) return;
 
     // Filter out messages originated by self
     if (senderId && senderId === this.userId) {

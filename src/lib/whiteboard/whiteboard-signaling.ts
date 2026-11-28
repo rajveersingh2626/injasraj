@@ -6,6 +6,7 @@
  * channels (`whiteboard:${roomId}`) with zero database overhead and $0 egress.
  */
 
+import { z } from 'zod';
 import {
   WhiteboardDeltaMessage,
   WhiteboardDeltaType,
@@ -13,6 +14,40 @@ import {
   WhiteboardPermissions,
   createWhiteboardDeltaMessage,
 } from '../../types/whiteboard';
+
+export const WhiteboardDeltaMessageSchema = z.object({
+  type: z.enum([
+    'object-added',
+    'object-modified',
+    'object-removed',
+    'laser-move',
+    'page-switch',
+    'page-added',
+    'page-deleted',
+    'permissions-update',
+  ]),
+  pageId: z.string().optional(),
+  objectId: z.string().optional(),
+  objectJson: z.any().optional(),
+  properties: z.any().optional(),
+  laserPoint: z
+    .object({
+      x: z.number().finite(),
+      y: z.number().finite(),
+      timestamp: z.number().finite(),
+      opacity: z.number().finite().optional(),
+    })
+    .optional(),
+  permissions: z.record(z.string(), z.any()).optional(),
+  senderId: z.string().default(''),
+  timestamp: z.number().finite().default(() => Date.now()),
+});
+
+export const CustomEventEnvelopeSchema = z.object({
+  eventName: z.string().min(1),
+  senderId: z.string().optional(),
+  data: z.any().optional(),
+});
 
 export const WHITEBOARD_BROADCAST_EVENT = 'whiteboard-delta';
 
@@ -94,8 +129,9 @@ export class WhiteboardRealtimeAdapter {
         'broadcast',
         { event: 'custom-event' },
         (envelope: any) => {
-          const payload = envelope?.payload;
-          if (!payload || !payload.eventName) return;
+          const parsed = CustomEventEnvelopeSchema.safeParse(envelope?.payload);
+          if (!parsed.success) return;
+          const payload = parsed.data;
           if (this.filterSelf && payload.senderId === this.currentUserId) return;
           const specificListeners = this.customEventListeners.get(payload.eventName);
           if (specificListeners) {
@@ -130,14 +166,16 @@ export class WhiteboardRealtimeAdapter {
 
     // Supabase broadcast wraps payloads in { type: 'broadcast', event: '...', payload: {...} }
     // but in direct dispatch or test contexts it might be passed directly.
-    const delta: WhiteboardDeltaMessage =
+    const rawDelta =
       envelope && typeof envelope === 'object' && 'payload' in envelope
         ? envelope.payload
         : envelope;
 
-    if (!delta || typeof delta !== 'object' || !delta.type) {
+    const parsed = WhiteboardDeltaMessageSchema.safeParse(rawDelta);
+    if (!parsed.success) {
       return;
     }
+    const delta = parsed.data as WhiteboardDeltaMessage;
 
     // Drop self-echoed messages to avoid redundant re-application
     if (this.filterSelf && delta.senderId && delta.senderId === this.currentUserId) {

@@ -187,8 +187,7 @@ describe('Task 10 E2E Platform Integration: Booking to Live Classroom', () => {
     it('renders platform branding, teacher timezone badge, and instant room generator', () => {
       render(<TeacherDashboardPage />);
 
-      expect(screen.getByText('Injasraj Classroom')).toBeInTheDocument();
-      expect(screen.getByText('Teacher Hub')).toBeInTheDocument();
+      expect(screen.getByText('Injasraj')).toBeInTheDocument();
       expect(screen.getByText(/Base TZ: Asia\/Kolkata/)).toBeInTheDocument();
       expect(screen.getByTestId('instant-room-btn')).toBeInTheDocument();
       expect(screen.getByTestId('launch-room-btn')).toBeInTheDocument();
